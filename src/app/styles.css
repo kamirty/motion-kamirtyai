@@ -1,0 +1,63 @@
+:root {
+  --bg: #f5f7fa;
+  --card: #ffffff;
+  --text: #13202f;
+  --muted: #5b6b7c;
+  --accent: #128c82;
+  --danger: #b42318;
+  --ok: #067647;
+  --border: #dde3ea;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1420;
+    --card: #132132;
+    --text: #e8eef5;
+    --muted: #9aabbd;
+    --accent: #2ec4b6;
+    --danger: #f97066;
+    --ok: #47cd89;
+    --border: #24364b;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Noto Kufi Arabic", "Segoe UI", Tahoma, sans-serif;
+  line-height: 1.7;
+}
+.page { max-width: 1040px; margin: 0 auto; padding: 16px; }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.top h1 { margin: 0; font-size: 1.6rem; }
+.top a { color: var(--accent); }
+.badge { color: var(--muted); font-size: 0.9rem; }
+.preview, .panel { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+canvas { width: 100%; height: auto; display: block; border-radius: 10px; background: #000; }
+.controls { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.controls input[type="range"] { flex: 1; min-width: 0; }
+.time { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.85rem; white-space: nowrap; }
+.scenes, .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+button {
+  font: inherit;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+}
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.progress { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.progress progress { flex: 1; height: 14px; }
+.alert { border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; margin-top: 12px; }
+.alert.error { border-color: var(--danger); color: var(--danger); }
+.alert.ok { border-color: var(--ok); }
+pre { overflow-x: auto; font-size: 0.8rem; background: var(--bg); padding: 12px; border-radius: 8px; }
+@media (max-width: 600px) {
+  .controls { flex-wrap: wrap; }
+  .time { width: 100%; }
+}
