@@ -1,9 +1,12 @@
 # Third-party licenses
 
-| Package | License | Use |
+All third-party code and assets are bundled and served from this site; nothing is loaded from external CDNs at runtime.
+
+| Component | License | Use |
 |---|---|---|
 | [mediabunny](https://github.com/Vanilagy/mediabunny) | MPL-2.0 | MP4/WebM muxing and WebCodecs encoding in the browser (unmodified) |
-| [Noto Kufi Arabic](https://fonts.google.com/noto/specimen/Noto+Kufi+Arabic) via `@fontsource/noto-kufi-arabic` | SIL OFL 1.1 | Self-hosted Arabic font for UI and rendered frames |
+| [Lucide](https://lucide.dev) (`lucide`) | ISC | Icon geometry, drawn on canvas and in the UI |
 | [React](https://react.dev) | MIT | UI |
+| Cairo, Tajawal, Almarai, Readex Pro, Noto Kufi Arabic, IBM Plex Sans Arabic, El Messiri, Lalezar (via `@fontsource/*`) | SIL OFL 1.1 | Self-hosted Arabic fonts for the UI and rendered frames |
 
-Icons in `src/engine/renderer/icons.ts` are original vector paths drawn for this project.
+Background music is synthesised in the browser by `src/engine/audio/music.ts` (original code, no samples), so exported videos carry no third-party audio rights.

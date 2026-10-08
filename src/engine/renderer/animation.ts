@@ -9,13 +9,27 @@ export const easeInOutCubic = (t: number): number => {
   const x = clamp(t);
   return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 };
+export const easeOutBack = (t: number): number => {
+  const x = clamp(t);
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
+};
 
-/** Frames used to fade a scene in and out. */
-export const TRANSITION_FRAMES = 15;
+/** Frames used for the transition into and out of each scene. */
+export const TRANSITION_FRAMES = 18;
 
-/** Scene opacity: fades in over the first frames and out over the last ones. */
-export function sceneOpacity(localFrame: number, durationFrames: number): number {
-  const fadeIn = progress(localFrame, 0, TRANSITION_FRAMES);
-  const fadeOut = 1 - progress(localFrame, durationFrames - TRANSITION_FRAMES, TRANSITION_FRAMES);
-  return easeInOutCubic(Math.min(fadeIn, fadeOut));
+/** Deterministic pseudo-random in [0, 1) from integer seeds (no Math.random). */
+export function hash01(a: number, b = 0): number {
+  let h = (a * 374761393 + b * 668265263) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+
+/** Stable numeric seed from a string id. */
+export function seedOf(id: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  return h >>> 0;
 }

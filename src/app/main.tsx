@@ -1,5 +1,4 @@
-import '@fontsource/noto-kufi-arabic/400.css';
-import '@fontsource/noto-kufi-arabic/700.css';
+import '../design/fontImports';
 import './styles.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';

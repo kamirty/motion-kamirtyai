@@ -8,9 +8,12 @@ export interface StatValue {
   arabicIndic: boolean;
 }
 
-/** Parses a display value such as "71%", "٧١٪" or "1.5 مليار" into a number plus surrounding text. */
+/** Parses a display value such as "71%", "٧١٪", "1.5 مليار" or "1,200" into a number plus surrounding text. */
 export function parseStatValue(raw: string): StatValue | null {
-  const western = raw.replace(/[٠-٩]/g, (d) => String(ARABIC_INDIC.indexOf(d))).replace('٫', '.');
+  const western = raw
+    .replace(/[٠-٩]/g, (d) => String(ARABIC_INDIC.indexOf(d)))
+    .replace(/٫/g, '.')
+    .replace(/(\d)[,،](\d{3})(?!\d)/g, '$1$2');
   const match = western.match(/^(\D*?)(\d+(?:\.\d+)?)(.*)$/s);
   if (!match) return null;
   const [, prefix, digits, suffix] = match;

@@ -17,7 +17,7 @@ export const sampleProject: Project = {
       durationFrames: 1200,
       title: 'المياه على كوكب الأرض',
       items: ['إنفوجرافيك تعليمي عن مصادر المياه واستهلاكها في 2026', 'إعداد: منصة KamirtyAI'],
-      icon: 'drop',
+      icon: 'droplet',
     },
     {
       id: 'fact',
@@ -26,7 +26,7 @@ export const sampleProject: Project = {
       durationFrames: 1200,
       title: 'نسبة سطح الأرض المغطاة بالمياه',
       items: ['71%', 'لكن أقل من 3% منها مياه عذبة صالحة للشرب، وفق تقديرات UN Water'],
-      icon: 'chart',
+      icon: 'chart-column',
     },
     {
       id: 'steps',
@@ -41,7 +41,7 @@ export const sampleProject: Project = {
         'اسقِ النباتات صباحًا أو مساءً',
         'أعد استخدام مياه الشطف في الري',
       ],
-      icon: 'steps',
+      icon: 'list-ordered',
     },
   ],
 };

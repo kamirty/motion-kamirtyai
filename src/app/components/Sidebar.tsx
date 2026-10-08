@@ -1,0 +1,198 @@
+import { FONTS, cssFamily } from '../../design/fonts';
+import { PRESETS, contrast, fullTheme } from '../../design/presets';
+import { MUSIC_OPTIONS } from '../../engine/audio/music';
+import {
+  ASPECTS, LIMITS, aspectOf, styleOf, type AspectId, type BackgroundId, type Project, type ProjectStyle, type Theme, type TransitionId,
+} from '../../domain/types';
+import { EXAMPLES } from '../examples';
+
+const TRANSITIONS: { id: TransitionId; label: string }[] = [
+  { id: 'slide', label: 'انزلاق' },
+  { id: 'fade', label: 'تلاشي' },
+  { id: 'zoom', label: 'تكبير' },
+  { id: 'wipe', label: 'مسح ملوّن' },
+];
+const BACKGROUNDS: { id: BackgroundId; label: string }[] = [
+  { id: 'gradient', label: 'تدرّج' },
+  { id: 'waves', label: 'أمواج' },
+  { id: 'dots', label: 'نقاط' },
+  { id: 'plain', label: 'سادة' },
+];
+
+interface Props {
+  description: string;
+  onDescription: (v: string) => void;
+  onGenerate: () => void;
+  project: Project;
+  onAspect: (a: AspectId) => void;
+  onStyle: (patch: Partial<ProjectStyle>, theme?: Theme) => void;
+  onTheme: (patch: Partial<Theme>) => void;
+  customAudioName: string | null;
+  onAudioFile: (file: File | null) => void;
+}
+
+export function Sidebar(p: Props) {
+  const style = styleOf(p.project);
+  const theme = fullTheme(p.project.theme);
+  const aspect = aspectOf(p.project.size);
+  const lowContrast = contrast(theme.foreground, theme.background) < 4.5;
+  const tooLong = p.description.length >= LIMITS.descriptionChars;
+
+  return (
+    <aside className="sidebar">
+      <section className="box">
+        <h2>
+          <span className="step">١</span> اكتب فكرتك
+        </h2>
+        <textarea
+          value={p.description}
+          onChange={(e) => p.onDescription(e.target.value)}
+          maxLength={LIMITS.descriptionChars}
+          rows={9}
+          placeholder={'مثال:\nفوائد القراءة\nتزيد القراءة المفردات بنسبة 50%.\nخطوات لبناء عادة القراءة:\n1. ابدأ بعشر دقائق يوميًا\n2. اختر كتبًا تحبها'}
+        />
+        <div className="hint-row">
+          <span className={tooLong ? 'warn' : 'muted'}>
+            {p.description.length.toLocaleString('ar-EG')} / {LIMITS.descriptionChars.toLocaleString('ar-EG')}
+          </span>
+          <span className="muted">سطر أول قصير = العنوان</span>
+        </div>
+        <details className="tips">
+          <summary>كيف أكتب وصفًا يعطي أفضل فيديو؟</summary>
+          <ul>
+            <li>اكتب <b>عنوانًا</b> في السطر الأول.</li>
+            <li>الجمل التي فيها <b>أرقام أو نسب</b> تتحول إلى عدّادات متحركة.</li>
+            <li>القوائم المرقّمة (1. 2. 3.) تصبح <b>خطوات</b>، والقوائم بالشرطة (-) تصبح <b>بطاقات</b>.</li>
+            <li>اكتب «الاسم: 40%» في قائمة لرسم <b>أعمدة بيانية</b>.</li>
+            <li>اكتب «2020: حدث» لكل سطر لصنع <b>خط زمني</b>.</li>
+            <li>جملة فيها «بينما» أو «مقابل» تصبح <b>مقارنة</b>، والنص بين علامتي تنصيص يصبح <b>اقتباسًا</b>.</li>
+            <li>السؤال المتبوع بإجابته يصبح مشهد <b>سؤال وجواب</b>.</li>
+          </ul>
+        </details>
+        <div className="chips">
+          {EXAMPLES.map((ex) => (
+            <button type="button" key={ex.label} className="chip" onClick={() => p.onDescription(ex.text)}>
+              {ex.label}
+            </button>
+          ))}
+        </div>
+        <button type="button" className="primary big" onClick={p.onGenerate} disabled={!p.description.trim()}>
+          ✨ أنشئ الفيديو من الوصف
+        </button>
+      </section>
+
+      <section className="box">
+        <h2>
+          <span className="step">٢</span> المقاس والنمط
+        </h2>
+        <div className="seg">
+          {(Object.keys(ASPECTS) as AspectId[]).map((a) => (
+            <button type="button" key={a} className={a === aspect ? 'active' : ''} onClick={() => p.onAspect(a)} title={ASPECTS[a].label}>
+              <span className={`ratio ratio-${a}`} />
+              {ASPECTS[a].label.split(' ')[0]}
+            </button>
+          ))}
+        </div>
+        <label className="label">القالب اللوني</label>
+        <div className="presets">
+          {PRESETS.map((pr) => (
+            <button
+              type="button"
+              key={pr.id}
+              className={`preset ${pr.id === style.preset ? 'active' : ''}`}
+              style={{ background: pr.theme.background, color: pr.theme.foreground, fontFamily: cssFamily(FONTS.find((f) => f.id === pr.font)!) }}
+              onClick={() => p.onStyle({ preset: pr.id, font: pr.font, transition: pr.transition, background: pr.background }, pr.theme)}
+            >
+              <span className="sw" style={{ background: pr.theme.accent }} />
+              <span className="sw" style={{ background: pr.theme.accent2 }} />
+              {pr.label}
+            </button>
+          ))}
+        </div>
+        <label className="label">ألوان الهوية</label>
+        <div className="colors">
+          {([
+            ['background', 'الخلفية'],
+            ['surface', 'البطاقات'],
+            ['foreground', 'النص'],
+            ['accent', 'أساسي'],
+            ['accent2', 'ثانوي'],
+          ] as const).map(([k, label]) => (
+            <label key={k} className="color">
+              <input type="color" value={theme[k]} onChange={(e) => p.onTheme({ [k]: e.target.value.toUpperCase() })} />
+              <span>{label}</span>
+            </label>
+          ))}
+        </div>
+        {lowContrast && <p className="warn">⚠️ تباين النص مع الخلفية منخفض وقد يصعب قراءته.</p>}
+
+        <label className="label">الخط</label>
+        <div className="fonts">
+          {FONTS.map((f) => (
+            <button type="button" key={f.id} className={f.id === style.font ? 'active' : ''} style={{ fontFamily: cssFamily(f) }} onClick={() => p.onStyle({ font: f.id })}>
+              {f.label.split(' (')[0]}
+            </button>
+          ))}
+        </div>
+
+        <label className="label">الأرقام</label>
+        <div className="seg">
+          <button type="button" className={style.digits === 'arabic' ? 'active' : ''} onClick={() => p.onStyle({ digits: 'arabic' })}>
+            هندية ١٢٣
+          </button>
+          <button type="button" className={style.digits === 'latin' ? 'active' : ''} onClick={() => p.onStyle({ digits: 'latin' })}>
+            عربية 123
+          </button>
+        </div>
+
+        <label className="label">الانتقال بين المشاهد</label>
+        <div className="seg">
+          {TRANSITIONS.map((t) => (
+            <button type="button" key={t.id} className={style.transition === t.id ? 'active' : ''} onClick={() => p.onStyle({ transition: t.id })}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <label className="label">الخلفية المتحركة</label>
+        <div className="seg">
+          {BACKGROUNDS.map((b) => (
+            <button type="button" key={b.id} className={style.background === b.id ? 'active' : ''} onClick={() => p.onStyle({ background: b.id })}>
+              {b.label}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="box">
+        <h2>
+          <span className="step">٣</span> الصوت
+        </h2>
+        <div className="seg">
+          {MUSIC_OPTIONS.map((m) => (
+            <button
+              type="button"
+              key={m.id}
+              className={!p.customAudioName && style.music === m.id ? 'active' : ''}
+              onClick={() => {
+                p.onAudioFile(null);
+                p.onStyle({ music: m.id });
+              }}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+        <label className="upload">
+          <input type="file" accept="audio/*" onChange={(e) => p.onAudioFile(e.target.files?.[0] ?? null)} />
+          🎵 {p.customAudioName ? `ملفك: ${p.customAudioName}` : 'أو ارفع موسيقى/تعليقًا صوتيًا من جهازك'}
+        </label>
+        <p className="muted small">الموسيقى مولّدة داخل متصفحك وخالية من حقوق النشر. ملفك الصوتي لا يُرفع لأي خادم، ويُكرَّر أو يُقص ليطابق دقيقتين.</p>
+        <label className="check">
+          <input type="checkbox" checked={style.watermark} onChange={(e) => p.onStyle({ watermark: e.target.checked })} />
+          إظهار رابط الموقع الصغير في زاوية الفيديو
+        </label>
+      </section>
+    </aside>
+  );
+}

@@ -1,207 +1,341 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { sampleProject } from '../domain/sampleProject';
-import { validateTimeline } from '../domain/timeline';
-import { detectExportPlan, type DetectResult } from '../engine/export/capabilities';
-import { ExportCancelledError, exportVideo } from '../engine/export/exportVideo';
-import { verifyExport, type VerifyReport } from '../engine/export/verify';
-import { FONT_FAMILY } from '../engine/renderer/context';
-import { renderFrame } from '../engine/renderer/renderFrame';
-import { downloadBlob, projectToJson } from '../storage/projectJson';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ensureFontLoaded } from '../design/fonts';
+import { fullTheme, presetById } from '../design/presets';
+import { localizeDigits } from '../design/digits';
+import { rebalance, restack, sceneIndexAt, setSceneDuration } from '../domain/timeline';
+import { ASPECTS, LIMITS, styleOf, type AspectId, type Project, type ProjectStyle, type Scene, type Theme } from '../domain/types';
+import { PreviewAudio } from '../engine/audio/player';
+import { decodeAudioFile, fitAudio, renderMusic } from '../engine/audio/music';
+import { generateProject, nextSceneId } from '../engine/planner';
+import { clearTextCache } from '../engine/renderer/textLayout';
+import { downloadBlob, loadLocal, projectToJson, readProjectFile, saveLocal } from '../storage/projectJson';
+import { ExportDialog } from './components/ExportDialog';
+import { Inspector } from './components/Inspector';
+import { Preview } from './components/Preview';
+import { Sidebar } from './components/Sidebar';
+import { Timeline } from './components/Timeline';
+import { EXAMPLES } from './examples';
+import { useHistory } from './useHistory';
 
-const project = sampleProject;
-const timelineErrors = validateTimeline(project);
-
-type ExportState =
-  | { status: 'idle' }
-  | { status: 'running'; frame: number; startedAt: number }
-  | { status: 'verifying' }
-  | { status: 'done'; blob: Blob; filename: string; report: VerifyReport; seconds: number }
-  | { status: 'cancelled' }
-  | { status: 'error'; message: string };
-
-const formatTime = (frame: number) => {
-  const s = Math.floor(frame / project.fps);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-};
+function initialState(): { project: Project; description: string } {
+  const saved = loadLocal();
+  if (saved) return saved;
+  const description = EXAMPLES[0].text;
+  return { project: generateProject(description, { aspect: 'landscape', style: {} }).project, description };
+}
 
 export function App() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [fontsReady, setFontsReady] = useState(false);
-  const [frame, setFrame] = useState(0);
+  const init = useMemo(initialState, []);
+  const history = useHistory<Project>(init.project);
+  const project = history.value;
+  const setProject = history.set;
+  const [description, setDescription] = useState(init.description);
+  const [selected, setSelected] = useState(0);
+  // Start on a frame where the opening title is already visible.
+  const [frame, setFrame] = useState(() => Math.min(75, init.project.scenes[0].durationFrames - 1));
   const [playing, setPlaying] = useState(false);
-  const [capability, setCapability] = useState<DetectResult | null>(null);
-  const [exportState, setExportState] = useState<ExportState>({ status: 'idle' });
-  const abortRef = useRef<AbortController | null>(null);
+  const [fontReady, setFontReady] = useState<string | null>(null);
+  const [renderKey, setRenderKey] = useState(0);
+  const [notice, setNotice] = useState<{ kind: 'info' | 'error'; text: string } | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [customAudio, setCustomAudio] = useState<{ name: string; buffer: AudioBuffer } | null>(null);
+  const musicCache = useRef(new Map<string, Promise<AudioBuffer | null>>());
+  const player = useRef(new PreviewAudio());
+  const fileInput = useRef<HTMLInputElement>(null);
+  const style = styleOf(project);
+  const ready = fontReady === style.font;
+
+  // Load the chosen font before drawing; cached layouts are measured again afterwards.
+  useEffect(() => {
+    let alive = true;
+    ensureFontLoaded(style.font).then(() => {
+      if (!alive) return;
+      clearTextCache();
+      setFontReady(style.font);
+      setRenderKey((k) => k + 1);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [style.font]);
 
   useEffect(() => {
-    // Rendering before the Arabic font loads would bake a fallback font into frames.
-    Promise.all([
-      document.fonts.load(`400 32px ${FONT_FAMILY}`, 'عربي'),
-      document.fonts.load(`700 32px ${FONT_FAMILY}`, 'عربي'),
-    ]).finally(() => setFontsReady(true));
-    detectExportPlan(project.size).then(setCapability);
-  }, []);
+    const id = setTimeout(() => saveLocal(project, description), 400);
+    return () => clearTimeout(id);
+  }, [project, description]);
 
   useEffect(() => {
-    const ctx = canvasRef.current?.getContext('2d');
-    if (ctx && fontsReady) renderFrame(project, frame, ctx);
-  }, [frame, fontsReady]);
+    if (selected >= project.scenes.length) setSelected(project.scenes.length - 1);
+  }, [project.scenes.length, selected]);
 
+  const getAudio = useCallback(async (): Promise<AudioBuffer | null> => {
+    if (customAudio) return customAudio.buffer;
+    const key = style.music;
+    let p = musicCache.current.get(key);
+    if (!p) {
+      p = renderMusic(style.music).catch(() => null);
+      musicCache.current.set(key, p);
+    }
+    return p;
+  }, [customAudio, style.music]);
+
+  // Playback loop: advances frames by wall-clock time; audio starts from the same position.
   useEffect(() => {
-    if (!playing) return;
+    if (!playing) {
+      player.current.stop();
+      return;
+    }
     let raf = 0;
-    let last = performance.now();
-    let acc = 0;
+    let alive = true;
+    const startFrame = frame >= project.durationFrames - 1 ? 0 : frame;
+    const t0 = performance.now();
+    getAudio().then((buf) => alive && player.current.play(buf, startFrame / project.fps));
     const tick = (now: number) => {
-      acc += now - last;
-      last = now;
-      const advance = Math.floor(acc / (1000 / project.fps));
-      if (advance > 0) {
-        acc -= advance * (1000 / project.fps);
-        setFrame((f) => {
-          const next = f + advance;
-          if (next >= project.durationFrames) {
-            setPlaying(false);
-            return project.durationFrames - 1;
-          }
-          return next;
-        });
+      const f = startFrame + Math.floor(((now - t0) / 1000) * project.fps);
+      if (f >= project.durationFrames) {
+        setFrame(project.durationFrames - 1);
+        setPlaying(false);
+        return;
       }
+      setFrame(f);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [playing]);
+    return () => {
+      alive = false;
+      cancelAnimationFrame(raf);
+      player.current.stop();
+    };
+    // Restart only when play state or audio source changes, not on every frame.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing, getAudio]);
 
-  const startExport = useCallback(async () => {
-    if (!capability?.supported) return;
-    const { plan } = capability;
-    const controller = new AbortController();
-    abortRef.current = controller;
+  const seek = (f: number) => {
     setPlaying(false);
-    const startedAt = performance.now();
-    setExportState({ status: 'running', frame: 0, startedAt });
-    try {
-      const blob = await exportVideo(project, plan, {
-        signal: controller.signal,
-        onProgress: (p) => setExportState({ status: 'running', frame: p.frame, startedAt }),
-      });
-      const seconds = (performance.now() - startedAt) / 1000;
-      setExportState({ status: 'verifying' });
-      const report = await verifyExport(project, blob);
-      setExportState({ status: 'done', blob, filename: `kamirty-motion.${plan.extension}`, report, seconds });
-    } catch (err) {
-      if (err instanceof ExportCancelledError) setExportState({ status: 'cancelled' });
-      else setExportState({ status: 'error', message: err instanceof Error ? err.message : String(err) });
-    } finally {
-      abortRef.current = null;
-    }
-  }, [capability]);
+    setFrame(f);
+    const i = sceneIndexAt(project, f);
+    if (i >= 0) setSelected(i);
+  };
 
-  const exporting = exportState.status === 'running' || exportState.status === 'verifying';
+  const selectScene = (i: number) => {
+    setPlaying(false);
+    setSelected(i);
+    const s = project.scenes[i];
+    setFrame(s.startFrame + Math.min(s.durationFrames - 1, Math.floor(s.durationFrames * 0.6)));
+  };
+
+  const generate = () => {
+    const text = description.trim();
+    if (!text) {
+      setNotice({ kind: 'error', text: 'اكتب وصفًا للفيديو أولًا.' });
+      return;
+    }
+    const aspect = (Object.keys(ASPECTS) as AspectId[]).find((a) => ASPECTS[a].width === project.size.width && ASPECTS[a].height === project.size.height) ?? 'landscape';
+    const { project: next, usedPlaceholders } = generateProject(text, { aspect, style });
+    setProject({ ...next, theme: project.theme });
+    setSelected(0);
+    setFrame(0);
+    setPlaying(true);
+    setNotice(
+      usedPlaceholders
+        ? { kind: 'info', text: 'الوصف قصير، فأضفنا مشاهد إرشادية بين [قوسين]. عدّل نصوصها من لوحة المشهد، أو أضف تفاصيل وأرقامًا للوصف وأعد الإنشاء.' }
+        : { kind: 'info', text: `تم إنشاء ${localizeDigits(String(next.scenes.length), style.digits)} مشاهد. اضغط أي مشهد لتعديله، ويمكنك التراجع بـ Ctrl+Z.` },
+    );
+  };
+
+  const updateScene = (patch: Partial<Scene>) =>
+    setProject((p) => ({ ...p, scenes: p.scenes.map((s, i) => (i === selected ? { ...s, ...patch } : s)) }), `scene-${selected}-${Object.keys(patch).join()}`);
+
+  const moveScene = (delta: -1 | 1) => {
+    const j = selected + delta;
+    setProject((p) => {
+      const scenes = [...p.scenes];
+      [scenes[selected], scenes[j]] = [scenes[j], scenes[selected]];
+      return { ...p, scenes: restack(scenes) };
+    });
+    setSelected(j);
+  };
+
+  const duplicateScene = () => {
+    setProject((p) => {
+      const copy = { ...p.scenes[selected], id: nextSceneId(p.scenes), items: [...p.scenes[selected].items] };
+      const scenes = [...p.scenes.slice(0, selected + 1), copy, ...p.scenes.slice(selected + 1)];
+      return { ...p, scenes: rebalance(scenes) };
+    });
+    setSelected(selected + 1);
+  };
+
+  const deleteScene = () => {
+    setProject((p) => ({ ...p, scenes: rebalance(p.scenes.filter((_, i) => i !== selected)) }));
+    setSelected(Math.max(0, selected - 1));
+  };
+
+  const addScene = () => {
+    if (project.scenes.length >= LIMITS.scenes) return;
+    const at = Math.min(selected + 1, project.scenes.length);
+    setProject((p) => {
+      const scene: Scene = { id: nextSceneId(p.scenes), kind: 'summary', startFrame: 0, durationFrames: 300, title: 'عنوان المشهد', items: ['معلومة أولى', 'معلومة ثانية'], icon: 'lightbulb' };
+      return { ...p, scenes: rebalance([...p.scenes.slice(0, at), scene, ...p.scenes.slice(at)]) };
+    });
+    setSelected(at);
+  };
+
+  const setAspect = (a: AspectId) => setProject((p) => ({ ...p, size: { width: ASPECTS[a].width, height: ASPECTS[a].height } }));
+
+  const setStyle = (patch: Partial<ProjectStyle>, theme?: Theme) =>
+    setProject((p) => ({ ...p, style: { ...styleOf(p), ...patch }, theme: theme ? fullTheme(theme) : p.theme }));
+
+  const setTheme = (patch: Partial<Theme>) =>
+    setProject((p) => ({ ...p, theme: { ...fullTheme(p.theme), ...patch } }), `theme-${Object.keys(patch).join()}`);
+
+  const onAudioFile = async (file: File | null) => {
+    if (!file) {
+      setCustomAudio(null);
+      return;
+    }
+    if (file.size > 60 * 1024 * 1024) {
+      setNotice({ kind: 'error', text: 'الملف الصوتي أكبر من 60 ميجابايت.' });
+      return;
+    }
+    try {
+      const buffer = await fitAudio(await decodeAudioFile(file));
+      setCustomAudio({ name: file.name, buffer });
+      setNotice({ kind: 'info', text: 'أُضيف ملفك الصوتي إلى الفيديو.' });
+    } catch {
+      setNotice({ kind: 'error', text: 'تعذّر قراءة الملف الصوتي. جرّب MP3 أو WAV أو M4A.' });
+    }
+  };
+
+  const importProject = async (file: File) => {
+    try {
+      const p = await readProjectFile(file);
+      setProject(p);
+      setSelected(0);
+      setFrame(0);
+      setNotice({ kind: 'info', text: 'تم فتح المشروع.' });
+    } catch (e) {
+      setNotice({ kind: 'error', text: e instanceof Error ? e.message : 'تعذّر فتح الملف.' });
+    }
+  };
+
+  const newProject = () => {
+    if (!window.confirm('بدء مشروع جديد؟ يمكنك التراجع بعدها.')) return;
+    setDescription('');
+    const { project: p } = generateProject('عنوان الفيديو', { aspect: 'landscape', style: { ...style } });
+    setProject({ ...p, theme: fullTheme(presetById(style.preset).theme) });
+    setSelected(0);
+    setFrame(0);
+  };
+
+  // Keyboard: space = play/pause, Ctrl+Z / Ctrl+Y = undo/redo (outside text fields).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement;
+      const typing = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable;
+      if ((e.ctrlKey || e.metaKey) && !typing && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) history.redo();
+        else history.undo();
+      } else if ((e.ctrlKey || e.metaKey) && !typing && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        history.redo();
+      } else if (e.code === 'Space' && !typing && el.tagName !== 'BUTTON') {
+        e.preventDefault();
+        setPlaying((p) => !p);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [history]);
 
   return (
-    <div className="page">
-      <header className="top">
-        <h1>مولّد الإنفوجرافيك</h1>
-        <a href="https://www.kamirtyai.com/">العودة إلى KamirtyAI</a>
-      </header>
-      <p className="badge">نسخة تجريبية لمحرك الفيديو (Milestone 0): مشروع ثابت من ثلاثة مشاهد، مدته 120 ثانية.</p>
-
-      {timelineErrors.length > 0 && (
-        <div className="alert error">خطأ في الخط الزمني: {timelineErrors.join('، ')}</div>
-      )}
-
-      <section className="preview">
-        <canvas ref={canvasRef} width={project.size.width} height={project.size.height} aria-label="معاينة الفيديو" />
-        <div className="controls">
-          <button onClick={() => setPlaying((p) => !p)} disabled={!fontsReady || exporting}>
-            {playing ? 'إيقاف' : 'تشغيل'}
-          </button>
-          <input
-            type="range"
-            min={0}
-            max={project.durationFrames - 1}
-            value={frame}
-            onChange={(e) => setFrame(Number(e.target.value))}
-            aria-label="موضع المعاينة"
-            disabled={exporting}
-          />
-          <span className="time" dir="ltr">
-            {formatTime(frame)} / {formatTime(project.durationFrames)} · {frame + 1}/{project.durationFrames}
+    <div className="app">
+      <header className="topbar">
+        <a className="brand" href="./" aria-label="Kamirty Motion">
+          <span className="logo">▶</span>
+          <span>
+            <b>مولّد الإنفوجرافيك</b>
+            <small>Kamirty Motion</small>
           </span>
-        </div>
-        <div className="scenes">
-          {project.scenes.map((s) => (
-            <button key={s.id} onClick={() => setFrame(s.startFrame)} disabled={exporting}>
-              {s.title}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="panel">
-        <h2>التصدير</h2>
-        {!capability && <p>جارٍ فحص قدرات المتصفح…</p>}
-        {capability && !capability.supported && <div className="alert error">{capability.reason}</div>}
-        {capability?.supported && (
-          <p>
-            الصيغة المتاحة: <b dir="ltr">{capability.plan.container.toUpperCase()} / {capability.plan.codec}</b>
-            {capability.plan.container === 'webm' && ' (MP4 غير مدعوم في هذا المتصفح، سيُصدَّر WebM)'}
-          </p>
-        )}
-        <div className="row">
-          <button className="primary" onClick={startExport} disabled={!capability?.supported || !fontsReady || exporting || timelineErrors.length > 0}>
-            تصدير فيديو 120 ثانية ({project.size.width}×{project.size.height})
+        </a>
+        <input
+          className="title-input"
+          value={project.title}
+          maxLength={140}
+          onChange={(e) => setProject((p) => ({ ...p, title: e.target.value }), 'title')}
+          aria-label="اسم المشروع"
+        />
+        <nav className="actions">
+          <button type="button" onClick={history.undo} disabled={!history.canUndo} title="تراجع (Ctrl+Z)">↶</button>
+          <button type="button" onClick={history.redo} disabled={!history.canRedo} title="إعادة (Ctrl+Y)">↷</button>
+          <button type="button" onClick={newProject}>جديد</button>
+          <button type="button" onClick={() => fileInput.current?.click()}>فتح</button>
+          <button type="button" onClick={() => downloadBlob(new Blob([projectToJson(project)], { type: 'application/json' }), 'kamirty-motion-project.json')}>حفظ</button>
+          <button type="button" className="primary" onClick={() => { setPlaying(false); setExportOpen(true); }}>
+            ⬇ تصدير الفيديو
           </button>
-          {exportState.status === 'running' && <button onClick={() => abortRef.current?.abort()}>إلغاء</button>}
-          <button onClick={() => downloadBlob(new Blob([projectToJson(project)], { type: 'application/json' }), 'kamirty-motion-project.json')}>
-            تنزيل ملف المشروع (JSON)
-          </button>
+        </nav>
+        <input
+          ref={fileInput}
+          type="file"
+          accept="application/json,.json"
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void importProject(f);
+            e.target.value = '';
+          }}
+        />
+      </header>
+
+      {notice && (
+        <div className={`notice ${notice.kind}`} role="status">
+          <span>{notice.text}</span>
+          <button type="button" className="ghost" onClick={() => setNotice(null)} aria-label="إغلاق">✕</button>
         </div>
-
-        {exportState.status === 'running' && (
-          <div className="progress">
-            <progress max={project.durationFrames} value={exportState.frame} />
-            <span dir="ltr">
-              {exportState.frame}/{project.durationFrames} · {Math.round((exportState.frame / project.durationFrames) * 100)}%
-            </span>
-          </div>
-        )}
-        {exportState.status === 'verifying' && <p>جارٍ التحقق من الملف الناتج…</p>}
-        {exportState.status === 'cancelled' && <div className="alert">أُلغي التصدير.</div>}
-        {exportState.status === 'error' && <div className="alert error">فشل التصدير: {exportState.message}</div>}
-        {exportState.status === 'done' && (
-          <div className={`alert ${exportState.report.ok ? 'ok' : 'error'}`}>
-            <p>{exportState.report.ok ? '✅ اجتاز الملف التحقق.' : '⚠️ الملف لم يطابق المواصفات:'}</p>
-            {exportState.report.problems.length > 0 && (
-              <ul>{exportState.report.problems.map((p) => <li key={p}>{p}</li>)}</ul>
-            )}
-            <button className="primary" onClick={() => downloadBlob(exportState.blob, exportState.filename)}>
-              تنزيل الفيديو
-            </button>
-          </div>
-        )}
-      </section>
-
-      {exportState.status === 'done' && (
-        <section className="panel">
-          <h2>تشخيص التصدير</h2>
-          <pre dir="ltr">
-            {JSON.stringify(
-              {
-                ...exportState.report,
-                sizeMB: +(exportState.report.sizeBytes / 1_048_576).toFixed(2),
-                encodeSeconds: +exportState.seconds.toFixed(1),
-                framesPerSecond: +(project.durationFrames / exportState.seconds).toFixed(1),
-                userAgent: navigator.userAgent,
-              },
-              null,
-              2,
-            )}
-          </pre>
-        </section>
       )}
+
+      <main className="workspace">
+        <Sidebar
+          description={description}
+          onDescription={setDescription}
+          onGenerate={generate}
+          project={project}
+          onAspect={setAspect}
+          onStyle={setStyle}
+          onTheme={setTheme}
+          customAudioName={customAudio?.name ?? null}
+          onAudioFile={(f) => void onAudioFile(f)}
+        />
+        <div className="center">
+          <Preview
+            project={project}
+            frame={frame}
+            playing={playing}
+            ready={ready}
+            onFrame={seek}
+            onTogglePlay={() => setPlaying((p) => !p)}
+            renderKey={renderKey}
+          />
+          <Timeline project={project} selected={selected} currentFrame={frame} onSelect={selectScene} onAdd={addScene} renderKey={renderKey} />
+        </div>
+        <Inspector
+          project={project}
+          index={selected}
+          onChange={updateScene}
+          onDuration={(sec) => setProject((p) => ({ ...p, scenes: setSceneDuration(p.scenes, selected, sec * p.fps) }), `dur-${selected}`)}
+          onMove={moveScene}
+          onDuplicate={duplicateScene}
+          onDelete={deleteScene}
+        />
+      </main>
+
+      <footer className="footer">
+        <span>🔒 كل شيء يعمل داخل متصفحك: لا نرفع نصوصك أو ملفاتك أو فيديوهاتك إلى أي خادم. مجاني بالكامل.</span>
+        <a href="https://www.kamirtyai.com/">KamirtyAI</a>
+      </footer>
+
+      {exportOpen && <ExportDialog project={project} getAudio={getAudio} onClose={() => setExportOpen(false)} />}
     </div>
   );
 }

@@ -24,5 +24,13 @@ You are implementing a browser-first, Arabic RTL motion-infographic editor. Read
 - If unsupported feature: disable control with accurate explanation, do not silently degrade quality.
 - Do not assume external hosting credentials are available.
 
-## Milestone 0 only
-Build a proof of concept: 3 deterministic Arabic Canvas scenes, frame-based timeline totalling 3600 frames, preview seeking, MP4/WebM feature detection, 120-second 1280x720 export if the browser allows, and downloadable sample project JSON. No AI, no uploads, no voice, no login, no CSS framework requirement yet. Validate generated file metadata / duration and collect export diagnostics.
+## Current state (v1)
+Milestone 0 (export proof) passed, and the owner asked for the complete tool, so v1 ships:
+- Deterministic Arabic parser (`src/engine/parser`) → storyboard → planner (`src/engine/planner.ts`); it never invents facts, and thin descriptions get bracketed guide scenes.
+- Eight scene kinds (`src/engine/renderer/scenes.ts`), three aspects (16:9, 9:16, 1:1), four transitions, four animated backgrounds, eight palettes, eight self-hosted OFL Arabic fonts, Arabic-Indic/Western digit switch, Lucide icons with Arabic keyword matching.
+- Editor UI (`src/app`): idea sidebar, live preview, scene timeline with thumbnails, scene inspector, undo/redo, local autosave, JSON open/save.
+- Export: MP4 (H.264 + AAC/Opus) or WebM (VP9/VP8 + Opus), 720p or 1080p, with procedurally synthesised royalty-free music or a local user audio file; the result is re-read and verified.
+- Hosting decision (with the owner): GitHub Pages from the `gh-pages` branch at motion.kamirtyai.com (Squarespace DNS CNAME `motion` → `kamirty.github.io`). Cloudflare Pages is not needed because no COOP/COEP headers are required.
+
+Keep `renderFrame` pure (no clocks/randomness); backgrounds may use cached offscreen layers only as deterministic speed-ups.
+Run `npm run typecheck && npm test && npm run build` before every push.
