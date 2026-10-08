@@ -1,0 +1,89 @@
+export const FPS = 30;
+export const DURATION_FRAMES = 3600; // 120 s at 30 fps
+
+export const SCENE_KINDS = ['hero', 'steps', 'comparison', 'stat', 'timeline', 'quote', 'summary', 'outro'] as const;
+export type SceneKind = (typeof SCENE_KINDS)[number];
+
+export interface Theme {
+  background: string;
+  foreground: string;
+  accent: string;
+  /** Secondary accent for gradients, charts and highlights. */
+  accent2?: string;
+  /** Card / panel colour drawn on top of the background. */
+  surface?: string;
+}
+
+export interface Scene {
+  id: string;
+  kind: SceneKind;
+  startFrame: number;
+  durationFrames: number;
+  title: string;
+  items: string[];
+  icon: string;
+}
+
+export type DigitSystem = 'arabic' | 'latin';
+export type TransitionId = 'fade' | 'slide' | 'zoom' | 'wipe';
+export type MusicId = 'none' | 'calm' | 'bright' | 'epic';
+export type BackgroundId = 'gradient' | 'dots' | 'waves' | 'plain';
+
+export interface ProjectStyle {
+  preset: string;
+  font: string;
+  digits: DigitSystem;
+  transition: TransitionId;
+  background: BackgroundId;
+  music: MusicId;
+  /** Small "motion.kamirtyai.com" mark in the corner. */
+  watermark: boolean;
+}
+
+export interface Project {
+  version: 1;
+  title: string;
+  locale: 'ar';
+  fps: typeof FPS;
+  durationFrames: typeof DURATION_FRAMES;
+  size: { width: number; height: number };
+  theme: Theme;
+  scenes: Scene[];
+  style?: Partial<ProjectStyle>;
+}
+
+export const DEFAULT_STYLE: ProjectStyle = {
+  preset: 'ocean',
+  font: 'cairo',
+  digits: 'arabic',
+  transition: 'slide',
+  background: 'gradient',
+  music: 'calm',
+  watermark: true,
+};
+
+export const styleOf = (project: Project): ProjectStyle => ({ ...DEFAULT_STYLE, ...project.style });
+
+export type AspectId = 'landscape' | 'portrait' | 'square';
+
+/** Base (720p-class) sizes per aspect; export may scale these up. */
+export const ASPECTS: Record<AspectId, { label: string; width: number; height: number; hd: { width: number; height: number } }> = {
+  landscape: { label: 'أفقي 16:9 (يوتيوب)', width: 1280, height: 720, hd: { width: 1920, height: 1080 } },
+  portrait: { label: 'عمودي 9:16 (ريلز وتيك توك)', width: 720, height: 1280, hd: { width: 1080, height: 1920 } },
+  square: { label: 'مربع 1:1 (إنستغرام)', width: 1080, height: 1080, hd: { width: 1080, height: 1080 } },
+};
+
+export function aspectOf(size: { width: number; height: number }): AspectId {
+  if (size.width === size.height) return 'square';
+  return size.width > size.height ? 'landscape' : 'portrait';
+}
+
+/** Limits enforced on user input. */
+export const LIMITS = {
+  descriptionChars: 3000,
+  titleChars: 160,
+  itemChars: 160,
+  items: 6,
+  scenes: 20,
+  minSceneFrames: 3 * FPS,
+};
