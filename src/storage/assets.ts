@@ -58,8 +58,17 @@ async function idb<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRe
 }
 
 async function hashBlob(blob: Blob): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer());
-  return [...new Uint8Array(digest)].slice(0, 12).map((b) => b.toString(16).padStart(2, '0')).join('');
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  // crypto.subtle needs a secure context (HTTPS); fall back to three FNV-1a lanes otherwise.
+  if (globalThis.crypto?.subtle) {
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return [...new Uint8Array(digest)].slice(0, 12).map((b) => b.toString(16).padStart(2, '0')).join('');
+  }
+  const lanes = [0x811c9dc5, 0x01000193 ^ 0x5bd1e995, 0x9e3779b9];
+  for (let i = 0; i < bytes.length; i++) {
+    for (let k = 0; k < 3; k++) lanes[k] = Math.imul(lanes[k] ^ bytes[i] ^ k, 16777619) >>> 0;
+  }
+  return lanes.map((h) => h.toString(16).padStart(8, '0')).join('');
 }
 
 /** Downscales to MAX_EDGE and re-encodes (WebP, JPEG fallback) to keep projects light. */

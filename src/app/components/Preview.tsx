@@ -5,7 +5,7 @@ import { imageBox } from '../../engine/renderer/imageLayer';
 import { layoutFor } from '../../engine/renderer/scenes';
 import { localizeDigits } from '../../design/digits';
 import { styleOf, type Project } from '../../domain/types';
-import { renderFrame } from '../../engine/renderer/renderFrame';
+import { renderFrameSafe as renderFrame } from '../../engine/renderer/safeRender';
 
 const fmt = (frame: number, fps: number) => {
   const s = Math.floor(frame / fps);

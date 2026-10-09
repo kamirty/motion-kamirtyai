@@ -578,6 +578,20 @@ function weightOf(s: DraftScene): number {
 
 /** Builds a storyboard from a free Arabic description. Deterministic: same text → same scenes. */
 export function buildStoryboard(description: string): Storyboard {
+  return applyPendingFallback(buildStoryboardRaw(description));
+}
+
+/** Maps kinds whose drawers are not finished yet (PENDING_FALLBACK) to their stand-ins, in place. */
+export function applyPendingFallback(board: Storyboard): Storyboard {
+  for (const sc of board.scenes) {
+    const ready = PENDING_FALLBACK[sc.kind];
+    if (ready) sc.kind = ready;
+  }
+  return board;
+}
+
+/** The storyboard with the kinds the parser detected, before PENDING_FALLBACK is applied. */
+export function buildStoryboardRaw(description: string): Storyboard {
   const text = description.replace(/\r/g, '').slice(0, LIMITS.descriptionChars).trim();
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
 
@@ -619,10 +633,6 @@ export function buildStoryboard(description: string): Storyboard {
     }
     used.add(s.icon);
     s.weight = weightOf(s);
-  }
-  for (const sc of scenes) {
-    const ready = PENDING_FALLBACK[sc.kind];
-    if (ready) sc.kind = ready;
   }
   return { title, scenes, usedPlaceholders };
 }

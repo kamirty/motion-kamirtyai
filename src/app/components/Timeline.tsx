@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { localizeDigits } from '../../design/digits';
 import { styleOf, type Project, type Scene } from '../../domain/types';
-import { renderFrame } from '../../engine/renderer/renderFrame';
+import { renderFrameSafe as renderFrame } from '../../engine/renderer/safeRender';
 import { KIND_LABELS } from './kinds';
 
 function Thumb({ project, scene, renderKey }: { project: Project; scene: Scene; renderKey: number }) {

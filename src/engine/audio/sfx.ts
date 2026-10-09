@@ -147,7 +147,7 @@ function schedule(ctx: BaseAudioContext, out: AudioNode, noise: AudioBuffer, cue
       pan.pan.linearRampToValueAtTime(-0.6, t + 0.4);
       const g = ctx.createGain();
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.28, t + 0.2);
+      g.gain.exponentialRampToValueAtTime(1.1, t + 0.2);
       g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
       src.connect(bp).connect(pan).connect(g).connect(out);
       src.start(t);
@@ -183,14 +183,14 @@ function schedule(ctx: BaseAudioContext, out: AudioNode, noise: AudioBuffer, cue
       o.type = 'triangle';
       o.frequency.value = 1700 + (cue.step % 4) * 60;
       const g = ctx.createGain();
-      env(g, 0.07, 0.002, 0.035);
+      env(g, 0.11, 0.002, 0.04);
       o.connect(g).connect(out);
       o.start(t);
       o.stop(t + 0.05);
       break;
     }
     case 'ding': {
-      for (const [f, v] of [[1046.5, 0.13], [1568, 0.07], [2093, 0.04]] as const) {
+      for (const [f, v] of [[1046.5, 0.2], [1568, 0.1], [2093, 0.05]] as const) {
         const o = ctx.createOscillator();
         o.type = 'sine';
         o.frequency.value = f;
@@ -209,7 +209,7 @@ function schedule(ctx: BaseAudioContext, out: AudioNode, noise: AudioBuffer, cue
       o.frequency.exponentialRampToValueAtTime(990, t + 0.45);
       const g = ctx.createGain();
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.1, t + 0.3);
+      g.gain.exponentialRampToValueAtTime(0.17, t + 0.3);
       g.gain.exponentialRampToValueAtTime(0.0001, t + 0.6);
       o.connect(g).connect(out);
       o.start(t);
@@ -236,19 +236,39 @@ export async function renderSoundtrack(
   const master = ctx.createDynamicsCompressor();
   master.threshold.value = -10;
   master.connect(ctx.destination);
+  const cues = planCues(project);
   if (background) {
     const src = ctx.createBufferSource();
     src.buffer = background;
     const g = ctx.createGain();
-    g.gain.value = 0.85;
+    // Duck the bed briefly under each effect so effects read clearly over music or narration.
+    const BED = 0.75;
+    const DUCK = 0.42;
+    g.gain.setValueAtTime(BED, 0);
+    // Merge overlapping duck windows (dense counter ticks) so the bed never pumps between them.
+    const RELEASE = 0.2;
+    const windows: [number, number][] = [];
+    for (const cue of cues) {
+      const t = cue.frame / project.fps;
+      const hold = cue.kind === 'ding' || cue.kind === 'whoosh' ? 0.45 : 0.18;
+      const last = windows[windows.length - 1];
+      if (last && t - 0.03 <= last[1] + RELEASE) last[1] = Math.max(last[1], t + hold);
+      else windows.push([t - 0.03, t + hold]);
+    }
+    for (const [a, b] of windows) {
+      g.gain.setValueAtTime(BED, Math.max(0, a));
+      g.gain.linearRampToValueAtTime(DUCK, a + 0.03);
+      g.gain.setValueAtTime(DUCK, b);
+      g.gain.linearRampToValueAtTime(BED, b + RELEASE);
+    }
     src.connect(g).connect(master);
     src.start(0);
   }
   const sfxBus = ctx.createGain();
-  sfxBus.gain.value = 0.9;
+  sfxBus.gain.value = 1.5;
   sfxBus.connect(master);
   const noise = noiseBuffer(ctx);
-  for (const cue of planCues(project)) schedule(ctx, sfxBus, noise, cue, cue.frame / project.fps);
+  for (const cue of cues) schedule(ctx, sfxBus, noise, cue, cue.frame / project.fps);
   return ctx.startRendering();
 }
 
