@@ -23,11 +23,11 @@ export function parseProject(input: unknown): Project {
   const theme = (o.theme ?? {}) as Record<string, unknown>;
   const color = (v: unknown, fb: string) => (typeof v === 'string' && COLOR.test(v) ? v : fb);
   const t = {
-    background: color(theme.background, '#0B1E33'),
-    foreground: color(theme.foreground, '#F2F7FC'),
-    accent: color(theme.accent, '#2EC4B6'),
-    accent2: color(theme.accent2, color(theme.accent, '#4EA8F2')),
-    surface: color(theme.surface, '#13304D'),
+    background: color(theme.background, '#0A0A0A'),
+    foreground: color(theme.foreground, '#FFFFFF'),
+    accent: color(theme.accent, '#FFEB3B'),
+    accent2: color(theme.accent2, color(theme.accent, '#F2F2F2')),
+    surface: color(theme.surface, '#1A1A1A'),
   };
 
   const rawScenes = Array.isArray(o.scenes) ? o.scenes.slice(0, LIMITS.scenes) : [];
@@ -58,7 +58,7 @@ export function parseProject(input: unknown): Project {
     transition: pick(st.transition, ['fade', 'slide', 'zoom', 'wipe'] as const, DEFAULT_STYLE.transition),
     background: pick(st.background, ['gradient', 'dots', 'waves', 'plain'] as const, DEFAULT_STYLE.background),
     music: pick(st.music, ['none', 'calm', 'bright', 'epic'] as const, DEFAULT_STYLE.music),
-    watermark: typeof st.watermark === 'boolean' ? st.watermark : DEFAULT_STYLE.watermark,
+    sfx: typeof st.sfx === 'boolean' ? st.sfx : DEFAULT_STYLE.sfx,
   };
 
   const project: Project = {

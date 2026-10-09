@@ -3,7 +3,7 @@ import { alpha, fullTheme, mix } from '../../design/presets';
 import { sceneIndexAt } from '../../domain/timeline';
 import { styleOf, type DigitSystem, type Project, type ProjectStyle, type Scene, type Theme } from '../../domain/types';
 import { TRANSITION_FRAMES, easeInOutCubic, hash01, progress } from './animation';
-import { font, fontSpec, type Ctx2D } from './context';
+import { fontSpec, type Ctx2D } from './context';
 import { drawScene, layoutFor, type Layout } from './scenes';
 
 const localized = new WeakMap<Scene, Map<DigitSystem, Scene>>();
@@ -239,20 +239,11 @@ export function renderFrame(project: Project, frameIndex: number, ctx: Ctx2D, ou
     }
   }
 
-  // Overall progress bar (fills right→left) and optional site mark.
+  // Overall progress bar (fills right→left). No logo or site mark is drawn on the video.
   const p = Math.min(1, (frameIndex + 1) / project.durationFrames);
   ctx.globalAlpha = 1;
   ctx.fillStyle = alpha(theme.foreground, 0.08);
   ctx.fillRect(0, L.H - 6, L.W, 6);
   ctx.fillStyle = theme.accent;
   ctx.fillRect(L.W * (1 - p), L.H - 6, L.W * p, 6);
-  if (style.watermark !== false) {
-    ctx.font = font(fs, 'bold', 18);
-    ctx.fillStyle = alpha(theme.foreground, 0.4);
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'alphabetic';
-    ctx.direction = 'ltr';
-    ctx.fillText('motion.kamirtyai.com', L.portrait ? 28 : 36, L.H - 22);
-    ctx.direction = 'rtl';
-  }
 }

@@ -11,6 +11,15 @@ export interface StylePreset {
 
 /** Curated palettes; foreground/background pairs keep WCAG AA contrast for large text. */
 export const PRESETS: StylePreset[] = [
+  // KamirtyAI brand (www.kamirtyai.com): black bars, white page, breaking-news yellow.
+  {
+    id: 'kamirty', label: 'كاميرتي', font: 'cairo', transition: 'wipe', background: 'dots',
+    theme: { background: '#0A0A0A', surface: '#1A1A1A', foreground: '#FFFFFF', accent: '#FFEB3B', accent2: '#F2F2F2' },
+  },
+  {
+    id: 'kamirty-light', label: 'كاميرتي فاتح', font: 'cairo', transition: 'slide', background: 'dots',
+    theme: { background: '#FFFFFF', surface: '#F2F2F2', foreground: '#0A0A0A', accent: '#0A0A0A', accent2: '#FFEB3B' },
+  },
   {
     id: 'ocean', label: 'محيط', font: 'cairo', transition: 'slide', background: 'gradient',
     theme: { background: '#0B1E33', surface: '#13304D', foreground: '#F2F7FC', accent: '#2EC4B6', accent2: '#4EA8F2' },
@@ -85,6 +94,14 @@ export function contrast(a: string, b: string): number {
   const [l1, l2] = [lum(a), lum(b)].sort((x, y) => y - x);
   return (l1 + 0.05) / (l2 + 0.05);
 }
+
+/**
+ * Colour for text drawn in an accent: the accent itself when it stays readable on the background
+ * (3:1, large-text threshold), otherwise the foreground. Keeps yellow-on-white and similar custom
+ * palettes legible.
+ */
+export const textAccent = (theme: Required<Theme>, color: string): string =>
+  contrast(color, theme.background) >= 3 ? color : theme.foreground;
 
 /** Picks whichever of two colours reads better on `bg`. */
 export const readableOn = (bg: string, light = '#FFFFFF', dark = '#111111'): string =>

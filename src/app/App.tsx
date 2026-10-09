@@ -6,6 +6,7 @@ import { rebalance, restack, sceneIndexAt, setSceneDuration } from '../domain/ti
 import { ASPECTS, LIMITS, styleOf, type AspectId, type Project, type ProjectStyle, type Scene, type Theme } from '../domain/types';
 import { PreviewAudio } from '../engine/audio/player';
 import { decodeAudioFile, fitAudio, renderMusic } from '../engine/audio/music';
+import { cuesKey, renderSoundtrack } from '../engine/audio/sfx';
 import { generateProject, nextSceneId } from '../engine/planner';
 import { clearTextCache } from '../engine/renderer/textLayout';
 import { downloadBlob, loadLocal, projectToJson, readProjectFile, saveLocal } from '../storage/projectJson';
@@ -15,6 +16,7 @@ import { Preview } from './components/Preview';
 import { Sidebar } from './components/Sidebar';
 import { Timeline } from './components/Timeline';
 import { EXAMPLES } from './examples';
+import { ThemeToggle, useUiTheme } from './theme';
 import { useHistory } from './useHistory';
 
 function initialState(): { project: Project; description: string } {
@@ -38,6 +40,7 @@ export function App() {
   const [renderKey, setRenderKey] = useState(0);
   const [notice, setNotice] = useState<{ kind: 'info' | 'error'; text: string } | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [uiTheme, setUiTheme] = useUiTheme();
   const [customAudio, setCustomAudio] = useState<{ name: string; buffer: AudioBuffer } | null>(null);
   const musicCache = useRef(new Map<string, Promise<AudioBuffer | null>>());
   const player = useRef(new PreviewAudio());
@@ -68,16 +71,31 @@ export function App() {
     if (selected >= project.scenes.length) setSelected(project.scenes.length - 1);
   }, [project.scenes.length, selected]);
 
-  const getAudio = useCallback(async (): Promise<AudioBuffer | null> => {
-    if (customAudio) return customAudio.buffer;
-    const key = style.music;
-    let p = musicCache.current.get(key);
+  const musicFor = useCallback((id: ProjectStyle['music']) => {
+    let p = musicCache.current.get(id);
     if (!p) {
-      p = renderMusic(style.music).catch(() => null);
-      musicCache.current.set(key, p);
+      p = renderMusic(id).catch(() => null);
+      musicCache.current.set(id, p);
     }
     return p;
-  }, [customAudio, style.music]);
+  }, []);
+
+  // Sound effects depend only on scene timing and item counts, not on wording, so typing
+  // does not re-render the soundtrack.
+  const projectRef = useRef(project);
+  projectRef.current = project;
+  const sfxKey = useMemo(() => (style.sfx ? cuesKey(project) : 'off'), [project, style.sfx]);
+  const soundtrack = useRef<{ key: string; promise: Promise<AudioBuffer | null> } | null>(null);
+
+  const getAudio = useCallback(async (): Promise<AudioBuffer | null> => {
+    const base = customAudio ? customAudio.buffer : await musicFor(style.music);
+    if (!style.sfx) return base;
+    const key = `${sfxKey}|${customAudio ? `file:${customAudio.name}:${customAudio.buffer.length}` : style.music}`;
+    if (soundtrack.current?.key !== key) {
+      soundtrack.current = { key, promise: renderSoundtrack(projectRef.current, base, { sfx: true }).catch(() => base) };
+    }
+    return soundtrack.current.promise;
+  }, [customAudio, style.music, style.sfx, sfxKey, musicFor]);
 
   // Playback loop: advances frames by wall-clock time; audio starts from the same position.
   useEffect(() => {
@@ -250,10 +268,16 @@ export function App() {
 
   return (
     <div className="app">
+      <div className="ticker">
+        <span className="ticker-label">جديد</span>
+        <span className="ticker-text">حوّل فكرتك إلى فيديو إنفوجرافيك عربي متحرك مدته دقيقتان… مجانًا وبدون تسجيل</span>
+        <a className="ticker-link" href="https://www.kamirtyai.com/">الموقع الرئيسي</a>
+        <ThemeToggle theme={uiTheme} onToggle={() => setUiTheme((t) => (t === 'dark' ? 'light' : 'dark'))} />
+      </div>
       <header className="topbar">
-        <a className="brand" href="./" aria-label="Kamirty Motion">
-          <span className="logo">▶</span>
-          <span>
+        <a className="brand" href="./" aria-label="مولّد الإنفوجرافيك من KamirtyAI">
+          <img className="brand-logo" src="/brand/kamirty-logo.png" alt="Kamirty.AI" width={198} height={122} />
+          <span className="brand-name">
             <b>مولّد الإنفوجرافيك</b>
             <small>Kamirty Motion</small>
           </span>
@@ -266,8 +290,8 @@ export function App() {
           aria-label="اسم المشروع"
         />
         <nav className="actions">
-          <button type="button" onClick={history.undo} disabled={!history.canUndo} title="تراجع (Ctrl+Z)">↶</button>
-          <button type="button" onClick={history.redo} disabled={!history.canRedo} title="إعادة (Ctrl+Y)">↷</button>
+          <button type="button" onClick={history.undo} disabled={!history.canUndo} title="تراجع (Ctrl+Z)" aria-label="تراجع">↶</button>
+          <button type="button" onClick={history.redo} disabled={!history.canRedo} title="إعادة (Ctrl+Y)" aria-label="إعادة">↷</button>
           <button type="button" onClick={newProject}>جديد</button>
           <button type="button" onClick={() => fileInput.current?.click()}>فتح</button>
           <button type="button" onClick={() => downloadBlob(new Blob([projectToJson(project)], { type: 'application/json' }), 'kamirty-motion-project.json')}>حفظ</button>
@@ -331,8 +355,16 @@ export function App() {
       </main>
 
       <footer className="footer">
-        <span>🔒 كل شيء يعمل داخل متصفحك: لا نرفع نصوصك أو ملفاتك أو فيديوهاتك إلى أي خادم. مجاني بالكامل.</span>
-        <a href="https://www.kamirtyai.com/">KamirtyAI</a>
+        <div className="footer-brand">
+          <img className="brand-logo" src="/brand/kamirty-logo.png" alt="Kamirty.AI" width={198} height={122} />
+          <p className="slogan">«نحن نقدم الخبرة… وأنت تصنع الإبداع!»</p>
+        </div>
+        <p className="footer-note">🔒 كل شيء يعمل داخل متصفحك: لا نرفع نصوصك أو ملفاتك أو فيديوهاتك إلى أي خادم. مجاني بالكامل، والفيديو ملكك دون أي شعار.</p>
+        <nav className="footer-links">
+          <a href="https://www.kamirtyai.com/">الموقع الرئيسي</a>
+          <span aria-hidden="true">·</span>
+          <span>KamirtyAI © {new Date().getFullYear()}</span>
+        </nav>
       </footer>
 
       {exportOpen && <ExportDialog project={project} getAudio={getAudio} onClose={() => setExportOpen(false)} />}

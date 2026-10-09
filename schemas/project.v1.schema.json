@@ -130,7 +130,12 @@
           ]
         },
         "watermark": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Deprecated and ignored: videos never carry a site mark."
+        },
+        "sfx": {
+          "type": "boolean",
+          "description": "Automatic sound effects when elements appear."
         }
       }
     }

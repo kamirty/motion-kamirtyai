@@ -1,4 +1,4 @@
-import { alpha, mix, readableOn } from '../../design/presets';
+import { alpha, mix, readableOn, textAccent } from '../../design/presets';
 import { localizeDigits } from '../../design/digits';
 import type { DigitSystem, Scene, Theme } from '../../domain/types';
 import { clamp, easeOutBack, easeOutCubic, hash01, progress, seedOf } from './animation';
@@ -6,6 +6,7 @@ import { font, type Ctx2D, type FontSpec } from './context';
 import { drawIcon } from './icons';
 import { formatStatValue, parseStatValue } from './numbers';
 import { drawLines, fitText, type FittedText } from './textLayout';
+import { HEADER, HERO, OUTRO, QUOTE, STAT, comparisonBars, itemReveal, revealSpan, shownItems } from '../timing';
 
 export interface Layout {
   W: number;
@@ -83,13 +84,13 @@ function iconBadge(ctx: Ctx2D, theme: Required<Theme>, icon: string, cx: number,
 /** Scene title with icon badge; returns the y where content can start. */
 function drawHeader(a: SceneDrawArgs): number {
   const { ctx, scene, theme, frame, layout: L, font: fs } = a;
-  const t = appear(frame, 0, 24);
+  const t = appear(frame, HEADER.icon, 24);
   const top = L.portrait ? L.M * 2.2 : L.M * 0.9;
   if (L.portrait) {
     const r = 46;
     withAlpha(ctx, t, () => iconBadge(ctx, theme, scene.icon, L.W / 2, top + r, r * easeOutBack(t)));
     const fitted = fitText(ctx, fs, scene.title, { maxWidth: L.W - L.M * 2, maxLines: 3, maxSize: 52, minSize: 30, weight: 'bold', lineHeight: 1.45 });
-    withAlpha(ctx, appear(frame, 6, 24), () => {
+    withAlpha(ctx, appear(frame, HEADER.title, 24), () => {
       ctx.fillStyle = theme.foreground;
       ctx.textAlign = 'center';
       drawLines(ctx, fs, fitted, L.W / 2, top + r * 2 + 24 + (1 - t) * 20);
@@ -101,7 +102,7 @@ function drawHeader(a: SceneDrawArgs): number {
   withAlpha(ctx, t, () => iconBadge(ctx, theme, scene.icon, badgeX, top + r, r * easeOutBack(t)));
   const fitted = fitText(ctx, fs, scene.title, { maxWidth: L.W - L.M * 2 - r * 2 - 28, maxLines: 2, maxSize: 48, minSize: 28, weight: 'bold', lineHeight: 1.4 });
   const textTop = top + r - Math.max(fitted.height, r * 2) / 2 + Math.max(0, (r * 2 - fitted.height) / 2);
-  withAlpha(ctx, appear(frame, 4, 24), () => {
+  withAlpha(ctx, appear(frame, HEADER.title, 24), () => {
     ctx.fillStyle = theme.foreground;
     ctx.textAlign = 'right';
     drawLines(ctx, fs, fitted, badgeX - r - 24 + (1 - t) * -30, textTop);
@@ -140,10 +141,10 @@ function drawHero(a: SceneDrawArgs): void {
       ctx.stroke();
     });
   }
-  iconBadge(ctx, theme, scene.icon, cx, iconCy, iconR * easeOutBack(progress(frame, 0, 28)));
+  iconBadge(ctx, theme, scene.icon, cx, iconCy, iconR * easeOutBack(progress(frame, HERO.icon, 28)));
   y += iconR * 2 + 48;
 
-  const tt = appear(frame, 12, 30);
+  const tt = appear(frame, HERO.title, 30);
   withAlpha(ctx, tt, () => {
     ctx.fillStyle = theme.foreground;
     ctx.textAlign = 'center';
@@ -156,8 +157,8 @@ function drawHero(a: SceneDrawArgs): void {
   ctx.fill();
   y += 24;
   subs.forEach((f, i) => {
-    withAlpha(ctx, appear(frame, 40 + i * 14, 26) * (i === 0 ? 0.92 : 0.7), () => {
-      ctx.fillStyle = i === 0 ? theme.foreground : theme.accent2;
+    withAlpha(ctx, appear(frame, HERO.subtitle(i), 26) * (i === 0 ? 0.92 : 0.7), () => {
+      ctx.fillStyle = i === 0 ? theme.foreground : textAccent(theme, theme.accent2);
       ctx.textAlign = 'center';
       drawLines(ctx, fs, f, cx, y);
     });
@@ -171,7 +172,7 @@ function drawStat(a: SceneDrawArgs): void {
   const top = drawHeader(a);
   const raw = scene.items[0] ?? '';
   const stat = parseStatValue(raw);
-  const countT = easeOutCubic(progress(frame, 16, 75));
+  const countT = easeOutCubic(progress(frame, STAT.countStart, STAT.countLength));
   const display = stat ? formatStatValue(stat, stat.value * countT) : raw;
   const finalText = stat ? formatStatValue(stat, stat.value) : raw;
   const isPercent = !!stat && /[%٪]/.test(stat.suffix) && stat.value <= 100;
@@ -213,7 +214,7 @@ function drawStat(a: SceneDrawArgs): void {
       const maxW = side ? L.W - L.M * 2 - R * 2 - 90 : L.W - L.M * 2;
       const dTop = side ? cy : cy + R + R * 0.2 + 36;
       const f = fitText(ctx, fs, desc, { maxWidth: maxW, maxLines: side ? 5 : 4, maxSize: 34, minSize: 20, weight: 'regular', lineHeight: 1.6 });
-      withAlpha(ctx, appear(frame, 60, 30), () => {
+      withAlpha(ctx, appear(frame, STAT.description, 30), () => {
         ctx.fillStyle = theme.foreground;
         ctx.textAlign = side ? 'right' : 'center';
         drawLines(ctx, fs, f, dx, side ? dTop - f.height / 2 : dTop);
@@ -232,9 +233,11 @@ function drawStat(a: SceneDrawArgs): void {
   ctx.translate(L.W / 2, y + numFit.fontSize * 0.6);
   ctx.scale(s, s);
   ctx.font = font(fs, 'bold', numFit.fontSize);
+  const c1 = textAccent(theme, theme.accent2);
+  const c2 = textAccent(theme, theme.accent);
   const grad = ctx.createLinearGradient(-numFit.width / 2, 0, numFit.width / 2, 0);
-  grad.addColorStop(0, theme.accent2);
-  grad.addColorStop(1, theme.accent);
+  grad.addColorStop(0, c1);
+  grad.addColorStop(1, c2);
   ctx.fillStyle = grad;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -247,7 +250,7 @@ function drawStat(a: SceneDrawArgs): void {
   ctx.fill();
   y += 30;
   if (f) {
-    withAlpha(ctx, appear(frame, 60, 30), () => {
+    withAlpha(ctx, appear(frame, STAT.description, 30), () => {
       ctx.fillStyle = theme.foreground;
       ctx.textAlign = 'center';
       drawLines(ctx, fs, f, L.W / 2, y);
@@ -256,14 +259,10 @@ function drawStat(a: SceneDrawArgs): void {
 }
 
 // ───────────────────────── steps ─────────────────────────
-function revealSpan(scene: Scene, count: number): number {
-  return Math.max(24, Math.floor((scene.durationFrames * 0.55) / Math.max(1, count)));
-}
-
 function drawSteps(a: SceneDrawArgs): void {
   const { ctx, scene, theme, frame, layout: L, font: fs, digits } = a;
   const top = drawHeader(a);
-  const items = scene.items.slice(0, 6);
+  const items = shownItems(scene);
   if (!items.length) return;
   const avail = L.H - top - L.M * 0.8;
   const badgeR = L.portrait ? 30 : 28;
@@ -285,7 +284,7 @@ function drawSteps(a: SceneDrawArgs): void {
   // Connector grows with the reveal.
   const firstCy = y + rowsH[0] / 2;
   const lastCy = y + totalH - rowsH[rowsH.length - 1] / 2;
-  const lineT = progress(frame, 24, span * (items.length - 1) + 1);
+  const lineT = progress(frame, itemReveal(scene, 0, items.length), span * (items.length - 1) + 1);
   ctx.save();
   ctx.strokeStyle = alpha(theme.accent, 0.45);
   ctx.lineWidth = 4;
@@ -298,7 +297,7 @@ function drawSteps(a: SceneDrawArgs): void {
   ctx.restore();
 
   items.forEach((_, i) => {
-    const t = progress(frame, 24 + i * span, 22);
+    const t = progress(frame, itemReveal(scene, i, items.length), 22);
     const cy = y + rowsH[i] / 2;
     y += rowsH[i];
     if (t <= 0) return;
@@ -322,8 +321,6 @@ function drawSteps(a: SceneDrawArgs): void {
 }
 
 // ───────────────────────── comparison ─────────────────────────
-const LABEL_VALUE = /^(.{1,60}?)\s*[:：\-–—]\s*([0-9٠-٩]+(?:[.,٫][0-9٠-٩]+)?\s*(?:%|٪)?)\s*(.*)$/u;
-
 function drawBars(a: SceneDrawArgs, top: number, rows: { label: string; value: string; num: number }[]): void {
   const { ctx, theme, frame, layout: L, font: fs, scene } = a;
   const avail = L.H - top - L.M;
@@ -334,16 +331,16 @@ function drawBars(a: SceneDrawArgs, top: number, rows: { label: string; value: s
   const labelW = L.portrait ? L.W - L.M * 2 : (L.W - L.M * 2) * 0.3;
   const barRight = L.portrait ? L.W - L.M : L.W - L.M - labelW - 24;
   const barMaxW = barRight - L.M - 110;
-  const span = revealSpan(scene, rows.length);
   let y = top + Math.max(0, (avail - rowH * rows.length) / 2);
   rows.forEach((r, i) => {
-    const t = progress(frame, 20 + i * Math.min(span, 30), 40);
+    const reveal = itemReveal(scene, i, rows.length);
+    const t = progress(frame, reveal + 6, 40);
     const e = easeOutCubic(t);
     const color = i % 2 ? theme.accent2 : theme.accent;
     const labelFit = fitText(ctx, fs, r.label, { maxWidth: labelW, maxLines: L.portrait ? 1 : 2, maxSize: L.portrait ? 36 : 28, minSize: 18, weight: 'bold', lineHeight: 1.3 });
     const barH = Math.min(L.portrait ? 50 : 38, rowH * 0.36);
     const barY = L.portrait ? y + labelFit.height + 8 : y + rowH / 2 - barH / 2;
-    withAlpha(ctx, appear(frame, 14 + i * Math.min(span, 30), 20), () => {
+    withAlpha(ctx, appear(frame, reveal, 20), () => {
       ctx.fillStyle = theme.foreground;
       ctx.textAlign = 'right';
       drawLines(ctx, fs, labelFit, L.W - L.M, L.portrait ? y : y + rowH / 2 - labelFit.height / 2);
@@ -378,10 +375,10 @@ function splitHeading(text: string): { head: string; body: string } {
 function drawComparison(a: SceneDrawArgs): void {
   const { ctx, scene, theme, frame, layout: L, font: fs } = a;
   const top = drawHeader(a);
-  const items = scene.items.slice(0, 6);
-  const rows = items.map((it) => LABEL_VALUE.exec(it)).filter((m): m is RegExpExecArray => !!m);
-  if (rows.length >= 2 && rows.length === items.length) {
-    drawBars(a, top, rows.map((m) => ({ label: m[1].trim(), value: m[2].trim(), num: parseStatValue(m[2])?.value ?? 0 })));
+  const items = shownItems(scene);
+  const bars = comparisonBars(scene);
+  if (bars) {
+    drawBars(a, top, bars.map((b) => ({ ...b, num: parseStatValue(b.value)?.value ?? 0 })));
     return;
   }
   if (!items.length) return;
@@ -399,7 +396,7 @@ function drawComparison(a: SceneDrawArgs): void {
     const row = Math.floor(i / cols);
     const x = L.W - L.M - cw - col * (cw + gap);
     const y = startY + row * (ch + gap);
-    const t = progress(frame, 20 + i * 18, 26);
+    const t = progress(frame, itemReveal(scene, i, n), 26);
     const e = easeOutBack(t);
     const color = i % 2 ? theme.accent2 : theme.accent;
     const { head, body } = splitHeading(it);
@@ -415,7 +412,7 @@ function drawComparison(a: SceneDrawArgs): void {
       let ty = y + 34;
       if (head) {
         const hf = fitText(ctx, fs, head, { maxWidth: cw - 48, maxLines: 1, maxSize: 34, minSize: 20, weight: 'bold' });
-        ctx.fillStyle = color;
+        ctx.fillStyle = textAccent(theme, color);
         ctx.textAlign = 'center';
         ty = drawLines(ctx, fs, hf, x + cw / 2, ty) + 10;
       }
@@ -444,7 +441,7 @@ function drawComparison(a: SceneDrawArgs): void {
 function drawTimeline(a: SceneDrawArgs): void {
   const { ctx, scene, theme, frame, layout: L, font: fs } = a;
   const top = drawHeader(a);
-  const items = scene.items.slice(0, 6).map((it) => {
+  const items = shownItems(scene).map((it) => {
     const m = /^(.{1,24}?)\s*[:：\-–—]\s*(.+)$/u.exec(it);
     return m ? { when: m[1].trim(), what: m[2].trim() } : { when: '', what: it };
   });
@@ -463,7 +460,7 @@ function drawTimeline(a: SceneDrawArgs): void {
     ctx.fillStyle = theme.accent;
     ctx.fillRect(lineX - 3, y0, 6, rowH * n * lt);
     items.forEach((it, i) => {
-      const t = progress(frame, 20 + i * span, 24);
+      const t = progress(frame, itemReveal(scene, i, n), 24);
       const cy = y0 + rowH * i + 40;
       if (t <= 0) return;
       const e = easeOutCubic(t);
@@ -473,7 +470,7 @@ function drawTimeline(a: SceneDrawArgs): void {
         ctx.arc(lineX, cy, 16 * easeOutBack(t), 0, Math.PI * 2);
         ctx.fill();
         ctx.textAlign = 'right';
-        ctx.fillStyle = i % 2 ? theme.accent2 : theme.accent;
+        ctx.fillStyle = textAccent(theme, i % 2 ? theme.accent2 : theme.accent);
         ctx.font = font(fs, 'bold', 38);
         ctx.textBaseline = 'middle';
         ctx.fillText(it.when, lineX - 40 - (1 - e) * 30, cy);
@@ -498,7 +495,7 @@ function drawTimeline(a: SceneDrawArgs): void {
   roundRect(ctx, L.W - L.M - w, lineY - 3, w, 6, 3);
   ctx.fill();
   items.forEach((it, i) => {
-    const t = progress(frame, 20 + i * span, 24);
+    const t = progress(frame, itemReveal(scene, i, n), 24);
     if (t <= 0) return;
     const e = easeOutCubic(t);
     const cx = L.W - L.M - step * (i + 0.5);
@@ -512,7 +509,7 @@ function drawTimeline(a: SceneDrawArgs): void {
       ctx.fill();
       ctx.stroke();
       const yearFit = fitText(ctx, fs, it.when, { maxWidth: step - 16, maxLines: 1, maxSize: L.square ? 36 : 40, minSize: 20, weight: 'bold' });
-      ctx.fillStyle = color;
+      ctx.fillStyle = textAccent(theme, color);
       ctx.textAlign = 'center';
       drawLines(ctx, fs, yearFit, cx, lineY - 40 - yearFit.height - (1 - e) * 20);
       const f = fitText(ctx, fs, it.what, { maxWidth: step - 24, maxLines: L.square ? 5 : 4, maxSize: 26, minSize: 16, weight: 'regular', lineHeight: 1.45 });
@@ -532,11 +529,11 @@ function drawQuote(a: SceneDrawArgs): void {
   const bf = by ? fitText(ctx, fs, `— ${by}`, { maxWidth: L.W - L.M * 2, maxLines: 1, maxSize: 30, minSize: 18, weight: 'regular' }) : null;
   const block = 120 + qf.height + (bf ? bf.height + 30 : 0);
   let y = (L.H - block) / 2;
-  withAlpha(ctx, appear(frame, 0, 24) * 0.9, () => drawIcon(ctx, scene.icon || 'quote', L.W / 2, y + 40, 90 * easeOutBack(progress(frame, 0, 30)), theme.accent, 1.6));
+  withAlpha(ctx, appear(frame, QUOTE.icon, 24) * 0.9, () => drawIcon(ctx, scene.icon || 'quote', L.W / 2, y + 40, 90 * easeOutBack(progress(frame, QUOTE.icon, 30)), theme.accent, 1.6));
   y += 120;
   // Words fade in progressively along the reading direction, line by line.
   qf.lines.forEach((line, i) => {
-    withAlpha(ctx, appear(frame, 16 + i * 10, 26), () => {
+    withAlpha(ctx, appear(frame, QUOTE.line(i), 26), () => {
       ctx.font = font(fs, 'bold', qf.fontSize);
       ctx.fillStyle = theme.foreground;
       ctx.textAlign = 'center';
@@ -547,8 +544,8 @@ function drawQuote(a: SceneDrawArgs): void {
   });
   y += qf.height + 30;
   if (bf) {
-    withAlpha(ctx, appear(frame, 30 + qf.lines.length * 10, 26), () => {
-      ctx.fillStyle = theme.accent2;
+    withAlpha(ctx, appear(frame, QUOTE.line(qf.lines.length) + 14, 26), () => {
+      ctx.fillStyle = textAccent(theme, theme.accent2);
       ctx.textAlign = 'center';
       drawLines(ctx, fs, bf, L.W / 2, y);
     });
@@ -559,7 +556,7 @@ function drawQuote(a: SceneDrawArgs): void {
 function drawSummary(a: SceneDrawArgs): void {
   const { ctx, scene, theme, frame, layout: L, font: fs } = a;
   const top = drawHeader(a);
-  const items = scene.items.slice(0, 6);
+  const items = shownItems(scene);
   if (!items.length) return;
   const n = items.length;
   const avail = L.H - top - L.M;
@@ -570,14 +567,13 @@ function drawSummary(a: SceneDrawArgs): void {
   const rowStyle = cols === 1 && !single;
   const cw = single && !L.portrait ? Math.min(L.W - L.M * 2, 820) : (L.W - L.M * 2 - gap * (cols - 1)) / cols;
   const ch = Math.min((avail - gap * (rowsN - 1)) / rowsN, single ? 360 : rowStyle ? (L.portrait ? 260 : 220) : 320);
-  const span = revealSpan(scene, n);
   const startY = top + Math.max(0, (avail - (ch * rowsN + gap * (rowsN - 1))) / 2);
   items.forEach((it, i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);
     const x = single ? (L.W - cw) / 2 : L.W - L.M - cw - col * (cw + gap);
     const y = startY + row * (ch + gap);
-    const t = progress(frame, 22 + i * Math.min(span, 36), 26);
+    const t = progress(frame, itemReveal(scene, i, n), 26);
     if (t <= 0) return;
     const e = easeOutBack(t);
     const color = i % 2 ? theme.accent2 : theme.accent;
@@ -640,16 +636,16 @@ function drawOutro(a: SceneDrawArgs): void {
   const block = iconR * 2 + 40 + tf.height + 20 + subs.reduce((s, f) => s + f.height + 16, 0);
   let y = (L.H - block) / 2;
   const beat = 1 + 0.06 * Math.sin(frame / 6) * appear(frame, 30, 10);
-  iconBadge(ctx, theme, scene.icon, L.W / 2, y + iconR, iconR * easeOutBack(progress(frame, 0, 26)) * beat);
+  iconBadge(ctx, theme, scene.icon, L.W / 2, y + iconR, iconR * easeOutBack(progress(frame, OUTRO.icon, 26)) * beat);
   y += iconR * 2 + 40;
-  withAlpha(ctx, appear(frame, 10, 26), () => {
+  withAlpha(ctx, appear(frame, OUTRO.title, 26), () => {
     ctx.fillStyle = theme.foreground;
     ctx.textAlign = 'center';
     drawLines(ctx, fs, tf, L.W / 2, y);
   });
   y += tf.height + 20;
   subs.forEach((f, i) => {
-    withAlpha(ctx, appear(frame, 30 + i * 12, 24), () => {
+    withAlpha(ctx, appear(frame, OUTRO.line(i), 24), () => {
       if (i === subs.length - 1 && subs.length > 1) {
         // Last line as a pill (e.g. website or channel).
         const pw = f.width + 60;

@@ -36,8 +36,8 @@ export interface ProjectStyle {
   transition: TransitionId;
   background: BackgroundId;
   music: MusicId;
-  /** Small "motion.kamirtyai.com" mark in the corner. */
-  watermark: boolean;
+  /** Automatic sound effects when elements appear. */
+  sfx: boolean;
 }
 
 export interface Project {
@@ -53,13 +53,13 @@ export interface Project {
 }
 
 export const DEFAULT_STYLE: ProjectStyle = {
-  preset: 'ocean',
+  preset: 'kamirty',
   font: 'cairo',
   digits: 'arabic',
-  transition: 'slide',
-  background: 'gradient',
+  transition: 'wipe',
+  background: 'dots',
   music: 'calm',
-  watermark: true,
+  sfx: true,
 };
 
 export const styleOf = (project: Project): ProjectStyle => ({ ...DEFAULT_STYLE, ...project.style });
