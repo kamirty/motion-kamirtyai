@@ -21,6 +21,8 @@ const GROUP = /(?<=[0-9٠-٩])(?=(?:[0-9٠-٩]{3})+$)/gu;
 
 interface Col {
   row: ValueRow;
+  /** Height value: the parsed display value when there is one ("1,250" → 1250). */
+  num: number;
   stat: StatValue | null;
   /** Thousands separator used by the source ("1,200"), re-applied while counting. */
   sep: string;
@@ -39,8 +41,8 @@ interface Plan {
   valueGap: number;
   labels: (FittedText | null)[];
   labelTop: number;
-  /** Uniform shrink for labels that overflow their block even at the minimum size. */
-  labelScale: number;
+  /** Per-label shrink for labels that overflow their block even at the minimum size. */
+  labelScales: number[];
   gridLeft: number;
   gridRight: number;
 }
@@ -53,15 +55,15 @@ function valueText(c: Col, v: number): string {
 
 function planFor(ctx: Ctx2D, fs: FontSpec, rows: ValueRow[], L: Layout, top: number): Plan {
   const n = rows.length;
-  const cols: Col[] = rows.map((row) => ({
-    row,
-    stat: row.value ? parseStatValue(row.value) : null,
-    sep: /[0-9٠-٩]([,،٬])[0-9٠-٩]{3}/u.exec(row.value)?.[1] ?? '',
-  }));
-  const max = Math.max(0, ...rows.map((r) => r.num));
+  const cols: Col[] = rows.map((row) => {
+    const stat = row.value ? parseStatValue(row.value) : null;
+    const num = Math.max(0, stat?.value ?? row.num);
+    return { row, num: Number.isFinite(num) ? num : 0, stat, sep: /[0-9٠-٩]([,،٬])[0-9٠-٩]{3}/u.exec(row.value)?.[1] ?? '' };
+  });
+  const max = Math.max(0, ...cols.map((c) => c.num));
   const allPercent = rows.length > 0 && rows.every((r) => /[%٪]/.test(r.value));
   const scale = allPercent && max <= 100 && max >= 40 ? 100 : max > 0 ? max : 1;
-  const tallest = max > 0 ? rows.findIndex((r) => r.num === max) : -1;
+  const tallest = max > 0 ? cols.findIndex((c) => c.num === max) : -1;
 
   const contentW = L.W - L.M * 2;
   const slotW = contentW / Math.max(1, n);
@@ -71,19 +73,23 @@ function planFor(ctx: Ctx2D, fs: FontSpec, rows: ValueRow[], L: Layout, top: num
   const k = L.square ? 1.14 : 1;
   const bySize = (sizes: number[]) => Math.round(sizes[Math.min(n, 6) - 1] * k);
 
-  // Labels: one shared size so the row under the baseline reads as a single line of type.
+  // Labels: one shared size so the row under the baseline reads as a single line of type. A label
+  // that only fits far below the others (a very long item) shrinks on its own instead of
+  // dragging every label down with it.
   const labelW = Math.min(slotW - (n >= 5 ? 10 : 24), L.portrait ? 300 : 340);
   const labelMax = bySize(L.portrait ? [38, 36, 34, 32, 28, 26] : [36, 34, 33, 31, 28, 26]);
   const labelMin = 15;
-  const fitAt = (maxSize: number, minSize: number) =>
-    cols.map((c) => (c.row.label ? fitText(ctx, fs, c.row.label, { maxWidth: labelW, maxLines: 2, maxSize, minSize, weight: 'bold', lineHeight: 1.32 }) : null));
-  const first = fitAt(labelMax, labelMin);
-  const shared = Math.min(labelMax, ...first.map((f) => f?.fontSize ?? labelMax));
-  let labels = fitAt(shared, shared);
-  if (labels.some((f) => f && f.lines.length > 2)) {
-    // Very long labels: allow a third line at the minimum size before shrinking the block.
-    labels = cols.map((c) => (c.row.label ? fitText(ctx, fs, c.row.label, { maxWidth: labelW, maxLines: 3, maxSize: shared, minSize: labelMin, weight: 'bold', lineHeight: 1.3 }) : null));
-  }
+  const fit = (label: string, maxSize: number, minSize: number, maxLines: number) =>
+    fitText(ctx, fs, label, { maxWidth: labelW, maxLines, maxSize, minSize, weight: 'bold', lineHeight: 1.32 });
+  const best = cols.map((c) => (c.row.label ? fit(c.row.label, labelMax, labelMin, 2) : null));
+  const sizes = best.filter((f): f is FittedText => !!f && f.lines.length <= 2).map((f) => f.fontSize);
+  const typical = sizes.filter((v) => v >= labelMax * 0.7);
+  const shared = Math.min(labelMax, ...(typical.length ? typical : sizes.length ? sizes : [labelMin]));
+  const labels = cols.map((c) => {
+    if (!c.row.label) return null;
+    const f = fit(c.row.label, shared, labelMin, 2);
+    return f.lines.length <= 2 ? f : fit(c.row.label, shared, 14, 4);
+  });
   const labelH = Math.max(0, ...labels.map((f) => f?.height ?? 0));
 
   // Value size from the widest final value, bounded by the slot width.
@@ -97,9 +103,9 @@ function planFor(ctx: Ctx2D, fs: FontSpec, rows: ValueRow[], L: Layout, top: num
   const bottom = L.H - (L.portrait ? L.M * 1.3 : L.M * 0.7);
   const avail = bottom - top;
   const labelGap = L.portrait ? 22 : 18;
-  const labelCap = avail * 0.3;
-  const labelScale = labelH > labelCap ? labelCap / labelH : 1;
-  const labelBlock = labelGap + labelH * labelScale;
+  const labelCap = Math.min(labelH, avail * 0.28);
+  const labelScales = labels.map((f) => (f ? Math.min(1, labelCap / Math.max(1, f.height), labelW / Math.max(1, f.width)) : 1));
+  const labelBlock = labelGap + labelCap;
   const valueBlock = valueSize * 1.1 + valueGap;
   let plotH = avail - labelBlock - valueBlock;
   const plotMax = L.portrait ? 680 : L.square ? 660 : 440;
@@ -112,7 +118,7 @@ function planFor(ctx: Ctx2D, fs: FontSpec, rows: ValueRow[], L: Layout, top: num
   const baseY = plotTop + plotH;
   return {
     cols, scale, tallest, slotW, colW, plotTop, baseY, valueSize, valueGap,
-    labels, labelTop: baseY + labelGap, labelScale, gridLeft: L.M, gridRight: L.W - L.M,
+    labels, labelTop: baseY + labelGap, labelScales, gridLeft: L.M, gridRight: L.W - L.M,
   };
 }
 
@@ -191,7 +197,7 @@ export function drawColumns(a: SceneDrawArgs): void {
     const hi = i === p.tallest;
     const color = hi ? theme.accent : theme.accent2;
     const other = hi ? theme.accent2 : theme.accent;
-    const fullH = (plotH * clamp(c.row.num / p.scale, 0, 1.08));
+    const fullH = (plotH * clamp(c.num / p.scale, 0, 1));
     const h = Math.max(fullH * e, 0);
     const x = cx - p.colW / 2;
 
@@ -262,9 +268,10 @@ export function drawColumns(a: SceneDrawArgs): void {
       const lt = easeOutCubic(progress(frame, rev, 20));
       withAlpha(ctx, lt, () => {
         const ly = p.labelTop + (1 - lt) * 14;
-        if (p.labelScale < 1) {
+        const ls = p.labelScales[i];
+        if (ls < 1) {
           ctx.translate(cx, ly);
-          ctx.scale(p.labelScale, p.labelScale);
+          ctx.scale(ls, ls);
           ctx.translate(-cx, -ly);
         }
         ctx.fillStyle = hi ? theme.foreground : alpha(theme.foreground, 0.86);

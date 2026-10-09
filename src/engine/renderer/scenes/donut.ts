@@ -201,7 +201,7 @@ function fitLegend(ctx: Ctx2D, fs: FontSpec, segs: Seg[], colW: number, cols: nu
   ctx.font = font(fs, 'regular', s);
   const natural = Math.max(0, ...segs.map((g) => ctx.measureText(g.label).width));
   const anyShare = segs.some((g) => g.frac > 0);
-  const barMin = Math.max(80, s * 3);
+  const barMin = Math.max(80, s * 2.6);
   // Short labels keep their natural width and the bar takes the rest; long labels wrap in up
   // to 58% of the room so a useful bar remains; otherwise the label gets the whole room.
   let labelW = room;
@@ -316,7 +316,7 @@ function planFor(ctx: Ctx2D, fs: FontSpec, items: string[], L: Layout, top: numb
     cy = top + availH / 2;
     const left = cx + R + ringPad + 52;
     const colW = L.W - L.M - left;
-    legend = pickLegend(ctx, fs, segs, colW, 1, 0, [n <= 3 ? 34 : 30, 18], () => availH);
+    legend = pickLegend(ctx, fs, segs, colW, 1, 0, [n <= 3 ? 38 : 32, 18], () => availH);
     legendScale = Math.min(1, availH / Math.max(1, legend.height));
     legendX = left;
     legendY = cy - (legend.height * legendScale) / 2;
