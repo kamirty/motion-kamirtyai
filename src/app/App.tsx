@@ -3,13 +3,17 @@ import { ensureFontLoaded } from '../design/fonts';
 import { fullTheme, presetById } from '../design/presets';
 import { localizeDigits } from '../design/digits';
 import { rebalance, restack, sceneIndexAt, setSceneDuration } from '../domain/timeline';
-import { ASPECTS, LIMITS, styleOf, type AspectId, type Project, type ProjectStyle, type Scene, type Theme } from '../domain/types';
+import { ASPECTS, DEFAULT_IMAGE, LIMITS, aspectOf as aspectOfSize, styleOf, type AspectId, type Project, type ProjectStyle, type Scene, type SceneImage, type Theme } from '../domain/types';
 import { PreviewAudio } from '../engine/audio/player';
 import { decodeAudioFile, fitAudio, renderMusic } from '../engine/audio/music';
 import { cuesKey, renderSoundtrack } from '../engine/audio/sfx';
+import { detectExportPlan } from '../engine/export/capabilities';
 import { generateProject, nextSceneId } from '../engine/planner';
+import type { AssistantAction, AssistantContext } from '../assistant/types';
 import { clearTextCache } from '../engine/renderer/textLayout';
-import { downloadBlob, loadLocal, projectToJson, readProjectFile, saveLocal } from '../storage/projectJson';
+import { addImageFile, loadAssets, onAssetsChanged, projectAssetIds } from '../storage/assets';
+import { downloadBlob, loadLocal, projectFileBlob, readProjectFile, saveLocal } from '../storage/projectJson';
+import { Assistant } from './components/Assistant';
 import { ExportDialog } from './components/ExportDialog';
 import { Inspector } from './components/Inspector';
 import { Preview } from './components/Preview';
@@ -41,6 +45,12 @@ export function App() {
   const [notice, setNotice] = useState<{ kind: 'info' | 'error'; text: string } | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [uiTheme, setUiTheme] = useUiTheme();
+  const [exportFormat, setExportFormat] = useState<AssistantContext['exportFormat']>('unknown');
+  useEffect(() => {
+    detectExportPlan(project.size).then((r) => setExportFormat(r.supported ? r.plan.container : 'none')).catch(() => setExportFormat('unknown'));
+    // Capability depends only on the browser; checking once at the starting size is enough.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [customAudio, setCustomAudio] = useState<{ name: string; buffer: AudioBuffer } | null>(null);
   const musicCache = useRef(new Map<string, Promise<AudioBuffer | null>>());
   const player = useRef(new PreviewAudio());
@@ -61,6 +71,13 @@ export function App() {
       alive = false;
     };
   }, [style.font]);
+
+  // Pictures live in IndexedDB; load the ones this project uses and redraw when they arrive.
+  useEffect(() => onAssetsChanged(() => setRenderKey((k) => k + 1)), []);
+  const assetKey = projectAssetIds(project).join(',');
+  useEffect(() => {
+    if (assetKey) void loadAssets(assetKey.split(','));
+  }, [assetKey]);
 
   useEffect(() => {
     const id = setTimeout(() => saveLocal(project, description), 400);
@@ -198,6 +215,49 @@ export function App() {
     setSelected(at);
   };
 
+  const onImageFile = async (file: File) => {
+    try {
+      const assetId = await addImageFile(file);
+      const portrait = project.size.height > project.size.width;
+      const base: Omit<SceneImage, 'assetId'> = portrait ? { ...DEFAULT_IMAGE, x: 0.5, y: 0.74, scale: 0.72 } : DEFAULT_IMAGE;
+      setProject((p) => ({
+        ...p,
+        scenes: p.scenes.map((sc, i) => (i === selected ? { ...sc, image: { ...base, ...sc.image, assetId } } : sc)),
+      }));
+      setNotice({ kind: 'info', text: 'أُضيفت الصورة. حرّكها بالسحب في المعاينة أو من لوحة المشهد.' });
+    } catch (e) {
+      setNotice({ kind: 'error', text: e instanceof Error ? e.message : 'تعذّر قراءة الصورة.' });
+    }
+  };
+
+  const updateImage = (patch: Partial<SceneImage> | null, coalesce?: string) =>
+    setProject(
+      (p) => ({
+        ...p,
+        scenes: p.scenes.map((sc, i) => {
+          if (i !== selected || !sc.image) return sc;
+          if (patch === null) {
+            const { image: _removed, ...rest } = sc;
+            return rest;
+          }
+          return { ...sc, image: { ...sc.image, ...patch } };
+        }),
+      }),
+      coalesce ?? (patch ? `image-${selected}-${Object.keys(patch).join()}` : undefined),
+    );
+
+  const onAssistantAction = (a: AssistantAction) => {
+    if (a.type === 'export') {
+      setPlaying(false);
+      setExportOpen(true);
+    } else if (a.type === 'generate') generate();
+    else if (a.type === 'useIdea') {
+      setDescription(a.text);
+      setNotice({ kind: 'info', text: 'وُضعت الفكرة في خانة «اكتب فكرتك». استبدل ما بين [الأقواس] والأصفار بمعلوماتك، ثم اضغط «أنشئ الفيديو من الوصف».' });
+      document.querySelector<HTMLTextAreaElement>('.sidebar textarea')?.focus();
+    } else if (a.type === 'link') window.open(a.href, '_blank', 'noopener');
+  };
+
   const setAspect = (a: AspectId) => setProject((p) => ({ ...p, size: { width: ASPECTS[a].width, height: ASPECTS[a].height } }));
 
   const setStyle = (patch: Partial<ProjectStyle>, theme?: Theme) =>
@@ -294,7 +354,7 @@ export function App() {
           <button type="button" onClick={history.redo} disabled={!history.canRedo} title="إعادة (Ctrl+Y)" aria-label="إعادة">↷</button>
           <button type="button" onClick={newProject}>جديد</button>
           <button type="button" onClick={() => fileInput.current?.click()}>فتح</button>
-          <button type="button" onClick={() => downloadBlob(new Blob([projectToJson(project)], { type: 'application/json' }), 'kamirty-motion-project.json')}>حفظ</button>
+          <button type="button" onClick={() => void projectFileBlob(project).then((b) => downloadBlob(b, 'kamirty-motion-project.json'))}>حفظ</button>
           <button type="button" className="primary" onClick={() => { setPlaying(false); setExportOpen(true); }}>
             ⬇ تصدير الفيديو
           </button>
@@ -340,6 +400,8 @@ export function App() {
             onFrame={seek}
             onTogglePlay={() => setPlaying((p) => !p)}
             renderKey={renderKey}
+            selected={selected}
+            onImageMove={(x, y) => updateImage({ x, y }, `image-drag-${selected}`)}
           />
           <Timeline project={project} selected={selected} currentFrame={frame} onSelect={selectScene} onAdd={addScene} renderKey={renderKey} />
         </div>
@@ -351,6 +413,8 @@ export function App() {
           onMove={moveScene}
           onDuplicate={duplicateScene}
           onDelete={deleteScene}
+          onImageFile={(f) => void onImageFile(f)}
+          onImage={(patch) => updateImage(patch)}
         />
       </main>
 
@@ -366,6 +430,19 @@ export function App() {
           <span>KamirtyAI © {new Date().getFullYear()}</span>
         </nav>
       </footer>
+
+      <Assistant
+        context={{
+          sceneCount: project.scenes.length,
+          kinds: project.scenes.map((sc) => sc.kind),
+          aspect: aspectOfSize(project.size),
+          music: customAudio ? 'file' : style.music,
+          sfx: style.sfx,
+          hasImages: project.scenes.some((sc) => !!sc.image),
+          exportFormat,
+        }}
+        onAction={onAssistantAction}
+      />
 
       {exportOpen && <ExportDialog project={project} getAudio={getAudio} onClose={() => setExportOpen(false)} />}
     </div>

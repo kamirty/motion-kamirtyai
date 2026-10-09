@@ -1,4 +1,4 @@
-import { ASPECTS, DEFAULT_STYLE, DURATION_FRAMES, FPS, LIMITS, SCENE_KINDS, type Project, type ProjectStyle, type Scene } from './types';
+import { ASPECTS, DEFAULT_IMAGE, DEFAULT_STYLE, DURATION_FRAMES, FPS, LIMITS, SCENE_KINDS, type Project, type ProjectStyle, type Scene, type SceneImage } from './types';
 import { rebalance, validateTimeline } from './timeline';
 
 const COLOR = /^#[0-9A-Fa-f]{6}$/;
@@ -6,6 +6,32 @@ const ID = /^[A-Za-z0-9_-]{1,40}$/;
 
 const str = (v: unknown, max: number): string => (typeof v === 'string' ? v : '').replace(/[\u0000-\u0008\u000B-\u001F]/g, '').slice(0, max);
 const pick = <T extends string>(v: unknown, allowed: readonly T[], fallback: T): T => (allowed.includes(v as T) ? (v as T) : fallback);
+
+const num = (v: unknown, min: number, max: number, fb: number): number => {
+  const n = typeof v === 'number' && Number.isFinite(v) ? v : fb;
+  return Math.min(max, Math.max(min, n));
+};
+
+/** Validates a scene picture; returns undefined for anything malformed. */
+export function parseImage(v: unknown): SceneImage | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const o = v as Record<string, unknown>;
+  if (typeof o.assetId !== 'string' || !/^[0-9a-f]{24}$/.test(o.assetId)) return undefined;
+  const d = DEFAULT_IMAGE;
+  return {
+    assetId: o.assetId,
+    x: num(o.x, -0.5, 1.5, d.x),
+    y: num(o.y, -0.5, 1.5, d.y),
+    scale: num(o.scale, 0.05, 1.5, d.scale),
+    rotation: num(o.rotation, -180, 180, d.rotation),
+    shape: pick(o.shape, ['rect', 'rounded', 'circle'] as const, d.shape),
+    border: typeof o.border === 'boolean' ? o.border : d.border,
+    shadow: typeof o.shadow === 'boolean' ? o.shadow : d.shadow,
+    opacity: num(o.opacity, 0.1, 1, d.opacity),
+    entrance: pick(o.entrance, ['fade', 'zoom', 'slide', 'none'] as const, d.entrance),
+    layer: pick(o.layer, ['front', 'back'] as const, d.layer),
+  };
+}
 
 /**
  * Parses untrusted JSON (imported file or local autosave) into a valid project, or throws with an
@@ -47,6 +73,7 @@ export function parseProject(input: unknown): Project {
       title: str(s.title, LIMITS.titleChars),
       items: (Array.isArray(s.items) ? s.items : []).slice(0, LIMITS.items).map((it) => str(it, LIMITS.itemChars)),
       icon: str(s.icon, 60) || 'sparkles',
+      ...(parseImage(s.image) ? { image: parseImage(s.image) } : {}),
     };
   });
 

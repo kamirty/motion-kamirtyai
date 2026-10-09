@@ -1,7 +1,10 @@
 export const FPS = 30;
 export const DURATION_FRAMES = 3600; // 120 s at 30 fps
 
-export const SCENE_KINDS = ['hero', 'steps', 'comparison', 'stat', 'timeline', 'quote', 'summary', 'outro'] as const;
+export const SCENE_KINDS = [
+  'hero', 'steps', 'comparison', 'stat', 'timeline', 'quote', 'summary', 'outro',
+  'kpis', 'donut', 'columns', 'pictogram', 'cycle', 'pyramid', 'proscons', 'checklist', 'quiz', 'definition', 'chapter', 'tip',
+] as const;
 export type SceneKind = (typeof SCENE_KINDS)[number];
 
 export interface Theme {
@@ -14,6 +17,30 @@ export interface Theme {
   surface?: string;
 }
 
+export type ImageShape = 'rect' | 'rounded' | 'circle';
+export type ImageEntrance = 'fade' | 'zoom' | 'slide' | 'none';
+
+/** A picture the visitor added to a scene. The pixels live in the browser's asset store. */
+export interface SceneImage {
+  /** Content hash of the stored image (see src/storage/assets.ts). */
+  assetId: string;
+  /** Centre position as a fraction of the frame width/height (0–1). */
+  x: number;
+  y: number;
+  /** Width as a fraction of the frame width (0.05–1.5); height follows the picture's aspect. */
+  scale: number;
+  /** Rotation in degrees (−180–180). */
+  rotation: number;
+  shape: ImageShape;
+  border: boolean;
+  shadow: boolean;
+  /** 0.1–1 */
+  opacity: number;
+  entrance: ImageEntrance;
+  /** Draw over the scene content, or behind it (as a backdrop). */
+  layer: 'front' | 'back';
+}
+
 export interface Scene {
   id: string;
   kind: SceneKind;
@@ -22,6 +49,7 @@ export interface Scene {
   title: string;
   items: string[];
   icon: string;
+  image?: SceneImage;
 }
 
 export type DigitSystem = 'arabic' | 'latin';
@@ -77,6 +105,19 @@ export function aspectOf(size: { width: number; height: number }): AspectId {
   if (size.width === size.height) return 'square';
   return size.width > size.height ? 'landscape' : 'portrait';
 }
+
+export const DEFAULT_IMAGE: Omit<SceneImage, 'assetId'> = {
+  x: 0.27,
+  y: 0.58,
+  scale: 0.36,
+  rotation: 0,
+  shape: 'rounded',
+  border: true,
+  shadow: true,
+  opacity: 1,
+  entrance: 'zoom',
+  layer: 'front',
+};
 
 /** Limits enforced on user input. */
 export const LIMITS = {

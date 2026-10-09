@@ -18,6 +18,18 @@ export const KIND_ICONS: Record<string, string> = {
   quote: 'quote',
   summary: 'lightbulb',
   outro: 'heart',
+  kpis: 'gauge',
+  donut: 'chart-pie',
+  columns: 'chart-column',
+  pictogram: 'users',
+  cycle: 'recycle',
+  pyramid: 'layers',
+  proscons: 'scale',
+  checklist: 'list-checks',
+  quiz: 'circle-help',
+  definition: 'book-open',
+  chapter: 'flag',
+  tip: 'lightbulb',
 };
 
 const shortKeyword = new Map<string, RegExp>();

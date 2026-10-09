@@ -1,6 +1,7 @@
 import type { Project } from '../../domain/types';
 import { hash01 } from '../renderer/animation';
-import { HEADER, HERO, OUTRO, QUOTE, STAT, itemReveal, shownItems } from '../timing';
+import { CHAPTER, DEFINITION, HEADER, HERO, IMAGE, KPIS, OUTRO, PICTOGRAM, QUIZ_COUNTDOWN, QUOTE, STAT, TIP, itemReveal, quizCountdown, shownItems } from '../timing';
+import { quizParts } from '../sceneModel';
 
 /**
  * Automatic sound effects cued from the same reveal timings the renderer animates with,
@@ -31,6 +32,7 @@ export function planCues(project: Project): Cue[] {
     };
     // The whoosh starts just before the cut so its peak lands on it.
     if (si > 0) cues.push({ frame: Math.max(0, s0 - 8), kind: 'whoosh', step: 0 });
+    if (scene.image && scene.image.entrance !== 'none') add(IMAGE.enter, 'pop', 5);
 
     switch (scene.kind) {
       case 'hero':
@@ -53,6 +55,54 @@ export function planCues(project: Project): Cue[] {
         for (let i = 0; i < n; i++) add(itemReveal(scene, i, n), 'pop', i);
         break;
       }
+      case 'cycle':
+      case 'pyramid':
+      case 'proscons':
+      case 'checklist':
+      case 'donut':
+      case 'columns': {
+        add(HEADER.title, 'tick');
+        const n = shownItems(scene).length;
+        for (let i = 0; i < n; i++) add(itemReveal(scene, i, n), 'pop', scene.kind === 'pyramid' ? n - 1 - i : i);
+        break;
+      }
+      case 'kpis': {
+        add(HEADER.title, 'tick');
+        const n = shownItems(scene).length;
+        for (let i = 0; i < n; i++) add(itemReveal(scene, i, n), 'pop', i);
+        if (n) add(itemReveal(scene, n - 1, n) + KPIS.countLength, 'ding');
+        break;
+      }
+      case 'pictogram':
+        add(HEADER.title, 'tick');
+        for (let k = 0; k < 10; k++) add(PICTOGRAM.fillStart + Math.round((k * PICTOGRAM.fillLength) / 10), 'tick', k);
+        add(PICTOGRAM.fillStart + PICTOGRAM.fillLength, 'ding');
+        break;
+      case 'quiz': {
+        add(HEADER.title, 'tick');
+        const { options, answer } = quizParts(scene);
+        options.forEach((_, i) => add(itemReveal(scene, i, options.length), 'pop', i));
+        if (answer >= 0) {
+          const c = quizCountdown(scene);
+          for (let k = 0; k < 3; k++) add(c + k * 30, 'tick', 3 - k);
+          add(c + QUIZ_COUNTDOWN, 'ding');
+        }
+        break;
+      }
+      case 'definition': {
+        add(DEFINITION.term, 'pop', 0);
+        const n = shownItems(scene).length;
+        for (let i = 0; i < n; i++) add(itemReveal(scene, i, n), i === 0 ? 'pop' : 'tick', i + 2);
+        break;
+      }
+      case 'chapter':
+        add(CHAPTER.mark + 2, 'rise');
+        add(CHAPTER.title, 'pop', 4);
+        break;
+      case 'tip':
+        add(TIP.badge, 'rise');
+        add(TIP.text, 'pop', 3);
+        break;
       case 'quote':
         add(QUOTE.line(0), 'rise');
         break;

@@ -4,6 +4,7 @@ import { ASPECTS, aspectOf, styleOf, type Project } from '../../domain/types';
 import { validateTimeline } from '../../domain/timeline';
 import { detectExportPlan, type DetectResult } from '../../engine/export/capabilities';
 import type { VerifyReport } from '../../engine/export/verify';
+import { loadAssets, projectAssetIds } from '../../storage/assets';
 import { downloadBlob } from '../../storage/projectJson';
 
 type State =
@@ -52,6 +53,9 @@ export function ExportDialog({ project, getAudio, onClose }: Props) {
     const startedAt = performance.now();
     setState({ status: 'running', frame: 0, startedAt, now: startedAt });
     try {
+      // Every picture must be decoded before the first frame, or it would be missing from the video.
+      const missing = await loadAssets(projectAssetIds(project));
+      if (missing.length) throw new Error('بعض صور المشروع غير موجودة على هذا الجهاز. أعد إضافتها من لوحة المشهد.');
       const [{ exportVideo }, { verifyExport }, audio] = await Promise.all([
         import('../../engine/export/exportVideo'),
         import('../../engine/export/verify'),

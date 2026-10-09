@@ -4,6 +4,7 @@ import { sceneIndexAt } from '../../domain/timeline';
 import { styleOf, type DigitSystem, type Project, type ProjectStyle, type Scene, type Theme } from '../../domain/types';
 import { TRANSITION_FRAMES, easeInOutCubic, hash01, progress } from './animation';
 import { fontSpec, type Ctx2D } from './context';
+import { drawSceneImage } from './imageLayer';
 import { drawScene, layoutFor, type Layout } from './scenes';
 
 const localized = new WeakMap<Scene, Map<DigitSystem, Scene>>();
@@ -222,7 +223,11 @@ export function renderFrame(project: Project, frameIndex: number, ctx: Ctx2D, ou
         break;
     }
     ctx.globalAlpha = opacity;
-    if (opacity > 0.001) drawScene({ ctx, scene, theme, frame: local, layout: L, font: fs, digits: style.digits });
+    if (opacity > 0.001) {
+      if (scene.image?.layer === 'back') drawSceneImage(ctx, scene, theme, L, local, scene.durationFrames);
+      drawScene({ ctx, scene, theme, frame: local, layout: L, font: fs, digits: style.digits });
+      if (scene.image && scene.image.layer !== 'back') drawSceneImage(ctx, scene, theme, L, local, scene.durationFrames);
+    }
     ctx.restore();
     if (style.transition === 'wipe') {
       // Accent panel sweeps across at each cut: covers on exit, uncovers on enter.
