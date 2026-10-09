@@ -68,7 +68,7 @@ function planFor(ctx: Ctx2D, fs: FontSpec, rows: ValueRow[], L: Layout, top: num
   const contentW = L.W - L.M * 2;
   const slotW = contentW / Math.max(1, n);
   const colMax = L.portrait ? 120 : L.square ? 150 : 140;
-  const colW = Math.min(colMax, slotW * (n >= 5 ? 0.64 : 0.56));
+  const colW = Math.min(colMax * (n <= 2 ? 1.25 : 1), slotW * (n >= 5 ? 0.64 : 0.56));
   /** Type scale: the square canvas is larger than the landscape one at the same density. */
   const k = L.square ? 1.14 : 1;
   const bySize = (sizes: number[]) => Math.round(sizes[Math.min(n, 6) - 1] * k);
@@ -88,7 +88,11 @@ function planFor(ctx: Ctx2D, fs: FontSpec, rows: ValueRow[], L: Layout, top: num
   const labels = cols.map((c) => {
     if (!c.row.label) return null;
     const f = fit(c.row.label, shared, labelMin, 2);
-    return f.lines.length <= 2 ? f : fit(c.row.label, shared, 14, 4);
+    if (f.lines.length <= 2 && f.fontSize >= shared * 0.85) return f;
+    // A third line keeps a long label close to the shared size before it shrinks further.
+    const three = fit(c.row.label, shared, Math.max(labelMin, Math.round(shared * 0.8)), 3);
+    if (three.lines.length <= 3) return three;
+    return fit(c.row.label, shared, 14, 4);
   });
   const labelH = Math.max(0, ...labels.map((f) => f?.height ?? 0));
 
@@ -247,6 +251,16 @@ export function drawColumns(a: SceneDrawArgs): void {
     }
 
     // Value counting up, riding on the column top; a small pop when it lands.
+    if (!c.row.value) {
+      // No number in the item: a quiet dash marks the missing value instead of inventing one.
+      withAlpha(ctx, clamp(t * 4) * 0.5, () => {
+        ctx.font = font(fs, 'bold', p.valueSize * 0.8);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillStyle = theme.foreground;
+        ctx.fillText('—', cx, p.baseY - 5 - p.valueGap);
+      });
+    }
     const shown = c.stat ? valueText(c, c.stat.value * e) : c.row.value;
     if (shown) {
       const pop = 1 + 0.12 * Math.sin(Math.PI * progress(frame, rev + GROW - 4, 14));

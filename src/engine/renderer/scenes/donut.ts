@@ -258,7 +258,7 @@ function pickLegend(ctx: Ctx2D, fs: FontSpec, segs: Seg[], colW: number, cols: n
   // Preference: one-line labels with share bars, one-line labels without, then wrapped labels.
   const passes: [number, boolean, number][] = [
     [1, true, Math.max(min, max - 8)],
-    [1, false, Math.max(min, max - 10)],
+    [1, false, Math.max(min, max - 6)],
     [2, false, min],
     [3, false, min],
   ];
@@ -273,9 +273,17 @@ function pickLegend(ctx: Ctx2D, fs: FontSpec, segs: Seg[], colW: number, cols: n
 
 function centerFor(ctx: Ctx2D, fs: FontSpec, seg: Seg | undefined, disc: number): Center | null {
   if (!seg || !seg.value) return null;
-  const label = seg.label
-    ? fitText(ctx, fs, seg.label, { maxWidth: disc * 1.3, maxLines: 2, maxSize: Math.round(clamp(disc * 0.19, 16, 30)), minSize: 14, weight: 'regular', lineHeight: 1.3 })
-    : null;
+  const opts = { maxWidth: disc * 1.3, maxLines: 2, maxSize: Math.round(clamp(disc * 0.19, 16, 30)), minSize: 15, weight: 'regular' as const, lineHeight: 1.3 };
+  let label: FittedText | null = seg.label ? fitText(ctx, fs, seg.label, opts) : null;
+  if (label && label.lines.length > 2) {
+    // Too long for the hole: keep the opening words; the full label is in the highlighted legend row.
+    const words = seg.label.split(/\s+/);
+    label = null;
+    for (let k = words.length - 1; k >= 1 && !label; k--) {
+      const f = fitText(ctx, fs, `${words.slice(0, k).join(' ')}…`, opts);
+      if (f.lines.length <= 2 && f.width <= opts.maxWidth) label = f;
+    }
+  }
   const gap = label ? disc * 0.07 : 0;
   let size = Math.round(disc * 0.56);
   for (;;) {
@@ -324,9 +332,9 @@ function planFor(ctx: Ctx2D, fs: FontSpec, items: string[], L: Layout, top: numb
     const cols = L.square && n >= 4 ? 2 : 1;
     const colGap = 22;
     const colW = cols === 2 ? (contentW - colGap) / 2 : L.square ? Math.min(contentW, 760) : contentW;
-    const gapY = L.portrait ? 44 : 40;
+    const gapY = L.portrait ? 38 : 40;
     const rMax = L.portrait ? 236 : 226;
-    const rPref = L.portrait ? (n <= 3 ? 190 : n === 4 ? 170 : 150) : 170;
+    const rPref = L.portrait ? (n <= 3 ? 190 : n === 4 ? 165 : 135) : 170;
     const room = (h: number) => (availH - h - gapY) / 2 - ringPad;
     legend = pickLegend(ctx, fs, segs, colW, cols, colGap, [L.portrait ? 38 : 34, 18], () => availH - gapY - 2 * (rPref + ringPad));
     R = Math.min(rMax, room(legend.height));
@@ -501,8 +509,8 @@ function drawChart(a: SceneDrawArgs, plan: Plan, colors: (string | null)[], tm: 
   });
 }
 
-/** A segment colour as text on `bg`: itself when it reads at 3:1, otherwise the foreground. */
-const textInk = (theme: Required<Theme>, color: string, bg: string): string => (contrast(color, bg) >= 3 ? color : theme.foreground);
+/** A segment colour as text on `bg`: itself when it reads at 4.5:1, otherwise the foreground. */
+const textInk = (theme: Required<Theme>, color: string, bg: string): string => (contrast(color, bg) >= 4.5 ? color : theme.foreground);
 
 function drawLegend(a: SceneDrawArgs, plan: Plan, colors: (string | null)[], tm: Timing): void {
   const { ctx, theme, frame, font: fs } = a;
