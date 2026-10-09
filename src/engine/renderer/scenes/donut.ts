@@ -188,7 +188,7 @@ interface Plan {
 
 const LABEL_LH = 1.38;
 
-function fitLegend(ctx: Ctx2D, fs: FontSpec, segs: Seg[], colW: number, cols: number, colGap: number, maxLines: number, s: number): Legend {
+function fitLegend(ctx: Ctx2D, fs: FontSpec, segs: Seg[], colW: number, cols: number, colGap: number, maxLines: number, s: number, needBar = false): Legend {
   const n = segs.length;
   const valueSize = Math.round(s * 1.3);
   ctx.font = font(fs, 'bold', valueSize);
@@ -209,7 +209,7 @@ function fitLegend(ctx: Ctx2D, fs: FontSpec, segs: Seg[], colW: number, cols: nu
   if (anyShare && room - natural - gap * 2 >= barMin) {
     labelW = Math.ceil(natural);
     barW = room - labelW - gap * 2;
-  } else if (anyShare && room * 0.42 - gap * 2 >= barMin) {
+  } else if (anyShare && maxLines > 1 && room * 0.42 - gap * 2 >= barMin) {
     labelW = Math.floor(room * 0.58);
     barW = room - labelW - gap * 2;
   }
@@ -224,6 +224,7 @@ function fitLegend(ctx: Ctx2D, fs: FontSpec, segs: Seg[], colW: number, cols: nu
   fits.forEach((f) => {
     if (f.lines.length > maxLines || f.width > Math.max(70, labelW) + 0.5) ok = false;
   });
+  if (needBar && anyShare && !barW) ok = false;
   const bar = barW ? Math.round(clamp(s * 0.3, 7, 11)) : 0;
   const padY = Math.round(s * 0.4);
   const minH = Math.round(s * 2.15);
@@ -253,13 +254,21 @@ function fitLegend(ctx: Ctx2D, fs: FontSpec, segs: Seg[], colW: number, cols: nu
  * natural wrapping, which the caller scales down to fit.
  */
 function pickLegend(ctx: Ctx2D, fs: FontSpec, segs: Seg[], colW: number, cols: number, colGap: number, sizes: [number, number], maxH: (lg: Legend) => number): Legend {
-  for (const maxLines of [2, 3]) {
-    for (let s = sizes[0]; s >= sizes[1]; s -= 2) {
-      const lg = fitLegend(ctx, fs, segs, colW, cols, colGap, maxLines, s);
+  const [max, min] = sizes;
+  // Preference: one-line labels with share bars, one-line labels without, then wrapped labels.
+  const passes: [number, boolean, number][] = [
+    [1, true, Math.max(min, max - 8)],
+    [1, false, Math.max(min, max - 10)],
+    [2, false, min],
+    [3, false, min],
+  ];
+  for (const [maxLines, needBar, floor] of passes) {
+    for (let s = max; s >= floor; s -= 2) {
+      const lg = fitLegend(ctx, fs, segs, colW, cols, colGap, maxLines, s, needBar);
       if (lg.ok && lg.height <= maxH(lg)) return lg;
     }
   }
-  return fitLegend(ctx, fs, segs, colW, cols, colGap, 99, sizes[1]);
+  return fitLegend(ctx, fs, segs, colW, cols, colGap, 99, min);
 }
 
 function centerFor(ctx: Ctx2D, fs: FontSpec, seg: Seg | undefined, disc: number): Center | null {

@@ -73,7 +73,7 @@ function planFor(ctx: Ctx2D, fs: FontSpec, rows: ValueRow[], L: Layout, top: num
 
   // Labels: one shared size so the row under the baseline reads as a single line of type.
   const labelW = Math.min(slotW - (n >= 5 ? 10 : 24), L.portrait ? 300 : 340);
-  const labelMax = bySize(L.portrait ? [36, 34, 32, 30, 26, 24] : [36, 34, 33, 31, 28, 26]);
+  const labelMax = bySize(L.portrait ? [38, 36, 34, 32, 28, 26] : [36, 34, 33, 31, 28, 26]);
   const labelMin = 15;
   const fitAt = (maxSize: number, minSize: number) =>
     cols.map((c) => (c.row.label ? fitText(ctx, fs, c.row.label, { maxWidth: labelW, maxLines: 2, maxSize, minSize, weight: 'bold', lineHeight: 1.32 }) : null));
@@ -90,7 +90,7 @@ function planFor(ctx: Ctx2D, fs: FontSpec, rows: ValueRow[], L: Layout, top: num
   const finals = cols.map((c) => valueText(c, c.stat?.value ?? 0));
   ctx.font = font(fs, 'bold', 100);
   const widest = Math.max(1, ...finals.map((t) => ctx.measureText(t).width));
-  const valueMax = bySize([60, 56, 52, 46, 40, 36]);
+  const valueMax = bySize(L.portrait ? [60, 56, 52, 48, 44, 40] : [60, 56, 52, 46, 40, 36]);
   const valueSize = clamp(Math.min(valueMax, ((slotW - 12) * 100) / widest), 16, valueMax);
   const valueGap = valueSize * 0.45 + 8;
 
