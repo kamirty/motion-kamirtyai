@@ -1,7 +1,7 @@
 import { normalizeArabic } from '../../design/arabic';
 import { KIND_ICONS, suggestIcon } from '../../design/icons';
 import { LIMITS, type SceneKind } from '../../domain/types';
-import { toNumber, valueRow } from '../sceneModel';
+import { kpiParts, pictogramRatio, toNumber, valueRow } from '../sceneModel';
 import {
   LABEL_VALUE, NUMERIC_EVENT, RATIO_RE, STAT_RE, YEAR_LINE, chapterHeading, chunkText, clampWords, extractTopic,
   isListLine, leadMark, optionLabel, splitSentences, stripMarker, trimPunct,
@@ -48,6 +48,8 @@ type Block =
 
 const MAX_ITEM = LIMITS.itemChars;
 const QUOTE_RE = /[«"“]([^«»"“”]{8,})[»"”]\s*(?:[-–—]\s*([^.\n]{2,60}))?/u;
+/** The speaker named before a quote: "قال أينشتاين: «…»". */
+const QUOTE_SPEAKER = /^(?:و)?(?:قال|قالت|يقول|تقول)\s+([^:：«»"“”]{2,40}?)\s*[:：،,]?\s*[«"“]/u;
 const COMPARE_SPLIT = /\s+(?:بينما|مقابل|في حين|أما|vs\.?|versus)\s+/iu;
 const WARNING_RE = /(?:^|\s)(?:تحذير|احذر|احذروا|تجنب|تجنّب|انتبه|خطر|ممنوع|لا\s+ت)/u;
 /** Warnings proper; "لا ت…" alone is often just a negated fact ("لا تتجاوز 3%"). */
@@ -56,9 +58,15 @@ const STEPS_HINT = /(?:خطوات|خطوة|مراحل|طريقة|طرق|كيف|�
 const ORDERED_MARKER = /^\s*\(?[0-9٠-٩]{1,2}\s*[.)\-–:]/;
 const isQuestion = (t: string) => /[؟?]\s*$/.test(t);
 
-// Tips: "هل تعلم أن …؟" and "نصيحة: …" (also "نصيحة اليوم: …").
-const DID_YOU_KNOW = /^هل\s+تعلم(?:ين|ون)?(?![\p{L}])\s*[؟?!:：،,]?\s*/u;
-const ADVICE = /^(نصيح[ةه](?:\s+[^\s:：.،؟?!]+){0,2})\s*(?:[:：\-–—]\s*|$)/u;
+// Tips: "هل تعلم أن …؟" and "نصيحة: …" (also "نصيحة اليوم: …", "💡 نصيحة: …").
+const DID_YOU_KNOW = /^(?:[\p{Extended_Pictographic}\u200d\ufe0f]+\s*)?هل\s+تعلم(?:ين|ون)?(?![\p{L}])\s*[؟?!:：،,]?\s*/u;
+/** "هل تعلم كيف/لماذا/ما …؟" asks a question that the next sentence answers; it is not a tip. */
+const DYK_ASKS = /^(?:كيف|لماذا|لم|ماذا|متى|أين|اين|كم|ما|أي|أيّ|اي|هل|من\s+(?:هو|هي|هم))(?![\p{L}])/u;
+const isDidYouKnow = (t: string) => {
+  const m = DID_YOU_KNOW.exec(t);
+  return !!m && !DYK_ASKS.test(t.slice(m[0].length));
+};
+const ADVICE = /^(?:[\p{Extended_Pictographic}\u200d\ufe0f]+\s*)?(نصيح[ةه](?:\s+[^\s:：.،؟?!]+){0,2})\s*(?:[:：\-–—]\s*|$)/u;
 const SOURCE_NOTE = /^(?:المصدر|مصدر|المرجع|source)\s*[:：]/iu;
 
 // Definitions: "ما هو X؟", "ما معنى X؟", "ما المقصود بـX؟", "تعريف X: …".
@@ -67,7 +75,7 @@ const DEF_COLON = /^تعريف\s+([^:：]{2,40}?)\s*[:：]\s*(.*)$/u;
 /** Questions about lists or amounts rather than the meaning of a term. */
 const NOT_A_TERM = /^(?:ال)?(?:فوايد|اسباب|انواع|اضرار|مزايا|عيوب|خطوات|طرق|اهم|ابرز|افضل|اكثر|اكبر|اصغر|اقل|عدد|نسبه|كميه|الفرق|علاقه|دور|اهميه|مراحل|مكونات|خصايص|شروط|عوامل)(?![\p{L}])/u;
 const EXAMPLES_HEAD = /^(?:و)?(?:من\s+)?(?:ال)?(?:امثل|مثال|مثل|انواع|اشكال|نماذج)/u;
-const EXAMPLES_TAIL = /[\s،,]*(?:و)?(?:من\s+)?(?:ال)?(?:[أا]مثل[ةته]\S*|مثال|مثل|منها|[أا]نواع\S*|[أا]شكال\S*)(?:\s+(?:على\s+)?(?:ذلك|عليها|عليه))?\s*$/u;
+const EXAMPLES_TAIL = /[\s،,]*(?:و)?(?:من\s+)?(?:ال)?(?:(?:[أا]مثل[ةته]\S*|[أا]نواع\S*|[أا]شكال\S*)(?:\s+[^\s:：،,]+(?:ه|ها|هم))?|مثال|مثل|منها)(?:\s+(?:على\s+)?(?:ذلك|عليها|عليه))?\s*$/u;
 
 // Quiz answers: "الإجابة: ب" or "الإجابة الصحيحة: المشتري".
 const ANSWER_LINE = /^(?:ال)?(?:اجابه|جواب|حل)(?:\s+(?:ال)?صحيحه)?\s*[:：\-–—]\s*(.+?)[\s.]*$/u;
@@ -77,6 +85,11 @@ const QUESTION_HEADING = /(?:[؟?]$|^(?:أي|أيّ|اي|كم|متى|أين|اي
 // List headings that pick a scene kind (matched on the original text).
 const CYCLE_HEAD = /(?:^|[\s(])[وبلف]?(?:ال)?دورة(?!\s+(?:ال)?(?:تدريبية|مياه|دراسية|تعليمية|رياضية|ألعاب))(?=$|[\s:：،,؟?)])/u;
 const PYRAMID_HEAD = /(?:^|[\s(])[وبلف]?(?:ال)?(?:هرم(?:ي|ية)?|مستويات|أولويات|اولويات)(?:ه|ها|هم)?(?=$|[\s:：،,؟?)])/u;
+/**
+ * Words that make a heading a list of steps. The earliest of these, CYCLE_HEAD and PYRAMID_HEAD
+ * names the list's shape, so "خطوات فهم دورة الماء" is steps while "مراحل دورة الماء" is a cycle.
+ */
+const STEPS_HEAD = /(?:^|[\s(])[وبلف]?(?:ال)?(?:خطوات|خطوة|طريقة|طرق|نصائح|إرشادات|ارشادات|قواعد)(?:ك|ه|ها|هم|نا)?(?=$|[\s:：،,؟?)])/u;
 // Checklist and pros/cons headings are matched on normalised text (أ→ا, ة→ه, ئ→ي).
 const CHECKLIST_HEAD = /قايمه|تحقق|تاكد|تجهيز|(?:^|\s)جهز|check\s*list/iu;
 const PRO_HEAD = /(?:^|[\s(])[وف]?(?:ال)?(?:مزايا|ميزات|مميزات|ايجابيات|محاسن|فوايد|افعل)(?:ه|ها|هم)?(?=$|[\s:：،,؟?)])|ما\s+يجب\s+فعله/u;
@@ -92,6 +105,9 @@ const ANSWER_MARKS = /\s*[✓✔✅*]\s*/gu;
 
 const YEAR_LABEL = /^(?:عام|سنة)?\s*(?:(?:1[0-9]|20|21)[0-9]{2}|[١][٠-٩]{3}|[٢][٠١][٠-٩]{2})\s*(?:م|هـ)?$/u;
 const KPI_MAX_CHARS = 70;
+const STAT_ALL = new RegExp(STAT_RE.source, 'gu');
+/** "3 نصائح …", "5 أسباب …": a count that announces a list, not a statistic. */
+const COUNT_OF_LIST = /^\s*(?:نصائح|خطوات|أسباب|اسباب|طرق|عادات|أشياء|اشياء|فوائد|أخطاء|اخطاء|علامات|قواعد|أفكار|افكار|حقائق|مراحل|أنواع|انواع|أسئلة|اسئلة|نقاط|أسرار|اسرار)(?![\p{L}])/u;
 
 const fold = (s: string) => normalizeArabic(s).replace(/[^\p{L}\p{N}%٪]+/gu, '');
 
@@ -116,7 +132,11 @@ function toBlocks(body: string): Block[] {
     // ("أولًا: … / ثانيًا: …") are points, not sections, and stay ordinary text.
     const chapter = headings[i];
     if (chapter && i + 1 < lines.length && !headings[i + 1] && !headings[i - 1]) {
-      blocks.push({ type: 'chapter', title: chapter });
+      // "## المزايا" right above a list titles that list, like "المزايا:", so it can pair with "## العيوب".
+      const side = prosSide(chapter);
+      if (/^#/.test(line) && (side === 'pro' || side === 'con') && isListLine(lines[i + 1])) {
+        blocks.push({ type: 'sentence', text: `${chapter}:` });
+      } else blocks.push({ type: 'chapter', title: chapter });
       i++;
       continue;
     }
@@ -158,15 +178,13 @@ const statHeadings = ['بالأرقام', 'هل تعلم؟', 'رقم مهم', '�
 const kpiHeadings = ['بالأرقام', 'أرقام سريعة', 'حقائق بالأرقام'];
 const summaryHeadings = ['نقاط رئيسية', 'معلومات مهمة', 'تعرّف أكثر', 'باختصار'];
 
-function chunk<T>(arr: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-  return out;
-}
-
 /** Splits `n` items into the fewest groups of at most `max`, as evenly as possible (7 → 4 + 3). */
 function balancedGroups<T>(arr: T[], max: number): T[][] {
-  const groups = Math.ceil(arr.length / max);
+  return splitInto(arr, Math.ceil(arr.length / max));
+}
+
+/** Splits `arr` into `groups` runs whose sizes differ by at most one (8 into 3 → 3 + 3 + 2). */
+function splitInto<T>(arr: T[], groups: number): T[][] {
   const out: T[][] = [];
   let start = 0;
   for (let g = 0; g < groups; g++) {
@@ -179,11 +197,22 @@ function balancedGroups<T>(arr: T[], max: number): T[][] {
 
 /** The value a stat scene shows for this sentence, or null when it has no meaningful number. */
 function statValue(text: string): string | null {
-  const stat = STAT_RE.exec(text);
-  if (!stat) return null;
-  const isYearOnly = !stat[2] && /^[0-9٠-٩]{4}$/.test(stat[1]);
-  if (isYearOnly || !(stat[2] || Number(stat[1].replace(/[^\d]/g, '')) >= 10 || /[٠-٩]/.test(stat[1]))) return null;
-  return `${stat[1]}${stat[2] === '%' || stat[2] === '٪' ? stat[2] : stat[2] ? ` ${stat[2]}` : ''}`;
+  // The first meaningful number: years ("عام 1946", "980م") and digits that are part of a Latin name
+  // ("5G", "COVID-19", "MP4") are skipped, so "ظهر ENIAC عام 1946 وكان يزن 27 طنًا" shows 27 طن.
+  for (const stat of text.matchAll(STAT_ALL)) {
+    const at = stat.index ?? 0;
+    const before = text.slice(Math.max(0, at - 2), at);
+    const glued = /^[0-9٠-٩]$/.test(stat[1]) && /^[A-Za-z]/.test(text.slice(at + 1));
+    if (/[A-Za-z][-_]?$/.test(before) || glued) continue;
+    const year = /(?:^|\s)(?:عام|سنة|العام|السنة)\s*$/u.test(text.slice(0, at)) || /^\s*(?:م|هـ)(?![\p{L}])/u.test(text.slice(at + stat[1].length));
+    if (!stat[2] && (year || /^[0-9٠-٩]{4}$/.test(stat[1]))) continue;
+    // A number with a unit or %, from 10 up, in Arabic-Indic digits, or one that opens the sentence.
+    // A small bare number mid-sentence ("8 من أصل 1000") is no headline, and neither is a later one.
+    const leads = !text.slice(0, at).trim() && !COUNT_OF_LIST.test(text.slice(at + stat[0].length));
+    if (!(stat[2] || Number(stat[1].replace(/[^\d]/g, '')) >= 10 || /[٠-٩]/.test(stat[1]) || leads)) return null;
+    return `${stat[1]}${stat[2] === '%' || stat[2] === '٪' ? stat[2] : stat[2] ? ` ${stat[2]}` : ''}`;
+  }
+  return null;
 }
 
 /** "7 من كل 10" as written, when it is a small whole-number ratio a pictogram can draw. */
@@ -193,14 +222,17 @@ function ratioOf(text: string): string | null {
   const part = toNumber(m[1]);
   const whole = toNumber(m[2]);
   if (part === null || whole === null || !Number.isInteger(whole)) return null;
-  return part >= 1 && whole >= 2 && whole <= 100 && part <= whole ? m[0] : null;
+  if (part < 1 || whole < 2 || whole > 100 || part > whole) return null;
+  // The drawer must read the ratio exactly as written (it does not read "من أصل").
+  const drawn = pictogramRatio(m[0]);
+  return drawn && drawn.total === (whole > 20 ? 100 : whole) ? m[0] : null;
 }
 
 type SentenceKind = 'tip' | 'quote' | 'definition' | 'question' | 'comparison' | 'pictogram' | 'stat' | 'warning' | 'plain';
 
 /** What a sentence becomes on its own, before looking at its neighbours. */
 function sentenceKind(text: string, allowTip = true): SentenceKind {
-  if (allowTip && (DID_YOU_KNOW.test(text) || ADVICE.test(text))) return 'tip';
+  if (allowTip && (isDidYouKnow(text) || ADVICE.test(text))) return 'tip';
   if (QUOTE_RE.test(text)) return 'quote';
   if (DEF_COLON.test(text)) return 'definition';
   if (isQuestion(text)) return 'question';
@@ -215,11 +247,23 @@ function sentenceKind(text: string, allowTip = true): SentenceKind {
 function isKpi(b: Block | undefined): b is SentenceBlock {
   if (b?.type !== 'sentence' || b.text.length > KPI_MAX_CHARS) return false;
   const kind = sentenceKind(b.text);
-  return kind === 'stat' || (kind === 'warning' && !!statValue(b.text) && !STRONG_WARNING_RE.test(b.text));
+  const value = statValue(b.text);
+  if (!value || !(kind === 'stat' || (kind === 'warning' && !STRONG_WARNING_RE.test(b.text)))) return false;
+  // The KPI tile shows the sentence's first number; a year or model name before the stat would be shown instead.
+  return kpiParts(b.text).value.startsWith(value.split(' ')[0]);
 }
 
 /** Definition body without a leading "هو/هي". */
 const definitionBody = (s: string) => trimPunct(s.replace(/^(?:هو|هي|هى)\s+/u, ''));
+
+/** The shape a list heading names first: a cycle, a pyramid or explicit steps; null for none. */
+function shapeOf(heading: string): 'cycle' | 'pyramid' | 'steps' | null {
+  const hits = ([['cycle', CYCLE_HEAD], ['pyramid', PYRAMID_HEAD], ['steps', STEPS_HEAD]] as const)
+    .map(([shape, re]) => ({ shape, at: re.exec(heading)?.index ?? -1 }))
+    .filter((h) => h.at >= 0)
+    .sort((a, b) => a.at - b.at);
+  return hits[0]?.shape ?? null;
+}
 
 /** Which side of a pros/cons pair a list heading names. */
 function prosSide(heading: string | undefined): 'pro' | 'con' | 'both' | null {
@@ -311,10 +355,20 @@ function blocksToScenes(blocks: Block[]): DraftScene[] {
     const p = pros.map((s) => clampWords(CON_START.test(s) ? `✓ ${s}` : s, MAX_ITEM));
     const c = cons.map((s) => clampWords(`✗ ${s}`, MAX_ITEM));
     if (p.length + c.length <= LIMITS.items) return push('proscons', title, [...p, ...c]);
-    const parts = Math.max(Math.ceil(p.length / 3), Math.ceil(c.length / 3));
+    // Every scene shows both sides, so there are never more scenes than items on the shorter side.
+    const parts = Math.min(Math.max(Math.ceil(p.length / 3), Math.ceil(c.length / 3)), p.length, c.length);
+    const ps = splitInto(p, parts);
+    const cs = splitInto(c, parts);
+    const rest: string[] = [];
     for (let k = 0; k < parts; k++) {
-      push('proscons', withPart(title, k, parts), [...p.slice(k * 3, k * 3 + 3), ...c.slice(k * 3, k * 3 + 3)]);
+      // When one side is much longer (8 pros, 1 con) its extra items move to a follow-up card scene.
+      const keepC = Math.min(cs[k].length, Math.max(3, LIMITS.items - ps[k].length));
+      const keepP = Math.min(ps[k].length, LIMITS.items - keepC);
+      rest.push(...ps[k].slice(keepP), ...cs[k].slice(keepC));
+      push('proscons', withPart(title, k, parts), [...ps[k].slice(0, keepP), ...cs[k].slice(0, keepC)]);
     }
+    const more = balancedGroups(rest, 4);
+    more.forEach((part, k) => push('summary', withPart(`${title} (تتمة)`, k, more.length), part));
   };
 
   /** A definition scene: the term, its meaning and optional examples. False when the meaning does not fit. */
@@ -346,7 +400,8 @@ function blocksToScenes(blocks: Block[]): DraftScene[] {
     if (pct && n >= 2 && n <= LIMITS.items && sum >= 90 && sum <= 110) kind = 'donut';
     else if (years || (plain && n >= 4)) kind = 'columns';
     const title = block.heading ?? (kind === 'donut' ? 'توزيع النسب' : 'مقارنة بالأرقام');
-    for (const part of chunk(block.items, LIMITS.items)) push(kind, title, part.map((s) => clampWords(s, MAX_ITEM)));
+    const parts = balancedGroups(block.items, LIMITS.items);
+    parts.forEach((part, k) => push(kind, withPart(title, k, parts.length), part.map((s) => clampWords(s, MAX_ITEM))));
   };
 
   const pushList = (block: ListBlock) => {
@@ -355,20 +410,20 @@ function blocksToScenes(blocks: Block[]): DraftScene[] {
     const items = block.items.map((s) => clampWords(s, MAX_ITEM));
     const leads = block.raw.map(leadMark);
     const checklist = (title: string) =>
-      chunk(items, 5).forEach((part, k, all) => push('checklist', withPart(title, k, all.length), part));
+      balancedGroups(items, 5).forEach((part, k, all) => push('checklist', withPart(title, k, all.length), part));
 
     // Explicit ☐/☑/✓ boxes on every item → checklist.
     if (n >= 2 && leads.every((l) => CHECK_LEADS.has(l))) return checklist(cue ?? 'قائمة التحقق');
     const split = splitProsCons(block, prosSide(cue) === 'both');
     if (split) return pushProsCons(cue ?? 'المزايا والعيوب', split.pros, split.cons);
     const fits = n >= 3 && n <= LIMITS.items;
-    if (cue && fits && CYCLE_HEAD.test(cue)) return push('cycle', cue, items);
-    if (cue && fits && PYRAMID_HEAD.test(cue)) return push('pyramid', cue, items);
+    const shape = cue && fits ? shapeOf(cue) : null;
+    if (shape === 'cycle' || shape === 'pyramid') return push(shape, cue!, items);
     if (cue && !STEPS_HINT.test(cue) && CHECKLIST_HEAD.test(normalizeArabic(cue))) return checklist(cue);
     const asSteps = block.ordered || (cue ? STEPS_HINT.test(cue) : false);
-    const parts = chunk(items, asSteps ? 5 : 4);
+    const parts = balancedGroups(items, asSteps ? 5 : 4);
     parts.forEach((part, k) => {
-      const title = cue ? withPart(cue, k, parts.length) : asSteps ? 'الخطوات' : 'أبرز النقاط';
+      const title = withPart(cue ?? (asSteps ? 'الخطوات' : 'أبرز النقاط'), k, parts.length);
       push(asSteps ? 'steps' : 'summary', title, part);
     });
   };
@@ -419,7 +474,8 @@ function blocksToScenes(blocks: Block[]): DraftScene[] {
       if (kind === 'quote') {
         const quote = QUOTE_RE.exec(text)!;
         flushSentences();
-        push('quote', trimPunct(quote[1]), quote[2] ? [trimPunct(quote[2])] : [], 'quote');
+        const speaker = quote[2] ?? QUOTE_SPEAKER.exec(text)?.[1];
+        push('quote', trimPunct(quote[1]), speaker ? [trimPunct(speaker)] : [], 'quote');
         continue;
       }
 
@@ -481,7 +537,7 @@ function blocksToScenes(blocks: Block[]): DraftScene[] {
           b++;
         }
         if (answers.length) push('summary', text, answers.flatMap((a) => chunkText(a, MAX_ITEM)));
-        else pending.push(text);
+        else pending.push(...chunkText(text, MAX_ITEM));
         continue;
       }
 
@@ -528,7 +584,8 @@ function blocksToScenes(blocks: Block[]): DraftScene[] {
 
     flushSentences();
     if (block.type === 'years') {
-      for (const part of chunk(block.items, 5)) push('timeline', 'محطات زمنية', part.map((s) => clampWords(s, MAX_ITEM)), 'history');
+      const parts = balancedGroups(block.items, 5);
+      parts.forEach((part, k) => push('timeline', withPart('محطات زمنية', k, parts.length), part.map((s) => clampWords(s, MAX_ITEM)), 'history'));
     } else if (block.type === 'bars') {
       pushBars(block);
     } else {
