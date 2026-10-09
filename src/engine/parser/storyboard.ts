@@ -50,26 +50,29 @@ const MAX_ITEM = LIMITS.itemChars;
 const QUOTE_RE = /[«"“]([^«»"“”]{8,})[»"”]\s*(?:[-–—]\s*([^.\n]{2,60}))?/u;
 const COMPARE_SPLIT = /\s+(?:بينما|مقابل|في حين|أما|vs\.?|versus)\s+/iu;
 const WARNING_RE = /(?:^|\s)(?:تحذير|احذر|احذروا|تجنب|تجنّب|انتبه|خطر|ممنوع|لا\s+ت)/u;
+/** Warnings proper; "لا ت…" alone is often just a negated fact ("لا تتجاوز 3%"). */
+const STRONG_WARNING_RE = /(?:^|\s)(?:تحذير|احذر|احذروا|تجنب|تجنّب|انتبه|خطر|ممنوع)/u;
 const STEPS_HINT = /(?:خطوات|خطوة|مراحل|طريقة|طرق|كيف|نصائح|إرشادات|ارشادات|قواعد)/u;
 const ORDERED_MARKER = /^\s*\(?[0-9٠-٩]{1,2}\s*[.)\-–:]/;
 const isQuestion = (t: string) => /[؟?]\s*$/.test(t);
 
 // Tips: "هل تعلم أن …؟" and "نصيحة: …" (also "نصيحة اليوم: …").
 const DID_YOU_KNOW = /^هل\s+تعلم(?:ين|ون)?(?![\p{L}])\s*[؟?!:：،,]?\s*/u;
-const ADVICE = /^(نصيحة(?:\s+[^\s:：.،؟?!]+){0,2})\s*(?:[:：\-–—]\s*|$)/u;
+const ADVICE = /^(نصيح[ةه](?:\s+[^\s:：.،؟?!]+){0,2})\s*(?:[:：\-–—]\s*|$)/u;
 const SOURCE_NOTE = /^(?:المصدر|مصدر|المرجع|source)\s*[:：]/iu;
 
 // Definitions: "ما هو X؟", "ما معنى X؟", "ما المقصود بـX؟", "تعريف X: …".
-const DEF_QUESTION = /^(?:ما|ماذا)\s+(?:هو|هي|هى|معنى|يعني|تعني|المقصود\s+بـ?)\s*(.{2,40}?)\s*[؟?]\s*$/u;
+const DEF_QUESTION = /^(?:ما\s*(?:هو|هي|هى)|ما\s+(?:معنى|المقصود\s+بـ?)|ماذا\s+(?:يعني|تعني))\s*(.{2,40}?)\s*[؟?]\s*$/u;
 const DEF_COLON = /^تعريف\s+([^:：]{2,40}?)\s*[:：]\s*(.*)$/u;
 /** Questions about lists or amounts rather than the meaning of a term. */
-const NOT_A_TERM = /^(?:ال)?(?:فوائد|اسباب|انواع|اضرار|مزايا|عيوب|خطوات|طرق|اهم|ابرز|افضل|اكثر|اكبر|اصغر|اقل|عدد|نسبه|كميه|الفرق|علاقه|دور|اهميه|مراحل|مكونات|خصائص)(?![\p{L}])/u;
+const NOT_A_TERM = /^(?:ال)?(?:فوايد|اسباب|انواع|اضرار|مزايا|عيوب|خطوات|طرق|اهم|ابرز|افضل|اكثر|اكبر|اصغر|اقل|عدد|نسبه|كميه|الفرق|علاقه|دور|اهميه|مراحل|مكونات|خصايص|شروط|عوامل)(?![\p{L}])/u;
 const EXAMPLES_HEAD = /^(?:و)?(?:من\s+)?(?:ال)?(?:امثل|مثال|مثل|انواع|اشكال|نماذج)/u;
 const EXAMPLES_TAIL = /[\s،,]*(?:و)?(?:من\s+)?(?:ال)?(?:[أا]مثل[ةته]\S*|مثال|مثل|منها|[أا]نواع\S*|[أا]شكال\S*)(?:\s+(?:على\s+)?(?:ذلك|عليها|عليه))?\s*$/u;
 
 // Quiz answers: "الإجابة: ب" or "الإجابة الصحيحة: المشتري".
 const ANSWER_LINE = /^(?:ال)?(?:اجابه|جواب|حل)(?:\s+(?:ال)?صحيحه)?\s*[:：\-–—]\s*(.+?)[\s.]*$/u;
-const QUESTION_HEADING = /(?:[؟?]$|^(?:أي|أيّ|اي|ما|ماذا|كم|من|متى|أين|اين|هل|لماذا|كيف)\s|اختر|اختاري)/u;
+/** A list heading that asks a question ("أي مما يلي …:", "اختر الإجابة الصحيحة:"). */
+const QUESTION_HEADING = /(?:[؟?]$|^(?:أي|أيّ|اي|كم|متى|أين|اين|هل)\s|اختر|اختاري)/u;
 
 // List headings that pick a scene kind (matched on the original text).
 const CYCLE_HEAD = /(?:^|[\s(])[وبلف]?(?:ال)?دورة(?!\s+(?:ال)?(?:تدريبية|مياه|دراسية|تعليمية|رياضية|ألعاب))(?=$|[\s:：،,؟?)])/u;
@@ -196,8 +199,8 @@ function ratioOf(text: string): string | null {
 type SentenceKind = 'tip' | 'quote' | 'definition' | 'question' | 'comparison' | 'pictogram' | 'stat' | 'warning' | 'plain';
 
 /** What a sentence becomes on its own, before looking at its neighbours. */
-function sentenceKind(text: string): SentenceKind {
-  if (DID_YOU_KNOW.test(text) || ADVICE.test(text)) return 'tip';
+function sentenceKind(text: string, allowTip = true): SentenceKind {
+  if (allowTip && (DID_YOU_KNOW.test(text) || ADVICE.test(text))) return 'tip';
   if (QUOTE_RE.test(text)) return 'quote';
   if (DEF_COLON.test(text)) return 'definition';
   if (isQuestion(text)) return 'question';
@@ -208,9 +211,12 @@ function sentenceKind(text: string): SentenceKind {
   return WARNING_RE.test(text) ? 'warning' : 'plain';
 }
 
-/** Short non-warning stat sentences can share one KPI scene. */
-const isKpi = (b: Block | undefined): b is SentenceBlock =>
-  b?.type === 'sentence' && b.text.length <= KPI_MAX_CHARS && sentenceKind(b.text) === 'stat';
+/** Short stat sentences can share one KPI scene; real warnings keep their own scene. */
+function isKpi(b: Block | undefined): b is SentenceBlock {
+  if (b?.type !== 'sentence' || b.text.length > KPI_MAX_CHARS) return false;
+  const kind = sentenceKind(b.text);
+  return kind === 'stat' || (kind === 'warning' && !!statValue(b.text) && !STRONG_WARNING_RE.test(b.text));
+}
 
 /** Definition body without a leading "هو/هي". */
 const definitionBody = (s: string) => trimPunct(s.replace(/^(?:هو|هي|هى)\s+/u, ''));
@@ -256,9 +262,8 @@ function quizOptions(list: ListBlock, after: Block | undefined): { items: string
     .map((r, i) => (/[✓✔✅*]/u.test(stripMarker(r)) || (ANSWER_LEADS.has(leads[i]) && count(leads[i]) === 1) ? i : -1))
     .filter((i) => i >= 0);
   let answer = marked.length === 1 ? marked[0] : -1;
-  let usedAnswerLine = false;
-  if (answer < 0 && marked.length === 0 && after?.type === 'sentence') {
-    const m = ANSWER_LINE.exec(normalizeArabic(after.text));
+  const m = after?.type === 'sentence' ? ANSWER_LINE.exec(normalizeArabic(after.text)) : null;
+  if (answer < 0 && marked.length === 0) {
     if (m) {
       const key = m[1].trim();
       const label = optionLabel(`${key.replace(/^\(/, '')}${/^\(?[ابجده0-9٠-٩]{1,2}$/u.test(key) ? ')' : ''}`);
@@ -270,10 +275,10 @@ function quizOptions(list: ListBlock, after: Block | undefined): { items: string
         const partial = list.items.map((it, i) => (k.length >= 2 && fold(it).includes(k) ? i : -1)).filter((i) => i >= 0);
         answer = exact.length === 1 ? exact[0] : partial.length === 1 ? partial[0] : -1;
       }
-      usedAnswerLine = answer >= 0;
     }
   }
   if (answer < 0) return null;
+  const usedAnswerLine = !!m;
   const items = list.items.map((it, i) => {
     const text = clampWords(it.replace(ANSWER_MARKS, ' ').replace(/\s+/g, ' ').trim(), MAX_ITEM - 2);
     return i === answer ? `${text} ✓` : text;
@@ -289,8 +294,9 @@ function blocksToScenes(blocks: Block[]): DraftScene[] {
   let kpiN = 0;
   let summaryN = 0;
 
-  const push = (kind: SceneKind, title: string, items: string[], icon = '') =>
+  const push = (kind: SceneKind, title: string, items: string[], icon = ''): void => {
     scenes.push({ kind, title: clampWords(title, LIMITS.titleChars), items, icon, weight: 0 });
+  };
 
   const flushSentences = () => {
     while (pending.length) {
@@ -304,30 +310,67 @@ function blocksToScenes(blocks: Block[]): DraftScene[] {
     // Pros that would read as cons ("لا يحتاج…") get an explicit ✓; cons get the ✗ sceneModel reads.
     const p = pros.map((s) => clampWords(CON_START.test(s) ? `✓ ${s}` : s, MAX_ITEM));
     const c = cons.map((s) => clampWords(`✗ ${s}`, MAX_ITEM));
-    if (p.length + c.length <= LIMITS.items) {
-      push('proscons', title, [...p, ...c]);
-      return;
-    }
+    if (p.length + c.length <= LIMITS.items) return push('proscons', title, [...p, ...c]);
     const parts = Math.max(Math.ceil(p.length / 3), Math.ceil(c.length / 3));
     for (let k = 0; k < parts; k++) {
-      push('proscons', parts > 1 ? `${title} (${k + 1})` : title, [...p.slice(k * 3, k * 3 + 3), ...c.slice(k * 3, k * 3 + 3)]);
+      push('proscons', withPart(title, k, parts), [...p.slice(k * 3, k * 3 + 3), ...c.slice(k * 3, k * 3 + 3)]);
     }
   };
 
-  /** Pushes a definition scene when `answer` fits; examples come from a following list. */
+  /** A definition scene: the term, its meaning and optional examples. False when the meaning does not fit. */
   const pushDefinition = (term: string, answer: string, examples: string[] = []): boolean => {
     const body = definitionBody(answer);
     const t = trimPunct(term);
     if (!t || body.length < 4 || body.length > MAX_ITEM) return false;
+    flushSentences();
     push('definition', t, [body, ...examples.slice(0, LIMITS.items - 1).map((e) => clampWords(e, MAX_ITEM))]);
     return true;
   };
 
-  /** A list right after a definition, headed "أمثلة:" or similar, supplies its examples. */
+  /** Examples for a definition: the items of a list at `k` headed "أمثلة:" or similar. */
   const examplesAt = (k: number): string[] | null => {
     const list = blocks[k];
     if (list?.type !== 'list' || !list.heading || list.items.length > LIMITS.items - 1) return null;
     return EXAMPLES_HEAD.test(normalizeArabic(list.heading)) ? list.items : null;
+  };
+
+  const pushBars = (block: { items: string[]; heading?: string; years?: boolean }) => {
+    const rows = block.items.map(valueRow);
+    const n = rows.length;
+    const pct = rows.every((r) => !!r && /[%٪]/.test(r.value));
+    const plain = rows.every((r) => !!r && !/[%٪]/.test(r.value));
+    const sum = rows.reduce((a, r) => a + (r?.num ?? 0), 0);
+    const years = block.years || rows.every((r) => !!r && YEAR_LABEL.test(r.label));
+    // Shares of a whole → donut; a series over years or many plain amounts → columns; else bars.
+    let kind: SceneKind = 'comparison';
+    if (pct && n >= 2 && n <= LIMITS.items && sum >= 90 && sum <= 110) kind = 'donut';
+    else if (years || (plain && n >= 4)) kind = 'columns';
+    const title = block.heading ?? (kind === 'donut' ? 'توزيع النسب' : 'مقارنة بالأرقام');
+    for (const part of chunk(block.items, LIMITS.items)) push(kind, title, part.map((s) => clampWords(s, MAX_ITEM)));
+  };
+
+  const pushList = (block: ListBlock) => {
+    const cue = block.heading ?? block.hint;
+    const n = block.items.length;
+    const items = block.items.map((s) => clampWords(s, MAX_ITEM));
+    const leads = block.raw.map(leadMark);
+    const checklist = (title: string) =>
+      chunk(items, 5).forEach((part, k, all) => push('checklist', withPart(title, k, all.length), part));
+
+    // Explicit ☐/☑/✓ boxes on every item → checklist.
+    if (n >= 2 && leads.every((l) => CHECK_LEADS.has(l))) return checklist(cue ?? 'قائمة التحقق');
+    const split = splitProsCons(block, prosSide(cue) === 'both');
+    if (split) return pushProsCons(cue ?? 'المزايا والعيوب', split.pros, split.cons);
+    const fits = n >= 3 && n <= LIMITS.items;
+    if (cue && fits && CYCLE_HEAD.test(cue)) return push('cycle', cue, items);
+    if (cue && fits && PYRAMID_HEAD.test(cue)) return push('pyramid', cue, items);
+    if (cue && !STEPS_HINT.test(cue) && CHECKLIST_HEAD.test(normalizeArabic(cue))) return checklist(cue);
+    const asSteps = block.ordered || (cue ? STEPS_HINT.test(cue) : false);
+    const parts = chunk(items, asSteps ? 5 : 4);
+    parts.forEach((part, k) => {
+      const title = cue ? withPart(cue, k, parts.length) : asSteps ? 'الخطوات' : 'أبرز النقاط';
+      push(asSteps ? 'steps' : 'summary', title, part);
+    });
   };
 
   for (let b = 0; b < blocks.length; b++) {
@@ -342,7 +385,7 @@ function blocksToScenes(blocks: Block[]): DraftScene[] {
 
     if (block.type === 'sentence') {
       const text = block.text;
-      const kind = sentenceKind(text);
+      let kind = sentenceKind(text);
 
       if (kind === 'tip') {
         const dyk = DID_YOU_KNOW.exec(text);
@@ -352,14 +395,15 @@ function blocksToScenes(blocks: Block[]): DraftScene[] {
         if (dyk) rest = rest.replace(/^(?:أنّ?|بأنّ?|ان)\s+/u, '');
         rest = trimPunct(rest);
         let used = 0;
+        // "هل تعلم؟" or "نصيحة:" alone: the next sentence is the tip.
         if (!rest && next?.type === 'sentence' && !isQuestion(next.text)) {
           rest = trimPunct(next.text);
           used = 1;
         }
         if (rest && rest.length <= MAX_ITEM) {
           flushSentences();
-          const note = blocks[b + 1 + used];
           const items = [rest];
+          const note = blocks[b + 1 + used];
           if (note?.type === 'sentence' && SOURCE_NOTE.test(note.text) && note.text.length <= MAX_ITEM) {
             items.push(trimPunct(note.text));
             used++;
@@ -368,7 +412,8 @@ function blocksToScenes(blocks: Block[]): DraftScene[] {
           b += used;
           continue;
         }
-        // Too long for a tip card: fall through and treat it as ordinary text.
+        // Too long for a tip card: treat it as ordinary text.
+        kind = sentenceKind(text, false);
       }
 
       if (kind === 'quote') {
@@ -379,34 +424,26 @@ function blocksToScenes(blocks: Block[]): DraftScene[] {
       }
 
       if (kind === 'definition') {
+        // "تعريف X: …", or "تعريف X:" with the meaning in the next sentence.
         const m = DEF_COLON.exec(text)!;
-        let answer = m[2].trim();
-        let used = 0;
-        if (!answer && next?.type === 'sentence' && !isQuestion(next.text)) {
-          answer = next.text;
-          used = 1;
-        }
+        const inline = m[2].trim();
+        const used = !inline && next?.type === 'sentence' && !isQuestion(next.text) ? 1 : 0;
+        const answer = inline || (used ? (next as SentenceBlock).text : '');
         const examples = examplesAt(b + 1 + used);
-        if (answer) {
-          flushSentences();
-          if (pushDefinition(m[1], answer, examples ?? [])) {
-            b += used + (examples ? 1 : 0);
-            continue;
-          }
-          scenes.pop(); // never pushed; keep the stack balanced (no-op guard)
+        if (answer && pushDefinition(m[1], answer, examples ?? [])) {
+          b += used + (examples ? 1 : 0);
+          continue;
         }
       }
 
-      if (kind === 'question' || kind === 'tip') {
+      if (kind === 'question') {
         const def = DEF_QUESTION.exec(text);
-        const term = def?.[1].replace(/^(?:مصطلح|مفهوم|كلمة)\s+/u, '');
-        const isTerm = term && !NOT_A_TERM.test(normalizeArabic(term)) && !/[0-9٠-٩]/.test(term);
+        const term = def?.[1].replace(/^(?:مصطلح|مفهوم|كلمة)\s+/u, '') ?? '';
+        const isTerm = !!term && !NOT_A_TERM.test(normalizeArabic(term)) && !/[0-9٠-٩]/.test(term);
         // "ما هو X؟" + answer sentence (+ "أمثلة:" list) → definition.
         if (isTerm && next?.type === 'sentence' && !isQuestion(next.text)) {
           const examples = examplesAt(b + 2);
-          if (definitionBody(next.text).length <= MAX_ITEM) {
-            flushSentences();
-            pushDefinition(term!, next.text, examples ?? []);
+          if (pushDefinition(term, next.text, examples ?? [])) {
             b += 1 + (examples ? 1 : 0);
             continue;
           }
@@ -414,16 +451,13 @@ function blocksToScenes(blocks: Block[]): DraftScene[] {
         // "ما هي الطاقة المتجددة؟" + "هي طاقة …، ومن أمثلتها:" + list → definition with examples.
         if (isTerm && next?.type === 'list' && next.heading && next.items.length < LIMITS.items) {
           const tail = EXAMPLES_TAIL.exec(next.heading);
-          const answer = tail && tail.index > 0 ? next.heading.slice(0, tail.index) : '';
-          if (answer && definitionBody(answer).length >= 4) {
-            flushSentences();
-            pushDefinition(term!, answer, next.items);
+          if (tail && tail.index > 0 && pushDefinition(term, next.heading.slice(0, tail.index), next.items)) {
             b += 1;
             continue;
           }
         }
-        if (kind === 'question' && next?.type === 'list' && !next.heading) {
-          // A question followed by options with exactly one marked answer → quiz.
+        if (next?.type === 'list' && !next.heading) {
+          // Options with exactly one marked answer (✓, *, or a "الإجابة: ب" line) → quiz.
           const quiz = quizOptions(next, blocks[b + 2]);
           if (quiz) {
             flushSentences();
@@ -433,20 +467,17 @@ function blocksToScenes(blocks: Block[]): DraftScene[] {
           }
           // Otherwise the question titles the list that answers it.
           if (text.length <= 90) {
-            next.heading = trimPunct(text.replace(/[؟?]\s*$/u, '')) + '؟';
+            next.heading = text;
             continue;
           }
         }
-      }
-
-      if (kind === 'question') {
         // A question followed by its answer sentences becomes one scene.
         flushSentences();
         const answers: string[] = [];
         while (blocks[b + 1]?.type === 'sentence' && answers.length < 3) {
-          const n = blocks[b + 1] as SentenceBlock;
-          if (isQuestion(n.text)) break;
-          answers.push(n.text);
+          const answer = blocks[b + 1] as SentenceBlock;
+          if (isQuestion(answer.text)) break;
+          answers.push(answer.text);
           b++;
         }
         if (answers.length) push('summary', text, answers.flatMap((a) => chunkText(a, MAX_ITEM)));
@@ -462,12 +493,13 @@ function blocksToScenes(blocks: Block[]): DraftScene[] {
 
       if (kind === 'pictogram') {
         flushSentences();
-        const warning = WARNING_RE.test(text);
-        push('pictogram', warning ? 'تنبيه مهم' : statHeadings[statN++ % statHeadings.length], [ratioOf(text)!, ...chunkText(trimPunct(text), MAX_ITEM).slice(0, 2)]);
+        const title = WARNING_RE.test(text) ? 'تنبيه مهم' : statHeadings[statN++ % statHeadings.length];
+        push('pictogram', title, [ratioOf(text)!, ...chunkText(trimPunct(text), MAX_ITEM).slice(0, 2)]);
         continue;
       }
 
-      if (kind === 'stat' || (kind === 'warning' && statValue(text))) {
+      const value = statValue(text);
+      if (value && (kind === 'stat' || kind === 'warning')) {
         flushSentences();
         // Three or more short stats in a row share one KPI scene instead of a run of stat scenes.
         let run = 0;
@@ -479,12 +511,8 @@ function blocksToScenes(blocks: Block[]): DraftScene[] {
           continue;
         }
         const warning = kind === 'warning';
-        push(
-          'stat',
-          warning ? 'تنبيه مهم' : statHeadings[statN++ % statHeadings.length],
-          [statValue(text)!, ...chunkText(trimPunct(text), MAX_ITEM).slice(0, 2)],
-          warning ? 'triangle-alert' : '',
-        );
+        const title = warning ? 'تنبيه مهم' : statHeadings[statN++ % statHeadings.length];
+        push('stat', title, [value, ...chunkText(trimPunct(text), MAX_ITEM).slice(0, 2)], warning ? 'triangle-alert' : '');
         continue;
       }
 
@@ -503,8 +531,14 @@ function blocksToScenes(blocks: Block[]): DraftScene[] {
       for (const part of chunk(block.items, 5)) push('timeline', 'محطات زمنية', part.map((s) => clampWords(s, MAX_ITEM)), 'history');
     } else if (block.type === 'bars') {
       pushBars(block);
-    } else if (block.type === 'list') {
-      const cue = block.heading ?? block.hint;
+    } else {
+      // A question-like heading ("أي مما يلي …:") over options with one marked answer → quiz.
+      const quiz = block.heading && QUESTION_HEADING.test(block.heading) ? quizOptions(block, next) : null;
+      if (quiz) {
+        push('quiz', block.heading!, quiz.items, 'circle-help');
+        b += quiz.usedAnswerLine ? 1 : 0;
+        continue;
+      }
       // "المزايا:" + "العيوب:" (or فوائد/أضرار, افعل/لا تفعل) in a row → one pros/cons scene.
       const side = prosSide(block.heading);
       if ((side === 'pro' || side === 'con') && next?.type === 'list' && prosSide(next.heading) === (side === 'pro' ? 'con' : 'pro')) {
@@ -513,55 +547,11 @@ function blocksToScenes(blocks: Block[]): DraftScene[] {
         b++;
         continue;
       }
-      pushList(block, cue);
+      pushList(block);
     }
   }
   flushSentences();
   return scenes;
-
-  function pushBars(block: { items: string[]; heading?: string; years?: boolean }) {
-    const rows = block.items.map(valueRow);
-    const n = rows.length;
-    const pct = rows.every((r) => r && /[%٪]/.test(r.value));
-    const plain = rows.every((r) => r && !/[%٪]/.test(r.value));
-    const sum = rows.reduce((a, r) => a + (r?.num ?? 0), 0);
-    const years = block.years || rows.every((r) => r && YEAR_LABEL.test(r.label));
-    let kind: SceneKind = 'comparison';
-    if (pct && n >= 2 && n <= LIMITS.items && sum >= 90 && sum <= 110) kind = 'donut';
-    else if (years || (plain && n >= 4)) kind = 'columns';
-    const title = block.heading ?? (kind === 'donut' ? 'توزيع النسب' : 'مقارنة بالأرقام');
-    for (const part of chunk(block.items, LIMITS.items)) push(kind, title, part.map((s) => clampWords(s, MAX_ITEM)));
-  }
-
-  function pushList(block: ListBlock, cue: string | undefined) {
-    const n = block.items.length;
-    const items = block.items.map((s) => clampWords(s, MAX_ITEM));
-    const leads = block.raw.map(leadMark);
-    const named = (kind: SceneKind, fallback: string) => push(kind, cue ?? fallback, items);
-
-    // Explicit ☐/☑/✓ boxes on every item → checklist.
-    if (n >= 2 && leads.every((l) => CHECK_LEADS.has(l))) {
-      chunk(items, 5).forEach((part, k, all) => push('checklist', withPart(cue ?? 'قائمة التحقق', k, all.length), part));
-      return;
-    }
-    const split = splitProsCons(block, prosSide(cue) === 'both');
-    if (split) {
-      pushProsCons(cue ?? 'المزايا والعيوب', split.pros, split.cons);
-      return;
-    }
-    if (cue && n >= 3 && n <= LIMITS.items && CYCLE_HEAD.test(cue)) return named('cycle', 'الدورة');
-    if (cue && n >= 3 && n <= LIMITS.items && PYRAMID_HEAD.test(cue)) return named('pyramid', 'الهرم');
-    if (cue && !STEPS_HINT.test(cue) && CHECKLIST_HEAD.test(normalizeArabic(cue))) {
-      chunk(items, 5).forEach((part, k, all) => push('checklist', withPart(cue, k, all.length), part));
-      return;
-    }
-    const asSteps = block.ordered || (cue ? STEPS_HINT.test(cue) : false);
-    const parts = chunk(items, asSteps ? 5 : 4);
-    parts.forEach((part, k) => {
-      const title = cue ? withPart(cue, k, parts.length) : asSteps ? 'الخطوات' : 'أبرز النقاط';
-      push(asSteps ? 'steps' : 'summary', title, part);
-    });
-  }
 }
 
 const withPart = (title: string, k: number, total: number) => (total > 1 ? `${title} (${k + 1})` : title);
@@ -630,5 +620,27 @@ export function buildStoryboard(description: string): Storyboard {
     used.add(s.icon);
     s.weight = weightOf(s);
   }
+  for (const sc of scenes) {
+    const ready = PENDING_FALLBACK[sc.kind];
+    if (ready) sc.kind = ready;
+  }
   return { title, scenes, usedPlaceholders };
 }
+
+/**
+ * Kinds whose drawers are not finished yet render as the closest finished kind.
+ * Remove an entry once its drawer ships.
+ */
+export const PENDING_FALLBACK: Partial<Record<SceneKind, SceneKind>> = {
+  donut: 'comparison',
+  columns: 'comparison',
+  pictogram: 'stat',
+  cycle: 'steps',
+  pyramid: 'steps',
+  checklist: 'steps',
+  proscons: 'summary',
+  quiz: 'summary',
+  definition: 'summary',
+  chapter: 'hero',
+  tip: 'summary',
+};

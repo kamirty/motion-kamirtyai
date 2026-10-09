@@ -13,7 +13,7 @@ import { drawLines, fitText, type FittedText } from '../textLayout';
  * أرقام سريعة — a grid of KPI tiles. Each tile pops in at its cue (itemReveal), its number counts
  * up over KPIS.countLength frames, and its label sits below (tall tiles) or beside it (wide tiles).
  * Numbers keep the source digit system and thousands separator; magnitude words such as «مليار»
- * stay next to the number while other unit words lead the label («250» + «لترًا للفرد يوميًا»).
+ * stay with the number while other unit words lead the label («250» + «لترًا للفرد يوميًا»).
  */
 
 // ───────────────────────── content model ─────────────────────────
@@ -21,7 +21,7 @@ import { drawLines, fitText, type FittedText } from '../textLayout';
 interface Tile {
   /** Null for an item without a number: the tile shows its icon and label only. */
   stat: StatValue | null;
-  /** Magnitude word drawn smaller beside the number (مليار، مليون، ألف…). */
+  /** Magnitude word drawn smaller with the number (مليار، مليون، ألف…). */
   mag: string;
   label: string;
   /** Thousands separator used by the source ("1,200"), re-applied while counting. */
@@ -59,9 +59,12 @@ function numberText(t: Tile, v: number): string {
 
 // ───────────────────────── layout plan ─────────────────────────
 
-/** Magnitude word size and gap, relative to the number size. */
-const MAG_RATIO = 0.42;
+/** Magnitude word beside the number: size and gap relative to the number size. */
+const MAG_INLINE = 0.42;
 const MAG_GAP = 0.14;
+/** Magnitude word as a caption under the number (narrow tiles): size and gap. */
+const MAG_BELOW = 0.34;
+const MAG_BELOW_GAP = 0.1;
 
 interface Slot {
   x: number;
@@ -70,6 +73,19 @@ interface Slot {
   h: number;
   /** 0 → accent, 1 → accent2 (checkerboard across the grid). */
   tone: 0 | 1;
+  row: number;
+}
+
+interface Metrics {
+  /** Per tile at 100px: the final number alone, number + inline magnitude word, the caption-size word. */
+  num100: number[];
+  inline100: number[];
+  below100: number[];
+  ascR: number;
+  descR: number;
+  magAscR: number;
+  magDescR: number;
+  anyMag: boolean;
 }
 
 interface Plan {
@@ -79,19 +95,23 @@ interface Plan {
   labels: (FittedText | null)[];
   numSize: number;
   magSize: number;
-  /** Ascent / descent of the number line at numSize. */
+  magBelow: boolean;
+  /** Number baseline → caption baseline, and the caption's extra height (magBelow). */
+  magDrop: number;
+  magLineH: number;
+  /** Ascent of the digits and height of the number line (with inline magnitude word). */
   asc: number;
-  desc: number;
+  numBlock: number;
   /** Small icon radius (0 = no small icons). */
   iconR: number;
-  // stack geometry, offsets from the tile top
-  iconCy: number;
-  numTop: number;
-  barY: number;
-  barW: number;
-  labelTop: number;
   /** Uniform content scale when even the minimum sizes overflow (very long labels). */
   scale: number;
+  // stack geometry, offsets from the tile top; content is centred per grid row so numbers align
+  iconBlock: number;
+  rowTop: number[];
+  barAbove: number;
+  barBlock: number;
+  barW: number;
   // row geometry, offsets from the tile's right edge
   iconRight: number;
   numRight: number;
@@ -109,32 +129,39 @@ function rowCounts(n: number, L: Layout): number[] {
   return [[2], [3], [2, 2], [3, 2], [3, 3]][n - 2];
 }
 
-interface Metrics {
-  /** Widest final number (+ magnitude word) at 100px. */
-  w100: number[];
-  ascR: number;
-  descR: number;
+function numberMetrics(ctx: Ctx2D, fs: FontSpec, tiles: Tile[]): Metrics {
+  const m: Metrics = { num100: [], inline100: [], below100: [], ascR: 0.72, descR: 0.02, magAscR: 0, magDescR: 0, anyMag: false };
+  tiles.forEach((t) => {
+    if (!t.stat) {
+      m.num100.push(0);
+      m.inline100.push(0);
+      m.below100.push(0);
+      return;
+    }
+    ctx.font = font(fs, 'bold', 100);
+    const nm = ctx.measureText(numberText(t, t.stat.value));
+    m.ascR = Math.max(m.ascR, (nm.actualBoundingBoxAscent || 72) / 100);
+    m.descR = Math.max(m.descR, (nm.actualBoundingBoxDescent || 0) / 100);
+    let magW = 0;
+    if (t.mag) {
+      ctx.font = font(fs, 'bold', 100);
+      const mm = ctx.measureText(t.mag);
+      magW = mm.width;
+      m.magAscR = Math.max(m.magAscR, (mm.actualBoundingBoxAscent || 70) / 100);
+      m.magDescR = Math.max(m.magDescR, (mm.actualBoundingBoxDescent || 30) / 100);
+      m.anyMag = true;
+    }
+    m.num100.push(nm.width);
+    m.inline100.push(nm.width + (magW ? 100 * MAG_GAP + magW * MAG_INLINE : 0));
+    m.below100.push(Math.max(nm.width, magW * MAG_BELOW));
+  });
+  return m;
 }
 
-function numberMetrics(ctx: Ctx2D, fs: FontSpec, tiles: Tile[]): Metrics {
-  let ascR = 0.72;
-  let descR = 0.04;
-  const w100 = tiles.map((t) => {
-    if (!t.stat) return 0;
-    ctx.font = font(fs, 'bold', 100);
-    const m = ctx.measureText(numberText(t, t.stat.value));
-    ascR = Math.max(ascR, (m.actualBoundingBoxAscent || 72) / 100);
-    descR = Math.max(descR, (m.actualBoundingBoxDescent || 0) / 100);
-    let w = m.width;
-    if (t.mag) {
-      ctx.font = font(fs, 'bold', 100 * MAG_RATIO);
-      const mm = ctx.measureText(t.mag);
-      descR = Math.max(descR, (mm.actualBoundingBoxDescent || 0) / 100);
-      w += 100 * MAG_GAP + mm.width;
-    }
-    return w;
-  });
-  return { w100, ascR, descR };
+/** Number-line height and the caption line, both per unit of number size. */
+function numberHeights(met: Metrics, below: boolean): { block: number; caption: number } {
+  if (below) return { block: met.ascR + met.descR, caption: met.anyMag ? MAG_BELOW_GAP + MAG_BELOW * (met.magAscR + met.magDescR) : 0 };
+  return { block: met.ascR + Math.max(met.descR, met.anyMag ? met.magDescR * MAG_INLINE : 0), caption: 0 };
 }
 
 function fitLabels(ctx: Ctx2D, fs: FontSpec, tiles: Tile[], maxWidth: number, size: number, maxLines: number): { fits: (FittedText | null)[]; ok: boolean; h: number } {
@@ -149,6 +176,8 @@ function fitLabels(ctx: Ctx2D, fs: FontSpec, tiles: Tile[], maxWidth: number, si
   });
   return { fits, ok, h };
 }
+
+const widestOf = (a: number[]): number => Math.max(0, ...a);
 
 function planFor(ctx: Ctx2D, fs: FontSpec, items: string[], icon: string, L: Layout, top: number): Plan {
   const tiles = items.map((it) => parseTile(it, icon));
@@ -174,19 +203,16 @@ function planFor(ctx: Ctx2D, fs: FontSpec, items: string[], icon: string, L: Lay
   counts.forEach((c, r) => {
     const rowW = c * w + (c - 1) * gap;
     const right = (L.W + rowW) / 2;
-    for (let j = 0; j < c && k < n; j++, k++) slots.push({ x: right - w - j * (w + gap), y, w, h, tone: ((r + j) % 2) as 0 | 1 });
+    for (let j = 0; j < c && k < n; j++, k++) slots.push({ x: right - w - j * (w + gap), y, w, h, tone: ((r + j) % 2) as 0 | 1, row: r });
     y += h + gap;
   });
 
   const met = numberMetrics(ctx, fs, tiles);
   const anyNum = tiles.some((t) => t.stat);
-  const widest = Math.max(0, ...met.w100);
-  const lineR = met.ascR + met.descR;
   const labelMin = 17;
-
   const plan: Plan = {
-    style, tiles, slots, labels: [], numSize: 0, magSize: 0, asc: 0, desc: 0, iconR: 0,
-    iconCy: 0, numTop: 0, barY: 0, barW: 0, labelTop: 0, scale: 1,
+    style, tiles, slots, labels: [], numSize: 0, magSize: 0, magBelow: false, magDrop: 0, magLineH: 0, asc: 0, numBlock: 0,
+    iconR: 0, scale: 1, iconBlock: 0, rowTop: [], barAbove: 0, barBlock: 0, barW: 0,
     iconRight: 0, numRight: 0, numColW: 0, divider: 0, labelRight: 0, innerH: 0,
   };
 
@@ -198,34 +224,49 @@ function planFor(ctx: Ctx2D, fs: FontSpec, items: string[], icon: string, L: Lay
     const iconR = anyNum && h >= 280 ? clamp(Math.min(w, h) * 0.09, 22, 36) : 0;
     const iconBlock = iconR ? iconR * 2 + clamp(h * 0.05, 12, 24) : 0;
     const barAbove = anyNum ? clamp(h * 0.045, 12, 22) : 0;
-    const barBelow = anyNum ? clamp(h * 0.04, 10, 20) : 0;
-    const barBlock = anyNum ? barAbove + 6 + barBelow : 0;
+    const barBlock = anyNum ? barAbove + 6 + clamp(h * 0.04, 10, 20) : 0;
     const maxLines = h >= 280 ? 3 : 2;
-    const labelMax = Math.round(clamp(Math.min(w * 0.1, h * 0.11), 24, 40));
-    const numMax = Math.min(160, h * 0.32);
-    const numByW = widest > 0 ? (100 * innerW) / widest : numMax;
-    const want = Math.min(numMax, numByW);
-    let pick = fitLabels(ctx, fs, tiles, innerW, labelMin, maxLines);
-    let numSize = 0;
-    for (let ls = labelMax; ls >= labelMin; ls -= 2) {
-      const f = fitLabels(ctx, fs, tiles, innerW, ls, maxLines);
-      const room = innerH - iconBlock - barBlock - f.h;
-      pick = f;
-      numSize = Math.min(want, room / lineR);
-      if (f.ok && numSize >= want * 0.82) break;
-    }
-    numSize = Math.max(numSize, 30);
-    const contentH = iconBlock + numSize * lineR + barBlock + pick.h;
+    const labelMax = Math.round(clamp(Math.min(w * 0.11, h * 0.13), 24, 40));
+    const numMax = Math.min(160, h * 0.4);
+
+    const attempt = (below: boolean) => {
+      const hs = numberHeights(met, below);
+      const widest = widestOf(below ? met.below100 : met.inline100);
+      const want = Math.min(numMax, widest > 0 ? (100 * innerW) / widest : numMax);
+      let pick = fitLabels(ctx, fs, tiles, innerW, labelMin, maxLines);
+      let size = 0;
+      for (let ls = labelMax; ls >= labelMin; ls -= 2) {
+        const f = fitLabels(ctx, fs, tiles, innerW, ls, maxLines);
+        pick = f;
+        size = Math.min(want, (innerH - iconBlock - barBlock - f.h) / (hs.block + hs.caption));
+        if (f.ok && size >= want * 0.82) break;
+      }
+      return { below, hs, pick, size: Math.max(size, 30) };
+    };
+    const inline = attempt(false);
+    const below = met.anyMag ? attempt(true) : inline;
+    const best = below.size > inline.size * 1.12 ? below : inline;
+
+    const contentH = iconBlock + best.size * (best.hs.block + best.hs.caption) + barBlock + best.pick.h;
     plan.scale = Math.min(1, innerH / contentH);
-    const contentTop = padY + 4 + Math.max(0, (innerH - contentH) / 2);
-    plan.labels = pick.fits;
-    plan.numSize = numSize;
+    plan.rowTop = counts.map((_, r) => {
+      const inRow = tiles.filter((_, j) => slots[j].row === r);
+      const caption = best.below && inRow.some((t) => t.stat && t.mag) ? best.hs.caption : 0;
+      const labelH = Math.max(0, ...best.pick.fits.filter((_, j) => slots[j].row === r).map((f) => f?.height ?? 0));
+      const rowH = iconBlock + best.size * (best.hs.block + caption) + barBlock + labelH;
+      // Centred even when too tall: drawStackTile then scales it about the tile centre to fit.
+      return padY + 4 + (innerH - rowH) / 2;
+    });
+    plan.labels = best.pick.fits;
+    plan.numSize = best.size;
+    plan.magBelow = best.below;
+    plan.numBlock = best.size * best.hs.block;
+    plan.magLineH = best.size * best.hs.caption;
     plan.iconR = iconR;
-    plan.iconCy = contentTop + iconR;
-    plan.numTop = contentTop + iconBlock;
-    plan.barY = plan.numTop + numSize * lineR + barAbove;
+    plan.iconBlock = iconBlock;
+    plan.barAbove = barAbove;
+    plan.barBlock = barBlock;
     plan.barW = clamp(w * 0.14, 34, 64);
-    plan.labelTop = plan.numTop + numSize * lineR + barBlock;
   } else {
     const strip = 8;
     const padX = clamp(w * 0.045, 18, 28);
@@ -236,9 +277,21 @@ function planFor(ctx: Ctx2D, fs: FontSpec, items: string[], icon: string, L: Lay
     plan.iconRight = strip + padX + iconR;
     plan.numRight = strip + padX + (iconR ? iconR * 2 + 20 : 0);
     const avail = w - plan.numRight - padX;
-    const numSize = Math.min(110, h * 0.42, innerH / lineR, widest > 0 ? (100 * avail * 0.46) / widest : 110);
+    const sizeFor = (below: boolean) => {
+      const hs = numberHeights(met, below);
+      const widest = widestOf(below ? met.below100 : met.inline100);
+      return Math.min(110, h * 0.42, innerH / (hs.block + hs.caption), widest > 0 ? (100 * avail * 0.42) / widest : 110);
+    };
+    const inlineSize = sizeFor(false);
+    const magBelow = met.anyMag && sizeFor(true) > inlineSize * 1.12;
+    const numSize = magBelow ? sizeFor(true) : inlineSize;
+    const hs = numberHeights(met, magBelow);
+    plan.magBelow = magBelow;
+    plan.numSize = numSize;
+    plan.numBlock = numSize * hs.block;
+    plan.magLineH = numSize * hs.caption;
     const bigR = Math.min(innerH * 0.36, 34);
-    plan.numColW = Math.max((widest * numSize) / 100, tiles.some((t) => !t.stat) ? bigR * 2 : 0);
+    plan.numColW = Math.max((widestOf(magBelow ? met.below100 : met.inline100) * numSize) / 100, tiles.some((t) => !t.stat) ? bigR * 2 : 0);
     const divGap = clamp(w * 0.035, 16, 26);
     plan.divider = plan.numRight + plan.numColW + divGap;
     plan.labelRight = plan.divider + divGap;
@@ -252,13 +305,12 @@ function planFor(ctx: Ctx2D, fs: FontSpec, items: string[], icon: string, L: Lay
       if (f.ok && f.h <= innerH) break;
     }
     plan.labels = pick.fits;
-    plan.numSize = numSize;
     plan.innerH = innerH;
     plan.scale = Math.min(1, innerH / Math.max(1, pick.h));
   }
-  plan.magSize = plan.numSize * MAG_RATIO;
   plan.asc = plan.numSize * met.ascR;
-  plan.desc = plan.numSize * met.descR;
+  plan.magSize = plan.numSize * (plan.magBelow ? MAG_BELOW : MAG_INLINE);
+  plan.magDrop = plan.numSize * (met.descR + MAG_BELOW_GAP + MAG_BELOW * met.magAscR);
   return plan;
 }
 
@@ -281,47 +333,61 @@ function cachedPlan(ctx: Ctx2D, fs: FontSpec, items: string[], icon: string, L: 
 
 // ───────────────────────── drawing ─────────────────────────
 
-/** Number (+ magnitude word) with its right edge at `right` and the given baseline. Returns its width. */
-function drawNumber(ctx: Ctx2D, fs: FontSpec, plan: Plan, t: Tile, text: string, right: number, baseline: number, ink: string, magInk: string, measureOnly = false): number {
-  ctx.font = font(fs, 'bold', plan.numSize);
-  const nw = ctx.measureText(text).width;
-  let total = nw;
-  let mw = 0;
-  if (t.mag) {
-    ctx.font = font(fs, 'bold', plan.magSize);
-    mw = ctx.measureText(t.mag).width;
-    total += plan.numSize * MAG_GAP + mw;
-  }
-  if (measureOnly) return total;
-  ctx.textAlign = 'right';
+/** Number with its magnitude word (beside it or as a caption below), anchored at x. */
+function drawNumber(ctx: Ctx2D, fs: FontSpec, plan: Plan, t: Tile, text: string, x: number, baseline: number, align: 'center' | 'right', ink: string, magInk: string): void {
   ctx.textBaseline = 'alphabetic';
   ctx.font = font(fs, 'bold', plan.numSize);
+  if (t.mag && !plan.magBelow) {
+    // RTL reading order: number first (right), magnitude word to its left.
+    const nw = ctx.measureText(text).width;
+    const gap = plan.numSize * MAG_GAP;
+    ctx.font = font(fs, 'bold', plan.magSize);
+    const mw = ctx.measureText(t.mag).width;
+    const right = align === 'center' ? x + (nw + gap + mw) / 2 : x;
+    ctx.textAlign = 'right';
+    ctx.fillStyle = magInk;
+    ctx.fillText(t.mag, right - nw - gap, baseline);
+    ctx.font = font(fs, 'bold', plan.numSize);
+    ctx.fillStyle = ink;
+    ctx.fillText(text, right, baseline);
+    return;
+  }
+  ctx.textAlign = align;
   ctx.fillStyle = ink;
-  ctx.fillText(text, right, baseline);
+  ctx.fillText(text, x, baseline);
   if (t.mag) {
     ctx.font = font(fs, 'bold', plan.magSize);
     ctx.fillStyle = magInk;
-    ctx.fillText(t.mag, right - nw - plan.numSize * MAG_GAP, baseline);
+    ctx.fillText(t.mag, x, baseline + plan.magDrop);
   }
-  return total;
 }
 
 /** A soft diagonal sheen crossing the tile now and then once its counter has finished. */
 function sheen(ctx: Ctx2D, s: Slot, frame: number, start: number, light: boolean): void {
-  const period = 150;
   const local = frame - start;
   if (local < 0) return;
-  const p = (local % period) / 42;
+  const p = (local % 150) / 42;
   if (p >= 1) return;
-  const span = s.w + s.h;
-  const cx = s.x + s.w + s.h * 0.5 - easeOutCubic(p) * (span + s.h);
-  const grad = ctx.createLinearGradient(cx - 70, s.y, cx + 70, s.y + s.h * 0.4);
-  const peak = (light ? 0.5 : 0.07) * Math.sin(Math.PI * p);
+  const x = s.x + s.w + s.h * 0.5 - easeOutCubic(p) * (s.w + s.h * 2);
+  const grad = ctx.createLinearGradient(x - 70, s.y, x + 70, s.y + s.h * 0.4);
+  const peak = (light ? 0.5 : 0.06) * Math.sin(Math.PI * p);
   grad.addColorStop(0, alpha('#FFFFFF', 0));
   grad.addColorStop(0.5, alpha('#FFFFFF', peak));
   grad.addColorStop(1, alpha('#FFFFFF', 0));
   ctx.fillStyle = grad;
   ctx.fillRect(s.x, s.y, s.w, s.h);
+}
+
+/** Expanding ring around the icon as the counter lands. */
+function landingRing(ctx: Ctx2D, color: string, x: number, y: number, r: number, p: number): void {
+  if (p <= 0 || p >= 1) return;
+  withAlpha(ctx, (1 - p) * 0.55, () => {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x, y, r * (1 + p * 0.9), 0, Math.PI * 2);
+    ctx.stroke();
+  });
 }
 
 interface TileCtx {
@@ -335,18 +401,6 @@ interface TileCtx {
   ink: string;
   cx: number;
   cy: number;
-}
-
-/** Expanding ring around the icon as the counter lands. */
-function landingRing(ctx: Ctx2D, color: string, x: number, y: number, r: number, p: number): void {
-  if (p <= 0 || p >= 1) return;
-  withAlpha(ctx, (1 - p) * 0.55, () => {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(x, y, r * (1 + p * 0.9), 0, Math.PI * 2);
-    ctx.stroke();
-  });
 }
 
 interface Motion {
@@ -372,21 +426,23 @@ function motionOf(c: TileCtx): Motion {
   };
 }
 
-/** Tall tile: icon, number, accent bar and label stacked and centred. */
+/** Tall tile: icon, number, accent bar and label stacked and centred; numbers align across tiles. */
 function drawStackTile(c: TileCtx): void {
   const { a, plan, t, s, i, cx, cy, color, ink } = c;
   const { ctx, theme, font: fs, frame } = a;
   const m = motionOf(c);
-  ctx.save();
   if (plan.scale < 1) {
-    ctx.translate(cx, cy);
+    ctx.translate(cx, cy + 2);
     ctx.scale(plan.scale, plan.scale);
-    ctx.translate(-cx, -cy);
+    ctx.translate(-cx, -cy - 2);
   }
-  const numCy = s.y + plan.numTop + (plan.asc + plan.desc) / 2;
+  const rowTop = s.y + plan.rowTop[s.row];
+  const numTop = rowTop + plan.iconBlock;
+  const numCy = numTop + plan.numBlock / 2;
+  let below = numTop + plan.numBlock;
   if (t.stat) {
     if (plan.iconR) {
-      const icy = s.y + plan.iconCy;
+      const icy = rowTop + plan.iconR;
       landingRing(ctx, color, cx, icy, plan.iconR, m.ring);
       iconBadge(ctx, theme, t.icon, cx, icy, plan.iconR * easeOutBack(m.iconT), color);
     }
@@ -394,27 +450,25 @@ function drawStackTile(c: TileCtx): void {
     ctx.translate(cx, numCy);
     ctx.scale(m.bump, m.bump);
     ctx.translate(-cx, -numCy);
-    const total = drawNumber(ctx, fs, plan, t, m.text, 0, 0, ink, m.magInk, true);
-    drawNumber(ctx, fs, plan, t, m.text, cx + total / 2, s.y + plan.numTop + plan.asc, ink, m.magInk);
+    drawNumber(ctx, fs, plan, t, m.text, cx, numTop + plan.asc, 'center', ink, m.magInk);
     ctx.restore();
+    if (t.mag && plan.magBelow) below += plan.magLineH;
     const bw = plan.barW * easeOutCubic(progress(frame, c.rev + 8, 34));
     ctx.fillStyle = color;
-    roundRect(ctx, cx - bw / 2, s.y + plan.barY, bw, 6, 3);
+    roundRect(ctx, cx - bw / 2, below + plan.barAbove, bw, 6, 3);
     ctx.fill();
   } else {
     // No number: the item's icon takes the number's place.
-    const r = Math.min(plan.numSize * 0.5, s.w * 0.2);
+    const r = Math.min(plan.numBlock * 0.55, s.w * 0.2);
     iconBadge(ctx, theme, t.icon, cx, numCy, r * easeOutBack(m.iconT), color);
   }
   const f = plan.labels[i];
-  if (f) {
-    withAlpha(ctx, m.labelT, () => {
-      ctx.fillStyle = theme.foreground;
-      ctx.textAlign = 'center';
-      drawLines(ctx, fs, f, cx, s.y + plan.labelTop + (1 - m.labelT) * 12);
-    });
-  }
-  ctx.restore();
+  if (!f) return;
+  withAlpha(ctx, m.labelT, () => {
+    ctx.fillStyle = theme.foreground;
+    ctx.textAlign = 'center';
+    drawLines(ctx, fs, f, cx, below + plan.barBlock + (1 - m.labelT) * 12);
+  });
 }
 
 /** Wide tile: icon and number on the right (reading start), a divider, the label to the left. */
@@ -430,11 +484,12 @@ function drawRowTile(c: TileCtx): void {
       iconBadge(ctx, theme, t.icon, icx, cy, plan.iconR * easeOutBack(m.iconT), color);
     }
     const nx = right - plan.numRight;
+    const blockH = plan.numBlock + (t.mag && plan.magBelow ? plan.magLineH : 0);
     ctx.save();
     ctx.translate(nx, cy);
     ctx.scale(m.bump, m.bump);
     ctx.translate(-nx, -cy);
-    drawNumber(ctx, fs, plan, t, m.text, nx, cy - (plan.asc + plan.desc) / 2 + plan.asc, ink, m.magInk);
+    drawNumber(ctx, fs, plan, t, m.text, nx, cy - blockH / 2 + plan.asc, 'right', ink, m.magInk);
     ctx.restore();
   } else {
     const r = Math.min(plan.numColW / 2, plan.innerH * 0.36, 34);
@@ -474,8 +529,7 @@ export function drawKpis(a: SceneDrawArgs): void {
     const rev = itemReveal(scene, i, n);
     const tp = progress(frame, rev, 24);
     if (tp <= 0) return;
-    const pop = easeOutBack(tp);
-    const sc = 0.78 + 0.22 * pop;
+    const sc = 0.78 + 0.22 * easeOutBack(tp);
     const color = s.tone ? theme.accent2 : theme.accent;
     const other = s.tone ? theme.accent : theme.accent2;
     const c: TileCtx = { a, plan, t, s, i, rev, color, ink: textAccent(theme, color), cx: s.x + s.w / 2, cy: s.y + s.h / 2 };
@@ -486,12 +540,11 @@ export function drawKpis(a: SceneDrawArgs): void {
       ctx.translate(-c.cx, -c.cy);
       card(ctx, theme, s.x, s.y, s.w, s.h, radius);
 
-      // Decorations clipped to the card: corner disc, accent strip, sheen.
+      // Decorations clipped to the card: watermark icon, accent strip, sheen.
       ctx.save();
       roundRect(ctx, s.x, s.y, s.w, s.h, radius);
       ctx.clip();
-      // Oversized faint outline of the item icon in the far (left) corner.
-      const wm = alpha(c.ink, lightSurface ? 0.07 : 0.06);
+      const wm = alpha(c.ink, lightSurface ? 0.05 : 0.06);
       if (plan.style === 'stack') {
         const sz = Math.min(s.w, s.h) * 0.62;
         drawIcon(ctx, t.icon, s.x + sz * 0.3, s.y + s.h - sz * 0.28, sz, wm, 1.6);

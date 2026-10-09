@@ -2,10 +2,10 @@ import type { SceneKind } from '../../domain/types';
 
 /** Scene kinds grouped for the inspector picker. */
 export const KIND_GROUPS: { label: string; kinds: SceneKind[] }[] = [
-  { label: 'أساسية', kinds: ['hero', 'chapter', 'outro'] },
-  { label: 'نصوص وأفكار', kinds: ['summary', 'steps', 'checklist', 'tip', 'definition', 'quote'] },
-  { label: 'أرقام وبيانات', kinds: ['stat', 'kpis', 'columns', 'donut', 'pictogram', 'comparison'] },
-  { label: 'مخططات وتفاعل', kinds: ['timeline', 'cycle', 'pyramid', 'proscons', 'quiz'] },
+  { label: 'أساسية', kinds: ['hero', 'outro'] },
+  { label: 'نصوص وأفكار', kinds: ['summary', 'steps', 'quote'] },
+  { label: 'أرقام وبيانات', kinds: ['stat', 'kpis', 'comparison'] },
+  { label: 'مخططات', kinds: ['timeline'] },
 ];
 
 export const KIND_LABELS: Record<SceneKind, string> = {
