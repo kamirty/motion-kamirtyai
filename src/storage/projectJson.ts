@@ -1,7 +1,15 @@
 import { parseProject } from '../domain/sanitize';
 import type { Project } from '../domain/types';
+import { exportAssets, importAssets, projectAssetIds } from './assets';
 
 export const projectToJson = (project: Project): string => JSON.stringify(project, null, 2);
+
+/** Project file with its pictures embedded, for "save". */
+export async function projectFileBlob(project: Project): Promise<Blob> {
+  const assets = await exportAssets(projectAssetIds(project));
+  const data = Object.keys(assets).length ? { ...project, assets } : project;
+  return new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+}
 
 /** Triggers a browser download for a Blob; the object URL is revoked shortly after. */
 export function downloadBlob(blob: Blob, filename: string): void {
@@ -15,7 +23,7 @@ export function downloadBlob(blob: Blob, filename: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
-const MAX_IMPORT_BYTES = 512 * 1024;
+const MAX_IMPORT_BYTES = 120 * 1024 * 1024;
 
 export async function readProjectFile(file: File): Promise<Project> {
   if (file.size > MAX_IMPORT_BYTES) throw new Error('الملف كبير جدًا لمشروع.');
@@ -25,7 +33,9 @@ export async function readProjectFile(file: File): Promise<Project> {
   } catch {
     throw new Error('الملف ليس JSON صالحًا.');
   }
-  return parseProject(data);
+  const project = parseProject(data);
+  await importAssets((data as { assets?: unknown }).assets);
+  return project;
 }
 
 const AUTOSAVE_KEY = 'kamirty-motion:autosave:v1';

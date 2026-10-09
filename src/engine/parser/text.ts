@@ -1,5 +1,7 @@
 /** Arabic-aware text helpers used by the storyboard parser. */
 
+import { normalizeArabic } from '../../design/arabic';
+
 export const DIGIT = '[0-9٠-٩]';
 const NUMBER = `${DIGIT}+(?:[.,٫،]${DIGIT}+)?`;
 const UNITS = 'مليون|مليار|ألف|آلاف|الف|ملايين|مليارات|كم|كيلو(?:متر|غرام|جرام)?|كغ|كجم|لتر|لترات|متر|ساعة|ساعات|دقيقة|دقائق|ثانية|يوم|أيام|سنة|سنوات|عام|أعوام|ريال|دولار|درهم|دينار|جنيه|شخص|طالب|مرة|مرات|سعرة|كوب|أكواب';
@@ -10,16 +12,42 @@ export const STAT_RE = new RegExp(`(${NUMBER})\\s*(%|٪|(?:${UNITS})(?![\\p{L}])
 /** Four-digit year 1000–2199 in either digit system. */
 export const YEAR_RE = /(?:^|[^0-9٠-٩])((?:1[0-9]|20|21)[0-9]{2}|[١][٠-٩]{3}|[٢][٠١][٠-٩]{2})(?![0-9٠-٩])/;
 
-const LIST_MARKER = /^\s*(?:[-–—•*▪●◦►✓✔]|\(?[0-9٠-٩]{1,2}\s*[.)\-–:]|\(?[أابجده]\s*[.)\-–])\s*/;
+const LIST_MARKER = /^\s*(?:[-–—•*▪●◦►✓✔✅☐☑☒✗✘×❌]|\+(?=\s)|\(?[0-9٠-٩]{1,2}\s*[.)\-–:]|\(?[أابجده]\s*[.)\-–])\s*/;
+/** Check-box, tick and cross marks that may follow a bullet, as in "- ☐ item" or "- ✗ item". */
+const MARK = /^[☐☑☒✓✔✅✗✘×❌]\s*/u;
 
 export function isListLine(line: string): boolean {
   return LIST_MARKER.test(line) && !YEAR_LINE.test(line);
 }
 
-export const stripMarker = (line: string): string => line.replace(LIST_MARKER, '').trim();
+/** Item text without its bullet, number or letter and without a leading check/cross mark. */
+export const stripMarker = (line: string): string => line.replace(LIST_MARKER, '').replace(MARK, '').trim();
+
+/**
+ * The symbol that leads a list line: a check/cross mark when there is one ("- ✗ x" → "✗"),
+ * otherwise the bullet itself ("+ x" → "+", "- x" → "-"); "" for numbered or lettered lines.
+ */
+export function leadMark(line: string): string {
+  const m = /^\s*([-–—•*▪●◦►+]?)\s*([☐☑☒✓✔✅✗✘×❌])?/u.exec(line);
+  const sym = m?.[2] ?? m?.[1] ?? '';
+  return /^[–—]$/.test(sym) ? '-' : sym;
+}
+
+/** Letter or number that labels an option line ("ب) المشتري" → "ب", "2. x" → "2"), normalised. */
+export function optionLabel(line: string): string {
+  const m = /^\s*\(?([أابجده]|[0-9٠-٩]{1,2})\s*[.)\-–:]/u.exec(line);
+  if (!m) return '';
+  return m[1].replace(/أ/g, 'ا').replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+}
 
 /** "1990: event" or "- 2020 - event" */
 export const YEAR_LINE = /^\s*(?:[-–—•*]\s*)?((?:1[0-9]|20|21)[0-9]{2}|[١][٠-٩]{3}|[٢][٠١][٠-٩]{2})\s*(?:م|هـ)?\s*[:：\-–—]\s*(.+)$/;
+
+/** A ratio written as "7 من 10", "٣ من كل ١٠" or "50 من أصل 100". */
+export const RATIO_RE = new RegExp(`(${NUMBER})\\s+من\\s+(?:(?:كل|أصل|اصل)\\s+)?(${NUMBER})(?![0-9٠-٩])`, 'u');
+
+/** A year's value that is only a number with at most two words ("45 مليون مستخدم", "30%"). */
+export const NUMERIC_EVENT = new RegExp(`^${NUMBER}\\s*(?:%|٪)?(?:\\s+[^\\s]+){0,2}$`, 'u');
 
 /** "label: value" where value contains a number, for bar charts. */
 export const LABEL_VALUE = new RegExp(`^(.{1,60}?)\\s*[:：\\-–—]\\s*(${NUMBER}\\s*(?:%|٪)?)\\s*(.*)$`, 'u');
@@ -90,4 +118,25 @@ export function extractTopic(text: string): string {
   const first = splitSentences(text)[0] ?? text;
   const topic = trimPunct(first.replace(REQUEST_PREFIX, ''));
   return topic || trimPunct(first);
+}
+
+const ORDINAL_ADVERB = '(?:اولا|ثانيا|ثالثا|رابعا|خامسا|سادسا|سابعا|ثامنا|تاسعا|عاشرا|اخيرا)';
+const SECTION_WORD = '(?:الجزء|القسم|المحور|الفصل|الباب|الوحده)';
+const ORDINAL_WORD = '(?:ال(?:اول|ثاني|ثالث|رابع|خامس|سادس|سابع|ثامن|تاسع|عاشر|اخير)(?:ه|ي)?|[0-9٠-٩]{1,2})';
+const SECTION_RE = new RegExp(`^${SECTION_WORD}\\s+${ORDINAL_WORD}(?:\\s*[:：\\-–—]\\s*\\S.*)?$`, 'u');
+const ORDINAL_RE = new RegExp(`^${ORDINAL_ADVERB}\\s*[:：\\-–—]\\s*\\S.*$`, 'u');
+
+/**
+ * Title of a section-heading line — "## الأسباب", "الجزء الأول: المشكلة", "أولًا: الأسباب" —
+ * or null. Headings are short and never end like a sentence.
+ */
+export function chapterHeading(line: string): string | null {
+  const md = /^#{1,6}\s+(.+)$/u.exec(line);
+  if (md) {
+    const t = trimPunct(md[1].replace(/\s#+\s*$/, ''));
+    return t && t.length <= 80 ? t : null;
+  }
+  if (line.length > 60 || /[.!؟?؛]\s*$/.test(line)) return null;
+  const n = normalizeArabic(line.trim());
+  return SECTION_RE.test(n) || ORDINAL_RE.test(n) ? trimPunct(line) : null;
 }

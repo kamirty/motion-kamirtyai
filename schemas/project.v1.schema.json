@@ -130,9 +130,27 @@
           ]
         },
         "watermark": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Deprecated and ignored: videos never carry a site mark."
+        },
+        "sfx": {
+          "type": "boolean",
+          "description": "Automatic sound effects when elements appear."
         }
       }
+    },
+    "assets": {
+      "type": "object",
+      "description": "Pictures embedded by 'save' so the file is self-contained: asset id → data URL.",
+      "propertyNames": {
+        "pattern": "^[0-9a-f]{24}$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^data:image/(png|jpeg|webp);base64,",
+        "maxLength": 8388608
+      },
+      "maxProperties": 40
     }
   },
   "$defs": {
@@ -166,7 +184,19 @@
             "timeline",
             "quote",
             "summary",
-            "outro"
+            "outro",
+            "kpis",
+            "donut",
+            "columns",
+            "pictogram",
+            "cycle",
+            "pyramid",
+            "proscons",
+            "checklist",
+            "quiz",
+            "definition",
+            "chapter",
+            "tip"
           ]
         },
         "startFrame": {
@@ -195,6 +225,84 @@
           "type": "string",
           "minLength": 1,
           "maxLength": 60
+        },
+        "image": {
+          "$ref": "#/$defs/image"
+        }
+      }
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assetId",
+        "x",
+        "y",
+        "scale",
+        "rotation",
+        "shape",
+        "border",
+        "shadow",
+        "opacity",
+        "entrance",
+        "layer"
+      ],
+      "properties": {
+        "assetId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{24}$"
+        },
+        "x": {
+          "type": "number",
+          "minimum": -0.5,
+          "maximum": 1.5
+        },
+        "y": {
+          "type": "number",
+          "minimum": -0.5,
+          "maximum": 1.5
+        },
+        "scale": {
+          "type": "number",
+          "minimum": 0.05,
+          "maximum": 1.5
+        },
+        "rotation": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "shape": {
+          "enum": [
+            "rect",
+            "rounded",
+            "circle"
+          ]
+        },
+        "border": {
+          "type": "boolean"
+        },
+        "shadow": {
+          "type": "boolean"
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0.1,
+          "maximum": 1
+        },
+        "entrance": {
+          "enum": [
+            "fade",
+            "zoom",
+            "slide",
+            "none"
+          ]
+        },
+        "layer": {
+          "enum": [
+            "front",
+            "back"
+          ]
         }
       }
     }

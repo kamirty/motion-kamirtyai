@@ -3,18 +3,24 @@ import { ensureFontLoaded } from '../design/fonts';
 import { fullTheme, presetById } from '../design/presets';
 import { localizeDigits } from '../design/digits';
 import { rebalance, restack, sceneIndexAt, setSceneDuration } from '../domain/timeline';
-import { ASPECTS, LIMITS, styleOf, type AspectId, type Project, type ProjectStyle, type Scene, type Theme } from '../domain/types';
+import { ASPECTS, DEFAULT_IMAGE, LIMITS, aspectOf as aspectOfSize, styleOf, type AspectId, type Project, type ProjectStyle, type Scene, type SceneImage, type Theme } from '../domain/types';
 import { PreviewAudio } from '../engine/audio/player';
 import { decodeAudioFile, fitAudio, renderMusic } from '../engine/audio/music';
+import { cuesKey, renderSoundtrack } from '../engine/audio/sfx';
+import { detectExportPlan } from '../engine/export/capabilities';
 import { generateProject, nextSceneId } from '../engine/planner';
+import type { AssistantAction, AssistantContext } from '../assistant/types';
 import { clearTextCache } from '../engine/renderer/textLayout';
-import { downloadBlob, loadLocal, projectToJson, readProjectFile, saveLocal } from '../storage/projectJson';
+import { addImageFile, loadAssets, onAssetsChanged, projectAssetIds } from '../storage/assets';
+import { downloadBlob, loadLocal, projectFileBlob, readProjectFile, saveLocal } from '../storage/projectJson';
+import { Assistant } from './components/Assistant';
 import { ExportDialog } from './components/ExportDialog';
 import { Inspector } from './components/Inspector';
 import { Preview } from './components/Preview';
 import { Sidebar } from './components/Sidebar';
 import { Timeline } from './components/Timeline';
 import { EXAMPLES } from './examples';
+import { ThemeToggle, useUiTheme } from './theme';
 import { useHistory } from './useHistory';
 
 function initialState(): { project: Project; description: string } {
@@ -38,6 +44,13 @@ export function App() {
   const [renderKey, setRenderKey] = useState(0);
   const [notice, setNotice] = useState<{ kind: 'info' | 'error'; text: string } | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [uiTheme, setUiTheme] = useUiTheme();
+  const [exportFormat, setExportFormat] = useState<AssistantContext['exportFormat']>('unknown');
+  useEffect(() => {
+    detectExportPlan(project.size).then((r) => setExportFormat(r.supported ? r.plan.container : 'none')).catch(() => setExportFormat('unknown'));
+    // Capability depends only on the browser; checking once at the starting size is enough.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [customAudio, setCustomAudio] = useState<{ name: string; buffer: AudioBuffer } | null>(null);
   const musicCache = useRef(new Map<string, Promise<AudioBuffer | null>>());
   const player = useRef(new PreviewAudio());
@@ -59,6 +72,13 @@ export function App() {
     };
   }, [style.font]);
 
+  // Pictures live in IndexedDB; load the ones this project uses and redraw when they arrive.
+  useEffect(() => onAssetsChanged(() => setRenderKey((k) => k + 1)), []);
+  const assetKey = projectAssetIds(project).join(',');
+  useEffect(() => {
+    if (assetKey) void loadAssets(assetKey.split(','));
+  }, [assetKey]);
+
   useEffect(() => {
     const id = setTimeout(() => saveLocal(project, description), 400);
     return () => clearTimeout(id);
@@ -68,16 +88,31 @@ export function App() {
     if (selected >= project.scenes.length) setSelected(project.scenes.length - 1);
   }, [project.scenes.length, selected]);
 
-  const getAudio = useCallback(async (): Promise<AudioBuffer | null> => {
-    if (customAudio) return customAudio.buffer;
-    const key = style.music;
-    let p = musicCache.current.get(key);
+  const musicFor = useCallback((id: ProjectStyle['music']) => {
+    let p = musicCache.current.get(id);
     if (!p) {
-      p = renderMusic(style.music).catch(() => null);
-      musicCache.current.set(key, p);
+      p = renderMusic(id).catch(() => null);
+      musicCache.current.set(id, p);
     }
     return p;
-  }, [customAudio, style.music]);
+  }, []);
+
+  // Sound effects depend only on scene timing and item counts, not on wording, so typing
+  // does not re-render the soundtrack.
+  const projectRef = useRef(project);
+  projectRef.current = project;
+  const sfxKey = useMemo(() => (style.sfx ? cuesKey(project) : 'off'), [project, style.sfx]);
+  const soundtrack = useRef<{ key: string; promise: Promise<AudioBuffer | null> } | null>(null);
+
+  const getAudio = useCallback(async (): Promise<AudioBuffer | null> => {
+    const base = customAudio ? customAudio.buffer : await musicFor(style.music);
+    if (!style.sfx) return base;
+    const key = `${sfxKey}|${customAudio ? `file:${customAudio.name}:${customAudio.buffer.length}` : style.music}`;
+    if (soundtrack.current?.key !== key) {
+      soundtrack.current = { key, promise: renderSoundtrack(projectRef.current, base, { sfx: true }).catch(() => base) };
+    }
+    return soundtrack.current.promise;
+  }, [customAudio, style.music, style.sfx, sfxKey, musicFor]);
 
   // Playback loop: advances frames by wall-clock time; audio starts from the same position.
   useEffect(() => {
@@ -180,6 +215,49 @@ export function App() {
     setSelected(at);
   };
 
+  const onImageFile = async (file: File) => {
+    try {
+      const assetId = await addImageFile(file);
+      const portrait = project.size.height > project.size.width;
+      const base: Omit<SceneImage, 'assetId'> = portrait ? { ...DEFAULT_IMAGE, x: 0.5, y: 0.74, scale: 0.72 } : DEFAULT_IMAGE;
+      setProject((p) => ({
+        ...p,
+        scenes: p.scenes.map((sc, i) => (i === selected ? { ...sc, image: { ...base, ...sc.image, assetId } } : sc)),
+      }));
+      setNotice({ kind: 'info', text: 'أُضيفت الصورة. حرّكها بالسحب في المعاينة أو من لوحة المشهد.' });
+    } catch (e) {
+      setNotice({ kind: 'error', text: e instanceof Error ? e.message : 'تعذّر قراءة الصورة.' });
+    }
+  };
+
+  const updateImage = (patch: Partial<SceneImage> | null, coalesce?: string) =>
+    setProject(
+      (p) => ({
+        ...p,
+        scenes: p.scenes.map((sc, i) => {
+          if (i !== selected || !sc.image) return sc;
+          if (patch === null) {
+            const { image: _removed, ...rest } = sc;
+            return rest;
+          }
+          return { ...sc, image: { ...sc.image, ...patch } };
+        }),
+      }),
+      coalesce ?? (patch ? `image-${selected}-${Object.keys(patch).join()}` : undefined),
+    );
+
+  const onAssistantAction = (a: AssistantAction) => {
+    if (a.type === 'export') {
+      setPlaying(false);
+      setExportOpen(true);
+    } else if (a.type === 'generate') generate();
+    else if (a.type === 'useIdea') {
+      setDescription(a.text);
+      setNotice({ kind: 'info', text: 'وُضعت الفكرة في خانة «اكتب فكرتك». استبدل ما بين [الأقواس] والأصفار بمعلوماتك، ثم اضغط «أنشئ الفيديو من الوصف».' });
+      document.querySelector<HTMLTextAreaElement>('.sidebar textarea')?.focus();
+    } else if (a.type === 'link') window.open(a.href, '_blank', 'noopener');
+  };
+
   const setAspect = (a: AspectId) => setProject((p) => ({ ...p, size: { width: ASPECTS[a].width, height: ASPECTS[a].height } }));
 
   const setStyle = (patch: Partial<ProjectStyle>, theme?: Theme) =>
@@ -250,10 +328,16 @@ export function App() {
 
   return (
     <div className="app">
+      <div className="ticker">
+        <span className="ticker-label">جديد</span>
+        <span className="ticker-text">حوّل فكرتك إلى فيديو إنفوجرافيك عربي متحرك مدته دقيقتان… مجانًا وبدون تسجيل</span>
+        <a className="ticker-link" href="https://www.kamirtyai.com/">الموقع الرئيسي</a>
+        <ThemeToggle theme={uiTheme} onToggle={() => setUiTheme((t) => (t === 'dark' ? 'light' : 'dark'))} />
+      </div>
       <header className="topbar">
-        <a className="brand" href="./" aria-label="Kamirty Motion">
-          <span className="logo">▶</span>
-          <span>
+        <a className="brand" href="./" aria-label="مولّد الإنفوجرافيك من KamirtyAI">
+          <img className="brand-logo" src="/brand/kamirty-logo.png" alt="Kamirty.AI" width={198} height={122} />
+          <span className="brand-name">
             <b>مولّد الإنفوجرافيك</b>
             <small>Kamirty Motion</small>
           </span>
@@ -266,11 +350,11 @@ export function App() {
           aria-label="اسم المشروع"
         />
         <nav className="actions">
-          <button type="button" onClick={history.undo} disabled={!history.canUndo} title="تراجع (Ctrl+Z)">↶</button>
-          <button type="button" onClick={history.redo} disabled={!history.canRedo} title="إعادة (Ctrl+Y)">↷</button>
+          <button type="button" onClick={history.undo} disabled={!history.canUndo} title="تراجع (Ctrl+Z)" aria-label="تراجع">↶</button>
+          <button type="button" onClick={history.redo} disabled={!history.canRedo} title="إعادة (Ctrl+Y)" aria-label="إعادة">↷</button>
           <button type="button" onClick={newProject}>جديد</button>
           <button type="button" onClick={() => fileInput.current?.click()}>فتح</button>
-          <button type="button" onClick={() => downloadBlob(new Blob([projectToJson(project)], { type: 'application/json' }), 'kamirty-motion-project.json')}>حفظ</button>
+          <button type="button" onClick={() => void projectFileBlob(project).then((b) => downloadBlob(b, 'kamirty-motion-project.json'))}>حفظ</button>
           <button type="button" className="primary" onClick={() => { setPlaying(false); setExportOpen(true); }}>
             ⬇ تصدير الفيديو
           </button>
@@ -316,6 +400,8 @@ export function App() {
             onFrame={seek}
             onTogglePlay={() => setPlaying((p) => !p)}
             renderKey={renderKey}
+            selected={selected}
+            onImageMove={(x, y) => updateImage({ x, y }, `image-drag-${selected}`)}
           />
           <Timeline project={project} selected={selected} currentFrame={frame} onSelect={selectScene} onAdd={addScene} renderKey={renderKey} />
         </div>
@@ -327,13 +413,36 @@ export function App() {
           onMove={moveScene}
           onDuplicate={duplicateScene}
           onDelete={deleteScene}
+          onImageFile={(f) => void onImageFile(f)}
+          onImage={(patch) => updateImage(patch)}
         />
       </main>
 
       <footer className="footer">
-        <span>🔒 كل شيء يعمل داخل متصفحك: لا نرفع نصوصك أو ملفاتك أو فيديوهاتك إلى أي خادم. مجاني بالكامل.</span>
-        <a href="https://www.kamirtyai.com/">KamirtyAI</a>
+        <div className="footer-brand">
+          <img className="brand-logo" src="/brand/kamirty-logo.png" alt="Kamirty.AI" width={198} height={122} />
+          <p className="slogan">«نحن نقدم الخبرة… وأنت تصنع الإبداع!»</p>
+        </div>
+        <p className="footer-note">🔒 كل شيء يعمل داخل متصفحك: لا نرفع نصوصك أو ملفاتك أو فيديوهاتك إلى أي خادم. مجاني بالكامل، والفيديو ملكك دون أي شعار.</p>
+        <nav className="footer-links">
+          <a href="https://www.kamirtyai.com/">الموقع الرئيسي</a>
+          <span aria-hidden="true">·</span>
+          <span>KamirtyAI © {new Date().getFullYear()}</span>
+        </nav>
       </footer>
+
+      <Assistant
+        context={{
+          sceneCount: project.scenes.length,
+          kinds: project.scenes.map((sc) => sc.kind),
+          aspect: aspectOfSize(project.size),
+          music: customAudio ? 'file' : style.music,
+          sfx: style.sfx,
+          hasImages: project.scenes.some((sc) => !!sc.image),
+          exportFormat,
+        }}
+        onAction={onAssistantAction}
+      />
 
       {exportOpen && <ExportDialog project={project} getAudio={getAudio} onClose={() => setExportOpen(false)} />}
     </div>

@@ -4,7 +4,6 @@ import { MUSIC_OPTIONS } from '../../engine/audio/music';
 import {
   ASPECTS, LIMITS, aspectOf, styleOf, type AspectId, type BackgroundId, type Project, type ProjectStyle, type Theme, type TransitionId,
 } from '../../domain/types';
-import { EXAMPLES } from '../examples';
 
 const TRANSITIONS: { id: TransitionId; label: string }[] = [
   { id: 'slide', label: 'انزلاق' },
@@ -57,7 +56,7 @@ export function Sidebar(p: Props) {
           </span>
           <span className="muted">سطر أول قصير = العنوان</span>
         </div>
-        <details className="tips">
+        <details className="tips" open>
           <summary>كيف أكتب وصفًا يعطي أفضل فيديو؟</summary>
           <ul>
             <li>اكتب <b>عنوانًا</b> في السطر الأول.</li>
@@ -69,13 +68,6 @@ export function Sidebar(p: Props) {
             <li>السؤال المتبوع بإجابته يصبح مشهد <b>سؤال وجواب</b>.</li>
           </ul>
         </details>
-        <div className="chips">
-          {EXAMPLES.map((ex) => (
-            <button type="button" key={ex.label} className="chip" onClick={() => p.onDescription(ex.text)}>
-              {ex.label}
-            </button>
-          ))}
-        </div>
         <button type="button" className="primary big" onClick={p.onGenerate} disabled={!p.description.trim()}>
           ✨ أنشئ الفيديو من الوصف
         </button>
@@ -187,11 +179,11 @@ export function Sidebar(p: Props) {
           <input type="file" accept="audio/*" onChange={(e) => p.onAudioFile(e.target.files?.[0] ?? null)} />
           🎵 {p.customAudioName ? `ملفك: ${p.customAudioName}` : 'أو ارفع موسيقى/تعليقًا صوتيًا من جهازك'}
         </label>
-        <p className="muted small">الموسيقى مولّدة داخل متصفحك وخالية من حقوق النشر. ملفك الصوتي لا يُرفع لأي خادم، ويُكرَّر أو يُقص ليطابق دقيقتين.</p>
         <label className="check">
-          <input type="checkbox" checked={style.watermark} onChange={(e) => p.onStyle({ watermark: e.target.checked })} />
-          إظهار رابط الموقع الصغير في زاوية الفيديو
+          <input type="checkbox" checked={style.sfx} onChange={(e) => p.onStyle({ sfx: e.target.checked })} />
+          مؤثرات صوتية تلقائية عند ظهور العناصر
         </label>
+        <p className="muted small">الموسيقى والمؤثرات مولّدة داخل متصفحك وخالية من حقوق النشر. ملفك الصوتي لا يُرفع لأي خادم، ويُكرَّر أو يُقص ليطابق دقيقتين.</p>
       </section>
     </aside>
   );

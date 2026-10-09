@@ -1,7 +1,8 @@
 import { localizeDigits } from '../../design/digits';
-import { LIMITS, SCENE_KINDS, styleOf, type Project, type Scene } from '../../domain/types';
+import { LIMITS, styleOf, type Project, type Scene, type SceneImage } from '../../domain/types';
 import { IconPicker } from './IconPicker';
-import { KIND_HINTS, KIND_LABELS } from './kinds';
+import { ImageControls } from './ImageControls';
+import { KIND_GROUPS, KIND_HINTS, KIND_LABELS } from './kinds';
 
 interface Props {
   project: Project;
@@ -11,9 +12,11 @@ interface Props {
   onMove: (delta: -1 | 1) => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  onImageFile: (file: File) => void;
+  onImage: (patch: Partial<SceneImage> | null) => void;
 }
 
-export function Inspector({ project, index, onChange, onDuration, onMove, onDuplicate, onDelete }: Props) {
+export function Inspector({ project, index, onChange, onDuration, onMove, onDuplicate, onDelete, onImageFile, onImage }: Props) {
   const scene = project.scenes[index];
   if (!scene) return null;
   const digits = styleOf(project).digits;
@@ -34,11 +37,18 @@ export function Inspector({ project, index, onChange, onDuration, onMove, onDupl
       </div>
 
       <label className="label">نوع المشهد</label>
-      <div className="kinds">
-        {SCENE_KINDS.map((k) => (
-          <button type="button" key={k} className={k === scene.kind ? 'active' : ''} onClick={() => onChange({ kind: k })}>
-            {KIND_LABELS[k]}
-          </button>
+      <div className="kind-groups">
+        {KIND_GROUPS.map((g) => (
+          <div key={g.label} className="kind-group">
+            <span className="kind-group-label">{g.label}</span>
+            <div className="kinds">
+              {g.kinds.map((k) => (
+                <button type="button" key={k} className={k === scene.kind ? 'active' : ''} onClick={() => onChange({ kind: k })} aria-pressed={k === scene.kind}>
+                  {KIND_LABELS[k]}
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
       <p className="muted small">{KIND_HINTS[scene.kind]}</p>
@@ -74,6 +84,9 @@ export function Inspector({ project, index, onChange, onDuration, onMove, onDupl
 
       <label className="label">الأيقونة</label>
       <IconPicker value={scene.icon} onChange={(icon) => onChange({ icon })} />
+
+      <label className="label">الصورة</label>
+      <ImageControls image={scene.image} portrait={project.size.height > project.size.width} digits={digits} onFile={onImageFile} onChange={onImage} />
 
       <label className="label" htmlFor="scene-dur">
         المدة: {localizeDigits(`${seconds} ثانية`, digits)}
