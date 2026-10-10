@@ -24,6 +24,30 @@ function localizeScene(scene: Scene, digits: DigitSystem, pace: string): Scene {
 
 let lowResCache: { canvas: OffscreenCanvas; ctx: OffscreenCanvasRenderingContext2D } | null = null;
 
+/** Content entrance over the first ENTRANCE_FRAMES of a scene; returns an opacity factor. */
+const ENTRANCE_FRAMES = 24;
+function applyEntrance(ctx: Ctx2D, L: Layout, entrance: Scene['entrance'], local: number): number {
+  if (!entrance || entrance === 'none' || local >= ENTRANCE_FRAMES) return 1;
+  const t = easeInOutCubic(progress(local, 0, ENTRANCE_FRAMES));
+  const cx = L.W / 2, cy = L.H / 2;
+  switch (entrance) {
+    case 'rise': ctx.translate(0, (1 - t) * L.H * 0.12); break;
+    case 'drop': ctx.translate(0, -(1 - t) * L.H * 0.12); break;
+    case 'side': ctx.translate(-(1 - t) * L.W * 0.15, 0); break;
+    case 'zoom': {
+      const k = 1.25 - 0.25 * t;
+      ctx.translate(cx, cy); ctx.scale(k, k); ctx.translate(-cx, -cy);
+      break;
+    }
+    case 'spin': {
+      const k = 0.7 + 0.3 * t;
+      ctx.translate(cx, cy); ctx.rotate(-(1 - t) * 0.35); ctx.scale(k, k); ctx.translate(-cx, -cy);
+      break;
+    }
+  }
+  return t;
+}
+
 /** Shared 1/8-scale scratch canvas for smooth background layers (null outside browsers). */
 function lowRes(W: number, H: number) {
   if (typeof OffscreenCanvas === 'undefined') return null;
@@ -223,6 +247,7 @@ export function renderFrame(project: Project, frameIndex: number, ctx: Ctx2D, ou
       case 'wipe':
         break;
     }
+    opacity *= applyEntrance(ctx, L, scene.entrance, local);
     ctx.globalAlpha = opacity;
     if (opacity > 0.001) {
       if (scene.image?.layer === 'back') drawSceneImage(ctx, scene, theme, L, local, scene.durationFrames);

@@ -88,12 +88,14 @@ export function rebalance(scenes: Scene[], total: number = DURATION_FRAMES): Sce
  */
 export function setSceneDuration(scenes: Scene[], index: number, frames: number, total: number = DURATION_FRAMES): Scene[] {
   if (scenes.length === 1) return restack([{ ...scenes[0], durationFrames: total }]);
-  const others = scenes.length - 1;
-  const clamped = Math.round(Math.min(total - others * LIMITS.minSceneFrames, Math.max(LIMITS.minSceneFrames, frames)));
-  const rest = distributeFrames(
-    scenes.filter((_, i) => i !== index).map((s) => s.durationFrames),
-    total - clamped,
+  // Every other scene keeps its exact length; only the last scene (or the one before it, when the
+  // last is being edited) absorbs the difference so the video stays exactly `total` frames.
+  const last = scenes.length - 1;
+  const absorber = index === last ? last - 1 : last;
+  const fixed = scenes.reduce((sum, s, i) => (i === index || i === absorber ? sum : sum + s.durationFrames), 0);
+  const pool = total - fixed;
+  const clamped = Math.round(Math.min(pool - LIMITS.minSceneFrames, Math.max(LIMITS.minSceneFrames, frames)));
+  return restack(
+    scenes.map((s, i) => (i === index ? { ...s, durationFrames: clamped } : i === absorber ? { ...s, durationFrames: pool - clamped } : s)),
   );
-  let k = 0;
-  return restack(scenes.map((s, i) => ({ ...s, durationFrames: i === index ? clamped : rest[k++] })));
 }

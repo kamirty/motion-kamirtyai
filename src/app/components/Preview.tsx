@@ -16,6 +16,8 @@ interface Props {
   project: Project;
   frame: number;
   playing: boolean;
+  /** Waiting for the soundtrack before playback starts. */
+  preparing?: boolean;
   ready: boolean;
   onFrame: (f: number) => void;
   onTogglePlay: () => void;
@@ -26,7 +28,7 @@ interface Props {
   onImageMove: (x: number, y: number) => void;
 }
 
-export function Preview({ project, frame, playing, ready, onFrame, onTogglePlay, renderKey, selected, onImageMove }: Props) {
+export function Preview({ project, frame, playing, preparing, ready, onFrame, onTogglePlay, renderKey, selected, onImageMove }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drag = useRef<{ dx: number; dy: number; moved: boolean } | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -92,6 +94,7 @@ export function Preview({ project, frame, playing, ready, onFrame, onTogglePlay,
           }}
         />
         {!ready && <div className="stage-loading">جارٍ تحميل الخط…</div>}
+        {ready && preparing && <div className="stage-loading">جارٍ تجهيز الصوت ليبدأ متزامنًا…</div>}
       </div>
       <div className="controls">
         <button type="button" className="play" onClick={onTogglePlay} disabled={!ready} aria-label={playing ? 'إيقاف' : 'تشغيل'}>

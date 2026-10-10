@@ -235,6 +235,25 @@
         },
         "image": {
           "$ref": "#/$defs/image"
+        },
+        "reveals": {
+          "type": "array",
+          "maxItems": 6,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 3600
+          }
+        },
+        "entrance": {
+          "enum": [
+            "none",
+            "rise",
+            "drop",
+            "zoom",
+            "side",
+            "spin"
+          ]
         }
       }
     },
