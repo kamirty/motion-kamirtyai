@@ -4,7 +4,7 @@ import { normalizeArabic } from '../../design/arabic';
 
 export const DIGIT = '[0-9٠-٩]';
 const NUMBER = `${DIGIT}+(?:[.,٫،]${DIGIT}+)?`;
-const UNITS = 'مليون|مليار|ألف|آلاف|الف|ملايين|مليارات|كم|كيلو(?:متر|غرام|جرام)?|كغ|كجم|لتر|لترات|متر|ساعة|ساعات|دقيقة|دقائق|ثانية|يوم|أيام|سنة|سنوات|عام|أعوام|ريال|دولار|درهم|دينار|جنيه|شخص|طالب|مرة|مرات|سعرة|كوب|أكواب';
+const UNITS = 'مليون|مليار|ألف|آلاف|الف|ملايين|مليارات|كم|كيلو(?:متر|غرام|جرام)?|كغ|كجم|لتر|لترات|متر|ساعة|ساعات|دقيقة|دقائق|ثانية|يوم|أيام|سنة|سنوات|عام|أعوام|ريال|دولار|درهم|دينار|جنيه|شخص|طالب|مرة|مرات|سعرة|سعرات|كوب|أكواب|طن|أطنان|اطنان|غرام|جرام|غرامات|جرامات|كيلومترات|كيلوغرامات|كيلوجرامات|أسبوع|أسابيع|شهر|أشهر|شهور|درجة|درجات|أشخاص|مستخدم';
 
 /** A number with an optional percent sign or unit word, e.g. "71%", "٢٫٥ مليار", "8 أكواب". */
 export const STAT_RE = new RegExp(`(${NUMBER})\\s*(%|٪|(?:${UNITS})(?![\\p{L}]))?`, 'u');
@@ -95,12 +95,13 @@ export function chunkText(text: string, max: number): string[] {
 /** Removes trailing sentence punctuation. */
 export const trimPunct = (s: string): string => s.trim().replace(/[\s.،,؛:!]+$/u, '').trim();
 
-/** Shortens text to at most `max` characters on a word boundary (no ellipsis invented content). */
+/** Shortens text to at most `max` characters, ellipsis included, on a word boundary when there is one. */
 export function clampWords(text: string, max: number): string {
   if (text.length <= max) return text;
-  const cut = text.slice(0, max + 1);
+  const room = max - 1;
+  const cut = text.slice(0, room + 1);
   const i = cut.lastIndexOf(' ');
-  return (i > max * 0.5 ? cut.slice(0, i) : text.slice(0, max)).trim() + '…';
+  return (i > room * 0.5 ? cut.slice(0, i) : text.slice(0, room)).trim() + '…';
 }
 
 const REQUEST_PREFIX = new RegExp(

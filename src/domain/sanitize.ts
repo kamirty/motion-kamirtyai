@@ -86,6 +86,7 @@ export function parseProject(input: unknown): Project {
     background: pick(st.background, ['gradient', 'dots', 'waves', 'plain'] as const, DEFAULT_STYLE.background),
     music: pick(st.music, ['none', 'calm', 'bright', 'epic'] as const, DEFAULT_STYLE.music),
     sfx: typeof st.sfx === 'boolean' ? st.sfx : DEFAULT_STYLE.sfx,
+    pace: pick(st.pace, ['calm', 'balanced', 'fast'] as const, DEFAULT_STYLE.pace),
   };
 
   const project: Project = {

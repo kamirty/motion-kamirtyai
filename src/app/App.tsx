@@ -105,11 +105,13 @@ export function App() {
   const soundtrack = useRef<{ key: string; promise: Promise<AudioBuffer | null> } | null>(null);
 
   const getAudio = useCallback(async (): Promise<AudioBuffer | null> => {
-    const base = customAudio ? customAudio.buffer : await musicFor(style.music);
-    if (!style.sfx) return base;
-    const key = `${sfxKey}|${customAudio ? `file:${customAudio.name}:${customAudio.buffer.length}` : style.music}`;
+    // Music (or none) + optional narration file + optional effects, mixed together.
+    const music = await musicFor(style.music);
+    const voice = customAudio?.buffer ?? null;
+    if (!style.sfx && !voice) return music;
+    const key = `${sfxKey}|${style.music}|${customAudio ? `voice:${customAudio.name}:${customAudio.buffer.length}` : ''}`;
     if (soundtrack.current?.key !== key) {
-      soundtrack.current = { key, promise: renderSoundtrack(projectRef.current, base, { sfx: true }).catch(() => base) };
+      soundtrack.current = { key, promise: renderSoundtrack(projectRef.current, music, { sfx: style.sfx, voice }).catch(() => voice ?? music) };
     }
     return soundtrack.current.promise;
   }, [customAudio, style.music, style.sfx, sfxKey, musicFor]);
@@ -276,9 +278,9 @@ export function App() {
       return;
     }
     try {
-      const buffer = await fitAudio(await decodeAudioFile(file));
+      const buffer = await fitAudio(await decodeAudioFile(file), 120, 48000, false);
       setCustomAudio({ name: file.name, buffer });
-      setNotice({ kind: 'info', text: 'أُضيف ملفك الصوتي إلى الفيديو.' });
+      setNotice({ kind: 'info', text: 'أُضيف تعليقك الصوتي، وستُخفض الموسيقى تحته تلقائيًا.' });
     } catch {
       setNotice({ kind: 'error', text: 'تعذّر قراءة الملف الصوتي. جرّب MP3 أو WAV أو M4A.' });
     }
@@ -436,7 +438,7 @@ export function App() {
           sceneCount: project.scenes.length,
           kinds: project.scenes.map((sc) => sc.kind),
           aspect: aspectOfSize(project.size),
-          music: customAudio ? 'file' : style.music,
+          music: style.music,
           sfx: style.sfx,
           hasImages: project.scenes.some((sc) => !!sc.image),
           exportFormat,

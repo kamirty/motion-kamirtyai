@@ -280,15 +280,15 @@ pre { overflow-x: auto; font-size: 0.75rem; background: var(--panel-2); padding:
 
 /* ── Assistant ── */
 .assistant-fab {
-  position: fixed; bottom: 18px; inset-inline-end: 18px; z-index: 40;
-  display: flex; align-items: center; gap: 8px;
+  position: fixed; bottom: 16px; inset-inline-end: 16px; z-index: 40;
+  width: 48px; height: 48px; padding: 0; display: grid; place-items: center;
   background: var(--bar); color: var(--on-bar); border: 2px solid var(--brand);
-  border-radius: 999px; padding: 10px 18px; font-weight: 700; font-size: 1rem;
+  border-radius: 50%; font-size: 1.4rem; line-height: 1;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 .assistant-fab:hover:not(:disabled) { background: var(--brand); color: var(--on-brand); }
 .assistant {
-  position: fixed; bottom: 78px; inset-inline-end: 18px; z-index: 40;
+  position: fixed; bottom: 74px; inset-inline-end: 16px; z-index: 40;
   width: min(400px, calc(100vw - 24px)); height: min(620px, calc(100vh - 110px));
   display: flex; flex-direction: column;
   background: var(--panel); border: 1px solid var(--border); border-top: 6px solid var(--bar);

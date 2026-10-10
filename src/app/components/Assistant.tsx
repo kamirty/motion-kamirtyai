@@ -67,9 +67,16 @@ export function Assistant({ context, onAction }: Props) {
 
   return (
     <>
-      <button type="button" className={`assistant-fab ${open ? 'open' : ''}`} onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-controls="assistant-panel">
-        {open ? '✕' : '💬'}
-        <span>{open ? 'إغلاق' : 'المساعد'}</span>
+      <button
+        type="button"
+        className={`assistant-fab ${open ? 'open' : ''}`}
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-controls="assistant-panel"
+        aria-label={open ? 'إغلاق المساعد' : 'المساعد'}
+        title={open ? 'إغلاق المساعد' : 'المساعد'}
+      >
+        {open ? '✕' : '🤖'}
       </button>
       {open && (
         <section id="assistant-panel" className="assistant" role="dialog" aria-label="مساعد مولّد الإنفوجرافيك">

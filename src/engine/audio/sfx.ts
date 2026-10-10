@@ -1,4 +1,4 @@
-import type { Project } from '../../domain/types';
+import { styleOf, type Project } from '../../domain/types';
 import { hash01 } from '../renderer/animation';
 import { CHAPTER, DEFINITION, HEADER, HERO, IMAGE, KPIS, OUTRO, PICTOGRAM, QUIZ_COUNTDOWN, QUOTE, STAT, TIP, itemReveal, quizCountdown, shownItems } from '../timing';
 import { quizParts } from '../sceneModel';
@@ -24,7 +24,9 @@ const COUNTER_TICKS = 12;
 
 export function planCues(project: Project): Cue[] {
   const cues: Cue[] = [];
-  project.scenes.forEach((scene, si) => {
+  const pace = styleOf(project).pace;
+  project.scenes.forEach((raw, si) => {
+    const scene = { ...raw, pace };
     const s0 = scene.startFrame;
     // Cues landing in the exit transition would play over the next scene's whoosh; drop them.
     const add = (local: number, kind: CueKind, step = 0) => {
@@ -226,9 +228,10 @@ function schedule(ctx: BaseAudioContext, out: AudioNode, noise: AudioBuffer, cue
 export async function renderSoundtrack(
   project: Project,
   background: AudioBuffer | null,
-  opts: { sfx: boolean; seconds?: number; sampleRate?: number },
+  opts: { sfx: boolean; voice?: AudioBuffer | null; seconds?: number; sampleRate?: number },
 ): Promise<AudioBuffer | null> {
-  if (!opts.sfx) return background;
+  const voice = opts.voice ?? null;
+  if (!opts.sfx && !voice) return background;
   if (typeof OfflineAudioContext === 'undefined') return background;
   const seconds = opts.seconds ?? project.durationFrames / project.fps;
   const sampleRate = opts.sampleRate ?? 48000;
@@ -236,14 +239,23 @@ export async function renderSoundtrack(
   const master = ctx.createDynamicsCompressor();
   master.threshold.value = -10;
   master.connect(ctx.destination);
-  const cues = planCues(project);
+  const cues = opts.sfx ? planCues(project) : [];
+  if (voice) {
+    const v = ctx.createBufferSource();
+    v.buffer = voice;
+    const vg = ctx.createGain();
+    vg.gain.value = 1.15;
+    v.connect(vg).connect(master);
+    v.start(0);
+  }
   if (background) {
     const src = ctx.createBufferSource();
     src.buffer = background;
     const g = ctx.createGain();
     // Duck the bed briefly under each effect so effects read clearly over music or narration.
-    const BED = 0.75;
-    const DUCK = 0.42;
+    // A narration needs the music well under it.
+    const BED = voice ? 0.32 : 0.75;
+    const DUCK = voice ? 0.2 : 0.42;
     g.gain.setValueAtTime(BED, 0);
     // Merge overlapping duck windows (dense counter ticks) so the bed never pumps between them.
     const RELEASE = 0.2;
