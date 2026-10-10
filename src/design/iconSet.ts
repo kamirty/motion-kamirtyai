@@ -1,6 +1,6 @@
 // Generated list of Lucide icons (ISC licence) with Arabic keywords used for auto-selection.
 import {
-  Droplet, Droplets, Waves, Leaf, Sprout, TreePine, Sun, Moon, Cloud, CloudRain, Snowflake, Wind, Thermometer, Flame, Zap, Lightbulb, BookOpen, GraduationCap, School, Pencil, Brain, BrainCircuit, Microscope, FlaskConical, Atom, Calculator, Globe, Earth, Map, MapPin, Mountain, Recycle, Trash2, Heart, HeartPulse, Activity, Stethoscope, Pill, Syringe, Apple, Carrot, Salad, Utensils, Coffee, Milk, Dumbbell, Bike, Footprints, Bed, Smile, Frown, Users, User, Baby, House, Building2, Factory, Car, Bus, Plane, Train, Ship, Fuel, BatteryCharging, Wifi, Smartphone, Laptop, Monitor, Cpu, Bot, Code, Database, Shield, ShieldCheck, Lock, Key, TriangleAlert, CircleCheck, CircleX, Info, CircleHelp, Star, Trophy, Target, Flag, Rocket, TrendingUp, TrendingDown, ChartColumn, ChartPie, ChartLine, Coins, Wallet, DollarSign, ShoppingCart, Briefcase, Clock, Calendar, Timer, Hourglass, MessageCircle, Mail, Phone, Megaphone, Camera, Music, Film, Palette, Hand, HandHeart, Handshake, Scale, Gavel, Landmark, Fish, Bird, Dog, Cat, PawPrint, Umbrella, Sparkles, Gift, Puzzle, Layers, ListChecks, ListOrdered, ArrowLeftRight, Quote, PartyPopper, ThumbsUp, Eye, Search, Settings, Wrench, Hammer, Package, Truck, Newspaper, Video, Mic, Headphones, Gamepad2, Medal, Award, Crown, Gem, Shirt, Bug, Biohazard, CigaretteOff, Telescope, Orbit, Satellite, Wheat, Egg, Sandwich, History, Milestone, Route, Compass, Scroll, Library, NotebookPen, Languages, Goal, Hospital, Ambulance, Percent, Gauge,
+  Droplet, Droplets, Waves, Leaf, Sprout, TreePine, Sun, Moon, Cloud, CloudRain, Snowflake, Wind, Thermometer, Flame, Zap, Lightbulb, BookOpen, GraduationCap, School, Pencil, Brain, BrainCircuit, Microscope, FlaskConical, Atom, Calculator, Globe, Earth, Map, MapPin, Mountain, Recycle, Trash2, Heart, HeartPulse, Activity, Stethoscope, Pill, Syringe, Apple, Carrot, Salad, Utensils, Coffee, Milk, Dumbbell, Bike, Footprints, Bed, Smile, Frown, Users, User, Baby, House, Building2, Factory, Car, Bus, Plane, Train, Ship, Fuel, BatteryCharging, Wifi, Smartphone, Laptop, Monitor, Cpu, Bot, Code, Database, Shield, ShieldCheck, Lock, Key, TriangleAlert, CircleCheck, CircleX, Info, CircleHelp, Star, Trophy, Target, Flag, Rocket, TrendingUp, TrendingDown, ChartColumn, ChartPie, ChartLine, Coins, Wallet, DollarSign, ShoppingCart, Briefcase, Clock, Calendar, Timer, Hourglass, MessageCircle, Mail, Phone, Megaphone, Camera, Music, Film, Palette, Hand, HandHeart, Handshake, Scale, Gavel, Landmark, Fish, Bird, Dog, Cat, PawPrint, Umbrella, Sparkles, Gift, Puzzle, Layers, ListChecks, ListOrdered, ArrowLeftRight, Quote, PartyPopper, ThumbsUp, Eye, Search, Settings, Wrench, Hammer, Package, Truck, Newspaper, Video, Mic, Headphones, Gamepad2, Medal, Award, Crown, Gem, Shirt, Bug, Biohazard, CigaretteOff, Telescope, Orbit, Satellite, Wheat, Egg, Sandwich, History, Milestone, Route, Compass, Scroll, Library, NotebookPen, Languages, Goal, Hospital, Ambulance, Percent, Gauge, Check, X, ThumbsDown,
   type IconNode,
 } from 'lucide';
 
@@ -92,6 +92,9 @@ export const ICONS: IconDef[] = [
   def('triangle-alert', TriangleAlert, 'تحذير خطر انتباه مخاطر احذر'),
   def('circle-check', CircleCheck, 'صحيح نجاح افعل'),
   def('circle-x', CircleX, 'خطا تجنب لا تفعل ممنوع'),
+  def('check', Check, ''),
+  def('x', X, ''),
+  def('thumbs-down', ThumbsDown, 'عيوب سلبيات'),
   def('info', Info, 'معلومه تعريف'),
   def('circle-help', CircleHelp, 'سؤال لماذا كيف ماذا'),
   def('star', Star, 'نجم تميز مميز'),
