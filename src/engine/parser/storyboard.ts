@@ -698,16 +698,4 @@ export function buildStoryboardRaw(description: string): Storyboard {
  * Kinds whose drawers are not finished yet render as the closest finished kind.
  * Remove an entry once its drawer ships.
  */
-export const PENDING_FALLBACK: Partial<Record<SceneKind, SceneKind>> = {
-  donut: 'comparison',
-  columns: 'comparison',
-  pictogram: 'stat',
-  cycle: 'steps',
-  pyramid: 'steps',
-  checklist: 'steps',
-  proscons: 'summary',
-  quiz: 'summary',
-  definition: 'summary',
-  chapter: 'hero',
-  tip: 'summary',
-};
+export const PENDING_FALLBACK: Partial<Record<SceneKind, SceneKind>> = {};
