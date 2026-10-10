@@ -7,16 +7,17 @@ import { fontSpec, type Ctx2D } from './context';
 import { drawSceneImage } from './imageLayer';
 import { drawScene, layoutFor, type Layout } from './scenes';
 
-const localized = new WeakMap<Scene, Map<DigitSystem, Scene>>();
+const localized = new WeakMap<Scene, Map<string, Scene>>();
 
 /** Scene copy with digits converted to the project's digit system (memoised per scene object). */
-function localizeScene(scene: Scene, digits: DigitSystem): Scene {
+function localizeScene(scene: Scene, digits: DigitSystem, pace: string): Scene {
   let byDigits = localized.get(scene);
   if (!byDigits) localized.set(scene, (byDigits = new Map()));
-  let out = byDigits.get(digits);
+  const key = `${digits}|${pace}`;
+  let out = byDigits.get(key);
   if (!out) {
-    out = { ...scene, title: localizeDigits(scene.title, digits), items: scene.items.map((i) => localizeDigits(i, digits)) };
-    byDigits.set(digits, out);
+    out = { ...scene, pace, title: localizeDigits(scene.title, digits), items: scene.items.map((i) => localizeDigits(i, digits)) } as Scene;
+    byDigits.set(key, out);
   }
   return out;
 }
@@ -192,7 +193,7 @@ export function renderFrame(project: Project, frameIndex: number, ctx: Ctx2D, ou
   const index = sceneIndexAt(project, frameIndex);
   const raw = project.scenes[index];
   if (raw) {
-    const scene = localizeScene(raw, style.digits);
+    const scene = localizeScene(raw, style.digits, style.pace);
     const local = frameIndex - scene.startFrame;
     const T = Math.min(TRANSITION_FRAMES, Math.floor(scene.durationFrames / 4));
     // Enter (0→1) over the first T frames; exit (0→1) over the last T frames. First scene fades in only from black-free start.

@@ -160,6 +160,8 @@ interface Legend {
   width: number;
   height: number;
   ok: boolean;
+  /** No size met the line limits: minimum size with natural wrapping (the caller may scale it). */
+  forced: boolean;
 }
 
 interface Center {
@@ -188,7 +190,7 @@ interface Plan {
 
 const LABEL_LH = 1.38;
 
-function fitLegend(ctx: Ctx2D, fs: FontSpec, segs: Seg[], colW: number, cols: number, colGap: number, maxLines: number, s: number, needBar = false): Legend {
+function fitLegend(ctx: Ctx2D, fs: FontSpec, segs: Seg[], colW: number, cols: number, colGap: number, maxLines: number, s: number, barMode: 'need' | 'auto' | 'off'): Legend {
   const n = segs.length;
   const valueSize = Math.round(s * 1.3);
   ctx.font = font(fs, 'bold', valueSize);
@@ -200,7 +202,7 @@ function fitLegend(ctx: Ctx2D, fs: FontSpec, segs: Seg[], colW: number, cols: nu
   const room = colW - padX * 2 - swatch - gap - (valueW ? valueW + gap : 0);
   ctx.font = font(fs, 'regular', s);
   const natural = Math.max(0, ...segs.map((g) => ctx.measureText(g.label).width));
-  const anyShare = segs.some((g) => g.frac > 0);
+  const anyShare = barMode !== 'off' && segs.some((g) => g.frac > 0);
   const barMin = Math.max(80, s * 2.6);
   // Short labels keep their natural width and the bar takes the rest; long labels wrap in up
   // to 58% of the room so a useful bar remains; otherwise the label gets the whole room.
@@ -224,7 +226,7 @@ function fitLegend(ctx: Ctx2D, fs: FontSpec, segs: Seg[], colW: number, cols: nu
   fits.forEach((f) => {
     if (f.lines.length > maxLines || f.width > Math.max(70, labelW) + 0.5) ok = false;
   });
-  if (needBar && anyShare && !barW) ok = false;
+  if (barMode === 'need' && anyShare && !barW) ok = false;
   const bar = barW ? Math.round(clamp(s * 0.3, 7, 11)) : 0;
   const padY = Math.round(s * 0.4);
   const minH = Math.round(s * 2.15);
@@ -246,7 +248,7 @@ function fitLegend(ctx: Ctx2D, fs: FontSpec, segs: Seg[], colW: number, cols: nu
     const r = i % perCol;
     return { x: width - colW - col * (colW + colGap), y: ys[r], w: colW, h: rowH[r] };
   });
-  return { size: s, valueSize, valueW, swatch, padX, gap, labelW, bar, barW, fits, boxes, width, height: Math.max(0, y - rowGap), ok };
+  return { size: s, valueSize, valueW, swatch, padX, gap, labelW, bar, barW, fits, boxes, width, height: Math.max(0, y - rowGap), ok, forced: false };
 }
 
 /**
@@ -256,19 +258,19 @@ function fitLegend(ctx: Ctx2D, fs: FontSpec, segs: Seg[], colW: number, cols: nu
 function pickLegend(ctx: Ctx2D, fs: FontSpec, segs: Seg[], colW: number, cols: number, colGap: number, sizes: [number, number], maxH: (lg: Legend) => number): Legend {
   const [max, min] = sizes;
   // Preference: one-line labels with share bars, one-line labels without, then wrapped labels.
-  const passes: [number, boolean, number][] = [
-    [1, true, Math.max(min, max - 8)],
-    [1, false, Math.max(min, max - 6)],
-    [2, false, min],
-    [3, false, min],
+  const passes: [number, 'need' | 'auto' | 'off', number][] = [
+    [1, 'need', Math.max(min, max - 8)],
+    [1, 'auto', Math.max(min, max - 6)],
+    [2, 'auto', min],
+    [3, 'off', min],
   ];
-  for (const [maxLines, needBar, floor] of passes) {
+  for (const [maxLines, barMode, floor] of passes) {
     for (let s = max; s >= floor; s -= 2) {
-      const lg = fitLegend(ctx, fs, segs, colW, cols, colGap, maxLines, s, needBar);
+      const lg = fitLegend(ctx, fs, segs, colW, cols, colGap, maxLines, s, barMode);
       if (lg.ok && lg.height <= maxH(lg)) return lg;
     }
   }
-  return fitLegend(ctx, fs, segs, colW, cols, colGap, 99, min);
+  return { ...fitLegend(ctx, fs, segs, colW, cols, colGap, 99, min, 'off'), forced: true };
 }
 
 function centerFor(ctx: Ctx2D, fs: FontSpec, seg: Seg | undefined, disc: number): Center | null {
@@ -319,30 +321,55 @@ function planFor(ctx: Ctx2D, fs: FontSpec, items: string[], L: Layout, top: numb
     cx = L.W / 2;
     cy = top + availH / 2;
   } else if (side) {
-    R = Math.max(90, Math.min(215, availH / 2 - ringPad));
-    cx = L.M + ringPad + R - 6;
     cy = top + availH / 2;
-    const left = cx + R + ringPad + 52;
-    const colW = L.W - L.M - left;
-    legend = pickLegend(ctx, fs, segs, colW, 1, 0, [n <= 3 ? 38 : 32, 18], () => availH);
-    legendScale = Math.min(1, availH / Math.max(1, legend.height));
-    legendX = left;
+    const rFull = Math.max(90, Math.min(215, availH / 2 - ringPad));
+    const attempt = (r: number) => {
+      const x = L.M + ringPad + r - 6;
+      const left = x + r + ringPad + 52;
+      const lg = pickLegend(ctx, fs, segs, L.W - L.M - left, 1, 0, [n <= 3 ? 38 : 32, 18], () => availH);
+      const scale = Math.min(1, availH / Math.max(1, lg.height));
+      return { r, x, left, lg, scale, eff: lg.size * scale - (lg.forced ? 6 : 0) };
+    };
+    // Long labels: a smaller donut buys the legend width when that clearly enlarges its text.
+    let best = attempt(rFull);
+    for (const r of [rFull * 0.84, rFull * 0.7]) {
+      if (best.eff >= 26) break;
+      const alt = attempt(r);
+      if (alt.eff >= best.eff + 2) best = alt;
+    }
+    R = best.r;
+    cx = best.x;
+    legend = best.lg;
+    legendScale = best.scale;
+    legendX = best.left;
     legendY = cy - (legend.height * legendScale) / 2;
   } else {
-    const cols = L.square && n >= 4 ? 2 : 1;
     const colGap = 22;
-    const colW = cols === 2 ? (contentW - colGap) / 2 : L.square ? Math.min(contentW, 760) : contentW;
     const gapY = L.portrait ? 38 : 40;
     const rMax = L.portrait ? 236 : 226;
     const rPref = L.portrait ? (n <= 3 ? 190 : n === 4 ? 165 : 135) : 170;
     const room = (h: number) => (availH - h - gapY) / 2 - ringPad;
-    legend = pickLegend(ctx, fs, segs, colW, cols, colGap, [L.portrait ? 38 : 34, 18], () => availH - gapY - 2 * (rPref + ringPad));
-    R = Math.min(rMax, room(legend.height));
-    if (R < 125) {
-      // Extreme content (very long labels): keep a readable donut and scale the legend to fit.
-      R = 125;
-      legendScale = clamp((availH - gapY - 2 * (R + ringPad)) / Math.max(1, legend.height), 0.1, 1);
+    const attempt = (cols: number) => {
+      const colW = cols === 2 ? (contentW - colGap) / 2 : L.square && n <= 3 ? Math.min(contentW, 760) : contentW;
+      const lg = pickLegend(ctx, fs, segs, colW, cols, colGap, [L.portrait ? 38 : 34, 18], () => availH - gapY - 2 * (rPref + ringPad));
+      let r = Math.min(rMax, room(lg.height));
+      let scale = 1;
+      if (r < 125) {
+        // Extreme content (very long labels): keep a readable donut and scale the legend to fit.
+        r = 125;
+        scale = clamp((availH - gapY - 2 * (r + ringPad)) / Math.max(1, lg.height), 0.1, 1);
+      }
+      return { lg, r, scale, eff: lg.size * scale - (lg.forced ? 6 : 0) };
+    };
+    let best = attempt(L.square && n >= 4 ? 2 : 1);
+    if (L.square && n >= 4) {
+      // Long labels can read better in one full-width column than squeezed into two.
+      const one = attempt(1);
+      if (one.eff >= best.eff + 2) best = one;
     }
+    legend = best.lg;
+    R = best.r;
+    legendScale = best.scale;
     const block = 2 * (R + ringPad) + gapY + legend.height * legendScale;
     const y0 = top + Math.max(0, (availH - block) / 2);
     cx = L.W / 2;

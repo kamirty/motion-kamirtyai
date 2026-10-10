@@ -1,5 +1,5 @@
 import type { Scene } from '../domain/types';
-import { comparisonBars, quizParts } from './sceneModel';
+import { quizParts } from './sceneModel';
 
 export { MAX_ITEMS, comparisonBars, shownItems } from './sceneModel';
 
@@ -28,47 +28,38 @@ export const QUIZ_COUNTDOWN = 90; // 3 s countdown before the answer is revealed
 /** A scene's picture enters at this frame over this many frames. */
 export const IMAGE = { enter: 6, length: 22 };
 
-/** Frames between successive item reveals: list items share the first 55% of the scene. */
-export function revealSpan(scene: Scene, count: number): number {
-  return Math.max(24, Math.floor((scene.durationFrames * 0.55) / Math.max(1, count)));
+export type Pace = 'calm' | 'balanced' | 'fast';
+
+/** Share of the scene over which list items are revealed, per motion speed. */
+const PACE_SHARE: Record<Pace, number> = { calm: 0.75, balanced: 0.6, fast: 0.4 };
+
+/**
+ * Frames between successive item reveals: items share a part of the scene set by the motion
+ * speed, so they always arrive one by one (never all at once) and the last stays readable.
+ */
+export function revealSpan(scene: Scene & { pace?: Pace }, count: number): number {
+  const share = PACE_SHARE[scene.pace ?? 'balanced'];
+  return Math.max(18, Math.floor((scene.durationFrames * share) / Math.max(1, count)));
 }
 
 /** Countdown start for a quiz; the answer is revealed QUIZ_COUNTDOWN frames later. */
-export function quizCountdown(scene: Scene): number {
+export function quizCountdown(scene: Scene & { pace?: Pace }): number {
   const n = quizParts(scene).options.length;
-  const wanted = 20 + n * 12 + 30;
+  const wanted = itemReveal(scene, Math.max(0, n - 1), Math.max(1, n)) + 40;
   return Math.max(0, Math.min(wanted, scene.durationFrames - QUIZ_COUNTDOWN - 40));
 }
 
-/** Frame at which list item `i` of `count` starts to appear, per scene kind. */
-export function itemReveal(scene: Scene, i: number, count: number): number {
+export function itemReveal(scene: Scene & { pace?: Pace }, i: number, count: number): number {
   const span = revealSpan(scene, count);
   switch (scene.kind) {
-    case 'steps':
-    case 'cycle':
-    case 'checklist':
-      return 24 + i * span;
-    case 'timeline':
-      return 20 + i * span;
-    case 'summary':
-      return 22 + i * Math.min(span, 36);
-    case 'comparison':
-      return comparisonBars(scene) ? 14 + i * Math.min(span, 30) : 20 + i * 18;
-    case 'kpis':
-      return 20 + i * 16;
-    case 'donut':
-      return 20 + i * Math.min(span, 30);
-    case 'columns':
-      return 20 + i * Math.min(span, 24);
     case 'pyramid':
       // Built from the base (last item) up to the top (first item).
-      return 20 + (count - 1 - i) * Math.min(span, 30);
-    case 'proscons':
-      return 24 + i * Math.min(span, 30);
-    case 'quiz':
-      return 20 + i * 12;
+      return 20 + (count - 1 - i) * span;
     case 'definition':
-      return i === 0 ? DEFINITION.body : DEFINITION.example(i - 1);
+      return i === 0 ? DEFINITION.body : DEFINITION.body + 30 + (i - 1) * Math.max(20, Math.floor(span / 2));
+    case 'steps': case 'cycle': case 'checklist': case 'timeline': case 'summary': case 'comparison':
+    case 'kpis': case 'donut': case 'columns': case 'proscons': case 'quiz':
+      return 20 + i * span;
     default:
       return 0;
   }

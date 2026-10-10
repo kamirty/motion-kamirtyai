@@ -159,11 +159,11 @@ export async function renderMusic(id: MusicId, seconds = 120, sampleRate = 48000
 /**
  * Fits user audio to exactly `seconds`: loops if shorter, trims if longer, with a short fade-out.
  */
-export async function fitAudio(source: AudioBuffer, seconds = 120, sampleRate = 48000): Promise<AudioBuffer> {
+export async function fitAudio(source: AudioBuffer, seconds = 120, sampleRate = 48000, loop = true): Promise<AudioBuffer> {
   const ctx = new OfflineAudioContext(2, Math.ceil(seconds * sampleRate), sampleRate);
   const node = ctx.createBufferSource();
   node.buffer = source;
-  node.loop = source.duration < seconds;
+  node.loop = loop && source.duration < seconds;
   const g = ctx.createGain();
   g.gain.setValueAtTime(1, 0);
   g.gain.setValueAtTime(1, seconds - 3);

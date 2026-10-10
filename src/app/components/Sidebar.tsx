@@ -137,6 +137,15 @@ export function Sidebar(p: Props) {
           </button>
         </div>
 
+        <label className="label">سرعة الحركة</label>
+        <div className="seg">
+          {([['calm', 'هادئة'], ['balanced', 'متوازنة'], ['fast', 'سريعة']] as const).map(([id, label]) => (
+            <button type="button" key={id} className={style.pace === id ? 'active' : ''} onClick={() => p.onStyle({ pace: id })}>
+              {label}
+            </button>
+          ))}
+        </div>
+
         <label className="label">الانتقال بين المشاهد</label>
         <div className="seg">
           {TRANSITIONS.map((t) => (
@@ -165,25 +174,28 @@ export function Sidebar(p: Props) {
             <button
               type="button"
               key={m.id}
-              className={!p.customAudioName && style.music === m.id ? 'active' : ''}
-              onClick={() => {
-                p.onAudioFile(null);
-                p.onStyle({ music: m.id });
-              }}
+              className={style.music === m.id ? 'active' : ''}
+              onClick={() => p.onStyle({ music: m.id })}
             >
               {m.label}
             </button>
           ))}
         </div>
+        <span className="label">التعليق الصوتي (اختياري)</span>
         <label className="upload">
-          <input type="file" accept="audio/*" onChange={(e) => p.onAudioFile(e.target.files?.[0] ?? null)} />
-          🎵 {p.customAudioName ? `ملفك: ${p.customAudioName}` : 'أو ارفع موسيقى/تعليقًا صوتيًا من جهازك'}
+          <input type="file" accept="audio/*" onChange={(e) => { p.onAudioFile(e.target.files?.[0] ?? null); e.target.value = ''; }} />
+          🎙 {p.customAudioName ? `تعليقك: ${p.customAudioName}` : 'ارفع تسجيل صوتك للعرض (MP3 / M4A / WAV)'}
         </label>
+        {p.customAudioName && (
+          <button type="button" className="danger" onClick={() => p.onAudioFile(null)}>
+            حذف التعليق الصوتي
+          </button>
+        )}
         <label className="check">
           <input type="checkbox" checked={style.sfx} onChange={(e) => p.onStyle({ sfx: e.target.checked })} />
           مؤثرات صوتية تلقائية عند ظهور العناصر
         </label>
-        <p className="muted small">الموسيقى والمؤثرات مولّدة داخل متصفحك وخالية من حقوق النشر. ملفك الصوتي لا يُرفع لأي خادم، ويُكرَّر أو يُقص ليطابق دقيقتين.</p>
+        <p className="muted small">يمكن الجمع بين الموسيقى والتعليق الصوتي؛ تنخفض الموسيقى تلقائيًا تحت صوتك. الموسيقى والمؤثرات مولّدة داخل متصفحك وخالية من حقوق النشر، وتسجيلك لا يُرفع لأي خادم (يُقص إذا زاد عن دقيقتين).</p>
       </section>
     </aside>
   );

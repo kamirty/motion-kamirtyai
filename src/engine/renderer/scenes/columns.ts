@@ -16,6 +16,9 @@ import { drawLines, fitText, type FittedText } from '../textLayout';
 
 /** Frames a column takes to grow to its height (the value counts up over the same window). */
 const GROW = 30;
+
+/** Growth length for a column cued at `rev`: shortened in very short scenes so it lands before the cut. */
+const growFor = (durationFrames: number, rev: number): number => clamp(durationFrames - 8 - rev, 8, GROW);
 const DIGIT_RUN = /[0-9٠-٩]+/u;
 const GROUP = /(?<=[0-9٠-٩])(?=(?:[0-9٠-٩]{3})+$)/gu;
 
@@ -77,7 +80,7 @@ function planFor(ctx: Ctx2D, fs: FontSpec, rows: ValueRow[], L: Layout, top: num
   // that only fits far below the others (a very long item) shrinks on its own instead of
   // dragging every label down with it.
   const labelW = Math.min(slotW - (n >= 5 ? 10 : 24), L.portrait ? 300 : 340);
-  const labelMax = bySize(L.portrait ? [38, 36, 34, 32, 28, 26] : [36, 34, 33, 31, 28, 26]);
+  const labelMax = bySize(L.portrait ? [38, 36, 34, 32, 28, 26] : [36, 34, 33, 31, 30, 28]);
   const labelMin = 15;
   const fit = (label: string, maxSize: number, minSize: number, maxLines: number) =>
     fitText(ctx, fs, label, { maxWidth: labelW, maxLines, maxSize, minSize, weight: 'bold', lineHeight: 1.32 });
@@ -160,7 +163,8 @@ export function drawColumns(a: SceneDrawArgs): void {
   const plotH = p.baseY - p.plotTop;
   const lightBg = contrast(theme.background, '#FFFFFF') < 2;
   const first = itemReveal(scene, 0, n);
-  const lastLand = itemReveal(scene, n - 1, n) + GROW;
+  const lastRev = itemReveal(scene, n - 1, n);
+  const lastLand = lastRev + growFor(scene.durationFrames, lastRev);
   const centerX = (i: number) => L.W - L.M - p.slotW * (i + 0.5);
 
   // Gridlines (quarters of the scale) and the baseline sweep in from the right before the first column.
@@ -195,7 +199,8 @@ export function drawColumns(a: SceneDrawArgs): void {
   p.cols.forEach((c, i) => {
     const rev = itemReveal(scene, i, n);
     if (frame < rev) return;
-    const t = progress(frame, rev, GROW);
+    const grow = growFor(scene.durationFrames, rev);
+    const t = progress(frame, rev, grow);
     const e = easeOutCubic(t);
     const cx = centerX(i);
     const hi = i === p.tallest;
@@ -263,7 +268,7 @@ export function drawColumns(a: SceneDrawArgs): void {
     }
     const shown = c.stat ? valueText(c, c.stat.value * e) : c.row.value;
     if (shown) {
-      const pop = 1 + 0.12 * Math.sin(Math.PI * progress(frame, rev + GROW - 4, 14));
+      const pop = 1 + 0.12 * Math.sin(Math.PI * progress(frame, rev + grow - 4, 14));
       const vy = p.baseY - h - p.valueGap;
       withAlpha(ctx, clamp(t * 4), () => {
         ctx.translate(cx, vy);

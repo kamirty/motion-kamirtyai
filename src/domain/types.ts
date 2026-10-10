@@ -66,6 +66,8 @@ export interface ProjectStyle {
   music: MusicId;
   /** Automatic sound effects when elements appear. */
   sfx: boolean;
+  /** Motion speed: how spread out element reveals are. */
+  pace: 'calm' | 'balanced' | 'fast';
 }
 
 export interface Project {
@@ -88,6 +90,7 @@ export const DEFAULT_STYLE: ProjectStyle = {
   background: 'dots',
   music: 'calm',
   sfx: true,
+  pace: 'balanced',
 };
 
 export const styleOf = (project: Project): ProjectStyle => ({ ...DEFAULT_STYLE, ...project.style });
