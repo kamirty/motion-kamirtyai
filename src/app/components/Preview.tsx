@@ -1,3 +1,4 @@
+import type { SceneImage } from '../../domain/types';
 import { useEffect, useRef, useState } from 'react';
 import { sceneIndexAt } from '../../domain/timeline';
 import { getImageSize } from '../../storage/assets';
@@ -25,15 +26,18 @@ interface Props {
   renderKey: number;
   /** Selected scene index; its picture can be dragged when that scene is on screen. */
   selected: number;
-  onImageMove: (x: number, y: number) => void;
+  activeImage: number;
+  onImagePick: (k: number) => void;
+  onImageMove: (k: number, x: number, y: number) => void;
 }
 
-export function Preview({ project, frame, playing, preparing, ready, onFrame, onTogglePlay, renderKey, selected, onImageMove }: Props) {
+export function Preview({ project, frame, playing, preparing, ready, onFrame, onTogglePlay, renderKey, selected, activeImage, onImagePick, onImageMove }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const drag = useRef<{ dx: number; dy: number; moved: boolean } | null>(null);
+  const drag = useRef<{ k: number; dx: number; dy: number; moved: boolean } | null>(null);
   const [dragging, setDragging] = useState(false);
   const scene = project.scenes[selected];
-  const image = scene?.image;
+  const images = scene?.images ?? [];
+  const image = images.length > 0;
   const L = layoutFor(project.size);
   const onSelected = sceneIndexAt(project, frame) === selected;
 
@@ -42,10 +46,16 @@ export function Preview({ project, frame, playing, preparing, ready, onFrame, on
     const r = e.currentTarget.getBoundingClientRect();
     return { x: ((e.clientX - r.left) / r.width) * L.W, y: ((e.clientY - r.top) / r.height) * L.H };
   };
+  /** Topmost picture under the pointer (front layer above back, later above earlier), or -1. */
   const hitImage = (p: { x: number; y: number }) => {
-    if (!image || !onSelected) return false;
-    const size = getImageSize(image.assetId) ?? { width: 4, height: 3 };
-    const b = imageBox(image, L, size);
+    if (!onSelected) return -1;
+    const order = images.map((im, k) => ({ im, k })).sort((a, b) => (a.im.layer === 'back' ? 0 : 1) - (b.im.layer === 'back' ? 0 : 1) || a.k - b.k);
+    for (let i = order.length - 1; i >= 0; i--) if (hitOne(order[i].im, p)) return order[i].k;
+    return -1;
+  };
+  const hitOne = (img: SceneImage, p: { x: number; y: number }) => {
+    const size = getImageSize(img.assetId) ?? { width: 4, height: 3 };
+    const b = imageBox(img, L, size);
     // Undo the rotation, then test against the unrotated box.
     const c = Math.cos(-b.rotation);
     const sn = Math.sin(-b.rotation);
@@ -58,8 +68,25 @@ export function Preview({ project, frame, playing, preparing, ready, onFrame, on
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext('2d');
-    if (ctx && ready) renderFrame(project, frame, ctx);
-  }, [project, frame, ready, renderKey]);
+    if (!ctx || !ready) return;
+    renderFrame(project, frame, ctx);
+    // Editing aid (never part of the video): dashed outline on the selected picture.
+    const img = images[activeImage];
+    if (img && !playing && onSelected && images.length > 1) {
+      const b = imageBox(img, L, getImageSize(img.assetId) ?? { width: 4, height: 3 });
+      const k = project.size.width / L.W;
+      ctx.save();
+      ctx.setTransform(k, 0, 0, k, 0, 0);
+      ctx.translate(b.cx, b.cy);
+      ctx.rotate(b.rotation);
+      ctx.setLineDash([10, 8]);
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#FFEB3B';
+      ctx.strokeRect(-b.w / 2 - 6, -b.h / 2 - 6, b.w + 12, b.h + 12);
+      ctx.restore();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project, frame, ready, renderKey, activeImage, playing]);
 
   return (
     <section className={`preview ${portrait ? 'is-portrait' : ''}`}>
@@ -72,8 +99,11 @@ export function Preview({ project, frame, playing, preparing, ready, onFrame, on
           className={dragging ? 'dragging' : image && onSelected && !playing ? 'draggable' : ''}
           onPointerDown={(e) => {
             const p = toDesign(e);
-            if (!playing && image && hitImage(p)) {
-              drag.current = { dx: image.x * L.W - p.x, dy: image.y * L.H - p.y, moved: false };
+            const k = playing ? -1 : hitImage(p);
+            if (k >= 0) {
+              const img = images[k];
+              onImagePick(k);
+              drag.current = { k, dx: img.x * L.W - p.x, dy: img.y * L.H - p.y, moved: false };
               e.currentTarget.setPointerCapture(e.pointerId);
               setDragging(true);
             }
@@ -84,7 +114,7 @@ export function Preview({ project, frame, playing, preparing, ready, onFrame, on
             drag.current.moved = true;
             const x = Math.min(1.2, Math.max(-0.2, (p.x + drag.current.dx) / L.W));
             const y = Math.min(1.2, Math.max(-0.2, (p.y + drag.current.dy) / L.H));
-            onImageMove(Math.round(x * 1000) / 1000, Math.round(y * 1000) / 1000);
+            onImageMove(drag.current.k, Math.round(x * 1000) / 1000, Math.round(y * 1000) / 1000);
           }}
           onPointerUp={() => {
             const d = drag.current;

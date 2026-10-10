@@ -50,7 +50,8 @@ export interface Scene {
   title: string;
   items: string[];
   icon: string;
-  image?: SceneImage;
+  /** Pictures in drawing order (later ones on top within their layer), at most LIMITS.images. */
+  images?: SceneImage[];
   /** Custom reveal frame (from scene start) per item, set by tap-to-sync or the timing editor. */
   reveals?: number[];
   /** How the scene's content enters, on top of the project transition. */
@@ -139,6 +140,8 @@ export const LIMITS = {
   items: 6,
   scenes: 20,
   minSceneFrames: 3 * FPS,
+  /** Pictures per scene. */
+  images: 4,
   maxSceneFrames: 120 * FPS,
   /** Longest video: 10 minutes. */
   maxTotalFrames: 600 * FPS,

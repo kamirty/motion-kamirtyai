@@ -14,15 +14,18 @@ interface Props {
   onMove: (delta: -1 | 1) => void;
   onDuplicate: () => void;
   onDelete: () => void;
-  onImageFile: (file: File) => void;
+  onImageFile: (file: File, mode: 'add' | 'replace') => void;
   onImage: (patch: Partial<SceneImage> | null) => void;
+  activeImage: number;
+  onImagePick: (k: number) => void;
+  onImageOrder: (delta: -1 | 1) => void;
   syncNext: number | null;
   onStartSync: () => void;
   onTap: () => void;
   onStopSync: () => void;
 }
 
-export function Inspector({ project, index, onChange, onDuration, onMove, onDuplicate, onDelete, onImageFile, onImage, syncNext, onStartSync, onTap, onStopSync }: Props) {
+export function Inspector({ project, index, onChange, onDuration, onMove, onDuplicate, onDelete, onImageFile, onImage, activeImage, onImagePick, onImageOrder, syncNext, onStartSync, onTap, onStopSync }: Props) {
   const scene = project.scenes[index];
   if (!scene) return null;
   const digits = styleOf(project).digits;
@@ -104,8 +107,8 @@ export function Inspector({ project, index, onChange, onDuration, onMove, onDupl
         onStopSync={onStopSync}
       />
 
-      <label className="label">الصورة</label>
-      <ImageControls image={scene.image} portrait={project.size.height > project.size.width} digits={digits} onFile={onImageFile} onChange={onImage} />
+      <label className="label">الصور (حتى ٤ في المشهد)</label>
+      <ImageControls images={scene.images ?? []} active={activeImage} portrait={project.size.height > project.size.width} digits={digits} onFile={onImageFile} onChange={onImage} onPick={onImagePick} onOrder={onImageOrder} />
 
       <label className="label" htmlFor="scene-dur">
         المدة: {localizeDigits(`${seconds} ثانية`, digits)}

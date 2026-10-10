@@ -1,12 +1,16 @@
 import { localizeDigits } from '../../design/digits';
-import type { DigitSystem, SceneImage } from '../../domain/types';
+import { LIMITS, type DigitSystem, type SceneImage } from '../../domain/types';
 
 interface Props {
-  image: SceneImage | undefined;
+  images: SceneImage[];
+  /** Index of the picture the controls act on. */
+  active: number;
   portrait: boolean;
   digits: DigitSystem;
-  onFile: (file: File) => void;
+  onFile: (file: File, mode: 'add' | 'replace') => void;
   onChange: (patch: Partial<SceneImage> | null) => void;
+  onPick: (k: number) => void;
+  onOrder: (delta: -1 | 1) => void;
 }
 
 const pct = (v: number, digits: DigitSystem) => localizeDigits(`${Math.round(v * 100)}%`, digits);
@@ -19,25 +23,29 @@ const PLACEMENTS = (portrait: boolean): { label: string; patch: Partial<SceneIma
   { label: 'خلفية', patch: { x: 0.5, y: 0.5, scale: portrait ? 1.5 : 1.02, rotation: 0, shape: 'rect', border: false, shadow: false, opacity: 0.3, layer: 'back' } },
 ];
 
-export function ImageControls({ image, portrait, digits, onFile, onChange }: Props) {
-  const upload = (
-    <label className="upload">
+export function ImageControls({ images, active, portrait, digits, onFile, onChange, onPick, onOrder }: Props) {
+  const image = images[active];
+  const full = images.length >= LIMITS.images;
+  const upload = (mode: 'add' | 'replace', label: string) => (
+    <label className={`upload ${mode === 'add' && full ? 'disabled' : ''}`} title={mode === 'add' && full ? `الحد الأقصى ${LIMITS.images} صور` : undefined}>
       <input
         type="file"
         accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+        multiple={mode === 'add'}
+        disabled={mode === 'add' && full}
         onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) onFile(f);
+          const files = [...(e.target.files ?? [])].slice(0, mode === 'add' ? LIMITS.images - images.length : 1);
+          files.forEach((f) => onFile(f, mode));
           e.target.value = '';
         }}
       />
-      🖼 {image ? 'استبدال الصورة' : 'أضف صورة من جهازك'}
+      {label}
     </label>
   );
   if (!image) {
     return (
       <div className="image-controls">
-        {upload}
+        {upload('add', '🖼 أضف صورة أو أكثر من جهازك')}
         <p className="muted small">الصورة تبقى في متصفحك فقط، ولا تُرفع لأي خادم.</p>
       </div>
     );
@@ -52,6 +60,20 @@ export function ImageControls({ image, portrait, digits, onFile, onChange }: Pro
   );
   return (
     <div className="image-controls">
+      <div className="seg image-tabs" role="tablist" aria-label="صور المشهد">
+        {images.map((_, k) => (
+          <button type="button" role="tab" key={k} aria-selected={k === active} className={k === active ? 'active' : ''} onClick={() => onPick(k)}>
+            {localizeDigits(`صورة ${k + 1}`, digits)}
+          </button>
+        ))}
+      </div>
+      {upload('add', full ? `🖼 وصلت إلى الحد (${localizeDigits(String(LIMITS.images), digits)} صور)` : '＋ أضف صورة أخرى')}
+      {images.length > 1 && (
+        <div className="row">
+          <button type="button" onClick={() => onOrder(1)} disabled={active >= images.length - 1} title="تظهر لاحقًا وفوق الصور السابقة">⬆ للأمام</button>
+          <button type="button" onClick={() => onOrder(-1)} disabled={active === 0} title="تظهر أولًا وتحت الصور اللاحقة">⬇ للخلف</button>
+        </div>
+      )}
       <div className="seg">
         {PLACEMENTS(portrait).map((p) => (
           <button type="button" key={p.label} onClick={() => onChange(p.patch)}>
@@ -98,10 +120,10 @@ export function ImageControls({ image, portrait, digits, onFile, onChange }: Pro
         <input type="checkbox" checked={image.shadow} onChange={(e) => onChange({ shadow: e.target.checked })} />
         ظل
       </label>
-      <p className="muted small">اسحب الصورة داخل المعاينة لتحريكها.</p>
+      <p className="muted small">اسحب أي صورة داخل المعاينة لتحريكها واختيارها. تظهر الصور بالتتابع حسب ترتيبها.</p>
       <div className="row">
-        {upload}
-        <button type="button" className="danger" onClick={() => onChange(null)}>حذف الصورة</button>
+        {upload('replace', 'استبدال هذه الصورة')}
+        <button type="button" className="danger" onClick={() => onChange(null)}>{localizeDigits(`حذف الصورة ${active + 1}`, digits)}</button>
       </div>
     </div>
   );

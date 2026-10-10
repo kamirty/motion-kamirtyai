@@ -304,36 +304,83 @@ export function App() {
     setNotice({ kind: 'info', text: 'صارت مدة الفيديو مساوية لمدة التعليق الصوتي، ووُزّعت على المشاهد بالنسبة نفسها.' });
   };
 
-  const onImageFile = async (file: File) => {
+  // Which picture of the selected scene the image controls (and preview drag) act on.
+  const [imageSel, setImageSel] = useState(0);
+  useEffect(() => setImageSel(0), [selected]);
+  const sceneImages = project.scenes[selected]?.images ?? [];
+  const activeImage = Math.min(imageSel, Math.max(0, sceneImages.length - 1));
+
+  const setImages = (fn: (imgs: SceneImage[]) => SceneImage[], coalesce?: string) =>
+    setProject(
+      (p) => ({
+        ...p,
+        scenes: p.scenes.map((sc, i) => {
+          if (i !== selected) return sc;
+          const next = fn(sc.images ?? []);
+          const { images: _old, ...rest } = sc;
+          return next.length ? { ...rest, images: next } : rest;
+        }),
+      }),
+      coalesce,
+    );
+
+  /** Adds a new picture (mode 'add') or swaps the active one's pixels (mode 'replace'). */
+  const onImageFile = async (file: File, mode: 'add' | 'replace') => {
+    if (mode === 'add' && sceneImages.length >= LIMITS.images) {
+      setNotice({ kind: 'error', text: `الحد الأقصى ${LIMITS.images} صور في المشهد الواحد.` });
+      return;
+    }
     try {
       const assetId = await addImageFile(file);
       const portrait = project.size.height > project.size.width;
       const base: Omit<SceneImage, 'assetId'> = portrait ? { ...DEFAULT_IMAGE, x: 0.5, y: 0.74, scale: 0.72 } : DEFAULT_IMAGE;
-      setProject((p) => ({
-        ...p,
-        scenes: p.scenes.map((sc, i) => (i === selected ? { ...sc, image: { ...base, ...sc.image, assetId } } : sc)),
-      }));
-      setNotice({ kind: 'info', text: 'أُضيفت الصورة. حرّكها بالسحب في المعاينة أو من لوحة المشهد.' });
+      // From the second picture on, pictures sit in a 2×2 grid so none hides another.
+      const slots = portrait
+        ? { scale: 0.42, at: [[0.73, 0.62], [0.27, 0.62], [0.73, 0.84], [0.27, 0.84]] }
+        : { scale: 0.2, at: [[0.36, 0.4], [0.14, 0.4], [0.36, 0.76], [0.14, 0.76]] };
+      const slot = (k: number) => ({ x: slots.at[k][0], y: slots.at[k][1], scale: slots.scale });
+      const untouched = (im: SceneImage) => im.x === base.x && im.y === base.y && im.scale === base.scale;
+      if (mode === 'replace' && sceneImages.length) {
+        setImages((imgs) => imgs.map((im, j) => (j === activeImage ? { ...im, assetId } : im)));
+        setNotice({ kind: 'info', text: 'استُبدلت الصورة مع إبقاء إعداداتها.' });
+      } else {
+        // Computed inside the update so several files picked at once each get their own slot.
+        setImages((imgs) => {
+          if (imgs.length >= LIMITS.images) return imgs;
+          if (!imgs.length) return [{ ...base, assetId }];
+          // The first picture joins the grid too if the visitor has not placed it yet.
+          const placed = imgs.map((im, j) => (j === 0 && untouched(im) ? { ...im, ...slot(0) } : im));
+          return [...placed, { ...base, ...slot(imgs.length), assetId }];
+        });
+        setImageSel(LIMITS.images); // clamped to the last picture
+        setNotice({ kind: 'info', text: 'أُضيفت الصورة. حرّكها بالسحب في المعاينة أو من لوحة المشهد.' });
+      }
     } catch (e) {
       setNotice({ kind: 'error', text: e instanceof Error ? e.message : 'تعذّر قراءة الصورة.' });
     }
   };
 
-  const updateImage = (patch: Partial<SceneImage> | null, coalesce?: string) =>
-    setProject(
-      (p) => ({
-        ...p,
-        scenes: p.scenes.map((sc, i) => {
-          if (i !== selected || !sc.image) return sc;
-          if (patch === null) {
-            const { image: _removed, ...rest } = sc;
-            return rest;
-          }
-          return { ...sc, image: { ...sc.image, ...patch } };
-        }),
-      }),
-      coalesce ?? (patch ? `image-${selected}-${Object.keys(patch).join()}` : undefined),
-    );
+  /** Patches the active picture; null removes it. */
+  const updateImage = (patch: Partial<SceneImage> | null, coalesce?: string, index = activeImage) => {
+    if (patch === null) {
+      setImages((imgs) => imgs.filter((_, j) => j !== index));
+      setImageSel(Math.max(0, index - 1));
+      return;
+    }
+    setImages((imgs) => imgs.map((im, j) => (j === index ? { ...im, ...patch } : im)), coalesce ?? `image-${selected}-${index}-${Object.keys(patch).join()}`);
+  };
+
+  /** Moves the active picture one step forward/back in drawing order. */
+  const reorderImage = (delta: -1 | 1) => {
+    const j = activeImage + delta;
+    if (j < 0 || j >= sceneImages.length) return;
+    setImages((imgs) => {
+      const out = [...imgs];
+      [out[activeImage], out[j]] = [out[j], out[activeImage]];
+      return out;
+    });
+    setImageSel(j);
+  };
 
   const onAssistantAction = (a: AssistantAction) => {
     if (a.type === 'export') {
@@ -502,7 +549,9 @@ export function App() {
             onTogglePlay={() => setPlaying((p) => !p)}
             renderKey={renderKey}
             selected={selected}
-            onImageMove={(x, y) => updateImage({ x, y }, `image-drag-${selected}`)}
+            activeImage={activeImage}
+            onImagePick={setImageSel}
+            onImageMove={(k, x, y) => updateImage({ x, y }, `image-drag-${selected}-${k}`, k)}
           />
           <Timeline project={project} selected={selected} currentFrame={frame} onSelect={selectScene} onAdd={addScene} renderKey={renderKey} />
         </div>
@@ -514,8 +563,11 @@ export function App() {
           onMove={moveScene}
           onDuplicate={duplicateScene}
           onDelete={deleteScene}
-          onImageFile={(f) => void onImageFile(f)}
+          onImageFile={(f, mode) => void onImageFile(f, mode)}
           onImage={(patch) => updateImage(patch)}
+          activeImage={activeImage}
+          onImagePick={setImageSel}
+          onImageOrder={reorderImage}
           syncNext={sync && sync.scene === selected ? sync.next : null}
           onStartSync={startSync}
           onTap={tapSync}
@@ -543,7 +595,7 @@ export function App() {
           aspect: aspectOfSize(project.size),
           music: style.music,
           sfx: style.sfx,
-          hasImages: project.scenes.some((sc) => !!sc.image),
+          hasImages: project.scenes.some((sc) => !!sc.images?.length),
           exportFormat,
         }}
         onAction={onAssistantAction}

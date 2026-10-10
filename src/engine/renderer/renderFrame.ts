@@ -250,9 +250,10 @@ export function renderFrame(project: Project, frameIndex: number, ctx: Ctx2D, ou
     opacity *= applyEntrance(ctx, L, scene.entrance, local);
     ctx.globalAlpha = opacity;
     if (opacity > 0.001) {
-      if (scene.image?.layer === 'back') drawSceneImage(ctx, scene, theme, L, local, scene.durationFrames);
+      const images = scene.images ?? [];
+      images.forEach((img, k) => img.layer === 'back' && drawSceneImage(ctx, img, k, theme, L, local, scene.durationFrames));
       drawScene({ ctx, scene, theme, frame: local, layout: L, font: fs, digits: style.digits });
-      if (scene.image && scene.image.layer !== 'back') drawSceneImage(ctx, scene, theme, L, local, scene.durationFrames);
+      images.forEach((img, k) => img.layer !== 'back' && drawSceneImage(ctx, img, k, theme, L, local, scene.durationFrames));
     }
     ctx.restore();
     if (style.transition === 'wipe') {

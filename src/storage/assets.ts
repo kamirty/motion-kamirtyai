@@ -120,8 +120,9 @@ export async function loadAssets(ids: string[]): Promise<string[]> {
 }
 
 /** Asset ids referenced by a project. */
-export const projectAssetIds = (project: { scenes: { image?: { assetId: string } }[] }): string[] =>
-  project.scenes.flatMap((s) => (s.image ? [s.image.assetId] : []));
+export const projectAssetIds = (project: { scenes: { images?: { assetId: string }[] }[] }): string[] => [
+  ...new Set(project.scenes.flatMap((s) => (s.images ?? []).map((i) => i.assetId))),
+];
 
 const DATA_URL = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
 export const MAX_EMBEDDED_CHARS = 8 * 1024 * 1024;

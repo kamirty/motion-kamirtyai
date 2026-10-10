@@ -1,7 +1,7 @@
 import { alpha } from '../../design/presets';
-import type { Scene, SceneImage, Theme } from '../../domain/types';
+import type { SceneImage, Theme } from '../../domain/types';
 import { getBitmap } from '../../storage/assets';
-import { IMAGE } from '../timing';
+import { IMAGE, imageEnter } from '../timing';
 import { easeOutBack, easeOutCubic, progress } from './animation';
 import type { Ctx2D } from './context';
 import type { Layout } from './kit';
@@ -29,13 +29,11 @@ function shapePath(ctx: Ctx2D, img: SceneImage, w: number, h: number): void {
  * is not loaded yet draws a neutral placeholder so layout stays stable (export waits for all
  * pictures before starting, so placeholders never reach a video).
  */
-export function drawSceneImage(ctx: Ctx2D, scene: Scene, theme: Required<Theme>, L: Layout, frame: number, durationFrames: number): void {
-  const img = scene.image;
-  if (!img) return;
+export function drawSceneImage(ctx: Ctx2D, img: SceneImage, k: number, theme: Required<Theme>, L: Layout, frame: number, durationFrames: number): void {
   const bmp = getBitmap(img.assetId);
   const natural = bmp ? { width: bmp.width, height: bmp.height } : { width: 4, height: 3 };
   const box = imageBox(img, L, natural);
-  const t = progress(frame, IMAGE.enter, IMAGE.length);
+  const t = progress(frame, imageEnter(k), IMAGE.length);
   let a = img.opacity;
   let s = 1;
   let dx = 0;
