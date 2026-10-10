@@ -7,6 +7,7 @@ import { ASPECTS, DEFAULT_IMAGE, LIMITS, aspectOf as aspectOfSize, styleOf, type
 import { PreviewAudio } from '../engine/audio/player';
 import { decodeAudioFile, fitAudio, renderMusic } from '../engine/audio/music';
 import { cuesKey, renderSoundtrack } from '../engine/audio/sfx';
+import { revealSlots } from '../engine/timing';
 import { detectExportPlan } from '../engine/export/capabilities';
 import { generateProject, nextSceneId } from '../engine/planner';
 import type { AssistantAction, AssistantContext } from '../assistant/types';
@@ -101,7 +102,14 @@ export function App() {
   // does not re-render the soundtrack.
   const projectRef = useRef(project);
   projectRef.current = project;
-  const sfxKey = useMemo(() => (style.sfx ? cuesKey(project) : 'off'), [project, style.sfx]);
+  // While tap-syncing, the soundtrack is frozen so each tap does not restart playback.
+  const [sync, setSync] = useState<{ scene: number; next: number } | null>(null);
+  const lastSfxKey = useRef('off');
+  const sfxKey = useMemo(() => {
+    if (sync) return lastSfxKey.current; // keep the soundtrack already rendered
+    return (lastSfxKey.current = style.sfx ? cuesKey(project) : 'off');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sync ? 'syncing' : project, style.sfx]);
   const soundtrack = useRef<{ key: string; promise: Promise<AudioBuffer | null> } | null>(null);
 
   const getAudio = useCallback(async (): Promise<AudioBuffer | null> => {
@@ -116,19 +124,27 @@ export function App() {
     return soundtrack.current.promise;
   }, [customAudio, style.music, style.sfx, sfxKey, musicFor]);
 
-  // Playback loop: advances frames by wall-clock time; audio starts from the same position.
+  // Render the soundtrack in the background after edits settle, so Play starts at once.
+  const [preparing, setPreparing] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => void getAudio(), 1200);
+    return () => window.clearTimeout(t);
+  }, [getAudio]);
+
+  // Playback loop: the audio clock is the master — each frame is read from where the sound is,
+  // and playback starts only after the soundtrack is ready, so picture and sound cannot drift.
   useEffect(() => {
     if (!playing) {
       player.current.stop();
+      setPreparing(false);
       return;
     }
     let raf = 0;
     let alive = true;
     const startFrame = frame >= project.durationFrames - 1 ? 0 : frame;
-    const t0 = performance.now();
-    getAudio().then((buf) => alive && player.current.play(buf, startFrame / project.fps));
-    const tick = (now: number) => {
-      const f = startFrame + Math.floor(((now - t0) / 1000) * project.fps);
+    const tick = () => {
+      if (!alive) return;
+      const f = Math.floor(player.current.position() * project.fps);
       if (f >= project.durationFrames) {
         setFrame(project.durationFrames - 1);
         setPlaying(false);
@@ -137,7 +153,17 @@ export function App() {
       setFrame(f);
       raf = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
+    setPreparing(true);
+    void getAudio()
+      .catch(() => null)
+      .then((x) => {
+        if (alive) setPreparing(false);
+        return x;
+      })
+      .then((buf) => (alive ? player.current.play(buf, startFrame / project.fps) : undefined))
+      .then(() => {
+        if (alive) raf = requestAnimationFrame(tick);
+      });
     return () => {
       alive = false;
       cancelAnimationFrame(raf);
@@ -182,6 +208,48 @@ export function App() {
 
   const updateScene = (patch: Partial<Scene>) =>
     setProject((p) => ({ ...p, scenes: p.scenes.map((s, i) => (i === selected ? { ...s, ...patch } : s)) }), `scene-${selected}-${Object.keys(patch).join()}`);
+
+  // Tap-to-sync: play the scene with its audio; each tap sets the next element's reveal time.
+  const frameRef = useRef(frame);
+  frameRef.current = frame;
+  const startSync = () => {
+    const s = project.scenes[selected];
+    const slots = revealSlots({ ...s, pace: style.pace });
+    if (!slots.length) return;
+    // Until tapped, elements wait near the end of the scene.
+    updateScene({ reveals: slots.map(() => s.durationFrames - 12) });
+    setSync({ scene: selected, next: 0 });
+    setFrame(s.startFrame);
+    setPlaying(true);
+  };
+  const stopSync = () => {
+    setSync(null);
+    setPlaying(false);
+  };
+  const tapSync = () => {
+    if (!sync) return;
+    const s = project.scenes[sync.scene];
+    const slots = revealSlots({ ...s, pace: style.pace });
+    const slot = slots[sync.next];
+    if (!slot) return stopSync();
+    const local = Math.max(0, frameRef.current - s.startFrame);
+    const reveals = [...(s.reveals ?? slots.map(() => s.durationFrames - 12))];
+    reveals[slot.index] = local;
+    // Later elements cannot appear before this one.
+    for (const later of slots.slice(sync.next + 1)) reveals[later.index] = Math.max(reveals[later.index], local);
+    setProject((p) => ({ ...p, scenes: p.scenes.map((x, i) => (i === sync.scene ? { ...x, reveals } : x)) }), `sync-${sync.scene}`);
+    if (sync.next + 1 >= slots.length) stopSync();
+    else setSync({ ...sync, next: sync.next + 1 });
+  };
+  const tapRef = useRef(tapSync);
+  tapRef.current = tapSync;
+  useEffect(() => {
+    // Leaving the scene (or stopping playback) ends the sync session.
+    if (!sync) return;
+    const s = project.scenes[sync.scene];
+    if (!s || !playing || frame >= s.startFrame + s.durationFrames || selected !== sync.scene) stopSync();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frame, playing, selected, sync]);
 
   const moveScene = (delta: -1 | 1) => {
     const j = selected + delta;
@@ -307,6 +375,8 @@ export function App() {
     setFrame(0);
   };
 
+  const syncRef = useRef(sync);
+  syncRef.current = sync;
   // Keyboard: space = play/pause, Ctrl+Z / Ctrl+Y = undo/redo (outside text fields).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -319,6 +389,12 @@ export function App() {
       } else if ((e.ctrlKey || e.metaKey) && !typing && e.key.toLowerCase() === 'y') {
         e.preventDefault();
         history.redo();
+      } else if (syncRef.current && (e.code === 'Space' || e.code === 'Enter') && !typing) {
+        e.preventDefault();
+        tapRef.current();
+      } else if (syncRef.current && e.key === 'Escape') {
+        setSync(null);
+        setPlaying(false);
       } else if (e.code === 'Space' && !typing && el.tagName !== 'BUTTON') {
         e.preventDefault();
         setPlaying((p) => !p);
@@ -398,6 +474,7 @@ export function App() {
             project={project}
             frame={frame}
             playing={playing}
+            preparing={preparing}
             ready={ready}
             onFrame={seek}
             onTogglePlay={() => setPlaying((p) => !p)}
@@ -417,6 +494,10 @@ export function App() {
           onDelete={deleteScene}
           onImageFile={(f) => void onImageFile(f)}
           onImage={(patch) => updateImage(patch)}
+          syncNext={sync && sync.scene === selected ? sync.next : null}
+          onStartSync={startSync}
+          onTap={tapSync}
+          onStopSync={stopSync}
         />
       </main>
 

@@ -61,3 +61,15 @@ describe('frame distribution', () => {
     expect(validateTimeline(withScenes(added))).toEqual([]);
   });
 });
+
+describe('setSceneDuration keeps other scenes fixed', () => {
+  it('only the last scene absorbs the change', async () => {
+    const { setSceneDuration: set } = await import('../domain/timeline');
+    const base = [600, 600, 600, 900, 900].map((d, i) => ({ id: `s${i}`, kind: 'summary' as const, startFrame: 0, durationFrames: d, title: 't', items: [], icon: 'x' }));
+    const out = set(base, 1, 450);
+    expect(out.map((s) => s.durationFrames)).toEqual([600, 450, 600, 900, 1050]);
+    const edLast = set(base, 4, 600);
+    expect(edLast.map((s) => s.durationFrames)).toEqual([600, 600, 600, 1200, 600]);
+    expect(out.reduce((a, s) => a + s.durationFrames, 0)).toBe(3600);
+  });
+});

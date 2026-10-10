@@ -1,4 +1,4 @@
-import { ASPECTS, DEFAULT_IMAGE, DEFAULT_STYLE, DURATION_FRAMES, FPS, LIMITS, SCENE_KINDS, type Project, type ProjectStyle, type Scene, type SceneImage } from './types';
+import { ASPECTS, DEFAULT_IMAGE, ENTRANCES, DEFAULT_STYLE, DURATION_FRAMES, FPS, LIMITS, SCENE_KINDS, type Project, type ProjectStyle, type Scene, type SceneImage } from './types';
 import { rebalance, validateTimeline } from './timeline';
 
 const COLOR = /^#[0-9A-Fa-f]{6}$/;
@@ -74,6 +74,8 @@ export function parseProject(input: unknown): Project {
       items: (Array.isArray(s.items) ? s.items : []).slice(0, LIMITS.items).map((it) => str(it, LIMITS.itemChars)),
       icon: str(s.icon, 60) || 'sparkles',
       ...(parseImage(s.image) ? { image: parseImage(s.image) } : {}),
+      ...parseReveals(s.reveals),
+      ...(s.entrance && s.entrance !== 'none' ? { entrance: pick(s.entrance, ENTRANCES, 'none') } : {}),
     };
   });
 
@@ -103,4 +105,12 @@ export function parseProject(input: unknown): Project {
   const errors = validateTimeline(project);
   if (errors.length) throw new Error(`تعذر إصلاح توقيت المشروع: ${errors.join('، ')}`);
   return project;
+}
+
+/** Keeps up to LIMITS.items whole, non-negative frame numbers; anything else drops the field. */
+function parseReveals(v: unknown): { reveals?: number[] } {
+  if (!Array.isArray(v) || !v.length) return {};
+  const out = v.slice(0, LIMITS.items).map((x) => Number(x));
+  if (!out.every((x) => Number.isFinite(x) && x >= 0 && x <= 3600)) return {};
+  return { reveals: out.map((x) => Math.round(x)) };
 }

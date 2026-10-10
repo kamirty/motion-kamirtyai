@@ -2,6 +2,7 @@ import { localizeDigits } from '../../design/digits';
 import { LIMITS, styleOf, type Project, type Scene, type SceneImage } from '../../domain/types';
 import { IconPicker } from './IconPicker';
 import { ImageControls } from './ImageControls';
+import { TimingControls } from './TimingControls';
 import { KIND_GROUPS, KIND_HINTS, KIND_LABELS } from './kinds';
 
 interface Props {
@@ -14,14 +15,22 @@ interface Props {
   onDelete: () => void;
   onImageFile: (file: File) => void;
   onImage: (patch: Partial<SceneImage> | null) => void;
+  syncNext: number | null;
+  onStartSync: () => void;
+  onTap: () => void;
+  onStopSync: () => void;
 }
 
-export function Inspector({ project, index, onChange, onDuration, onMove, onDuplicate, onDelete, onImageFile, onImage }: Props) {
+export function Inspector({ project, index, onChange, onDuration, onMove, onDuplicate, onDelete, onImageFile, onImage, syncNext, onStartSync, onTap, onStopSync }: Props) {
   const scene = project.scenes[index];
   if (!scene) return null;
   const digits = styleOf(project).digits;
   const seconds = Math.round(scene.durationFrames / project.fps);
-  const maxSeconds = Math.floor((project.durationFrames - (project.scenes.length - 1) * LIMITS.minSceneFrames) / project.fps);
+  const last = project.scenes.length - 1;
+  const absorber = index === last ? last - 1 : last;
+  const pool = project.scenes.reduce((sum: number, sc, i) => (i === index || i === absorber ? sum : sum - sc.durationFrames), project.durationFrames as number);
+  const maxSeconds = Math.floor((pool - LIMITS.minSceneFrames) / project.fps);
+  const absorberName = absorber === index ? '' : localizeDigits(`المشهد ${absorber + 1}`, digits);
   const setItem = (k: number, v: string) => onChange({ items: scene.items.map((it, j) => (j === k ? v : it)) });
 
   return (
@@ -85,6 +94,18 @@ export function Inspector({ project, index, onChange, onDuration, onMove, onDupl
       <label className="label">الأيقونة</label>
       <IconPicker value={scene.icon} onChange={(icon) => onChange({ icon })} />
 
+      <TimingControls
+        scene={scene}
+        pace={styleOf(project).pace}
+        fps={project.fps}
+        digits={digits}
+        syncNext={syncNext}
+        onChange={onChange}
+        onStartSync={onStartSync}
+        onTap={onTap}
+        onStopSync={onStopSync}
+      />
+
       <label className="label">الصورة</label>
       <ImageControls image={scene.image} portrait={project.size.height > project.size.width} digits={digits} onFile={onImageFile} onChange={onImage} />
 
@@ -92,7 +113,7 @@ export function Inspector({ project, index, onChange, onDuration, onMove, onDupl
         المدة: {localizeDigits(`${seconds} ثانية`, digits)}
       </label>
       <input id="scene-dur" type="range" min={3} max={Math.max(3, Math.min(60, maxSeconds))} value={seconds} onChange={(e) => onDuration(Number(e.target.value))} />
-      <p className="muted small">مجموع الفيديو ثابت على دقيقتين؛ تتغير مدد المشاهد الأخرى تلقائيًا.</p>
+      <p className="muted small">{project.scenes.length > 1 ? `مجموع الفيديو ثابت على دقيقتين؛ بقية المشاهد تبقى كما هي ويأخذ ${absorberName} الفرق فقط.` : 'مجموع الفيديو ثابت على دقيقتين.'}</p>
     </aside>
   );
 }

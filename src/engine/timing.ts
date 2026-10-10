@@ -1,5 +1,5 @@
 import type { Scene } from '../domain/types';
-import { quizParts } from './sceneModel';
+import { quizParts, shownItems } from './sceneModel';
 
 export { MAX_ITEMS, comparisonBars, shownItems } from './sceneModel';
 
@@ -50,6 +50,18 @@ export function quizCountdown(scene: Scene & { pace?: Pace }): number {
 }
 
 export function itemReveal(scene: Scene & { pace?: Pace }, i: number, count: number): number {
+  const custom = scene.reveals?.[i];
+  if (custom !== undefined && Number.isFinite(custom)) return Math.max(0, Math.min(Math.round(custom), scene.durationFrames - 12));
+  return autoReveal(scene, i, count);
+}
+
+/** Whether a kind reveals its items one by one (and so can be timed per item). */
+export function hasItemTiming(kind: Scene['kind']): boolean {
+  return autoReveal({ kind, durationFrames: 300 } as Scene, 1, 2) > 0;
+}
+
+/** The built-in reveal time, ignoring any custom timing. */
+export function autoReveal(scene: Scene & { pace?: Pace }, i: number, count: number): number {
   const span = revealSpan(scene, count);
   switch (scene.kind) {
     case 'pyramid':
@@ -65,3 +77,23 @@ export function itemReveal(scene: Scene & { pace?: Pace }, i: number, count: num
   }
 }
 
+
+/**
+ * The scene's timeable elements in the order they normally appear (index = reveal slot used by
+ * the drawers and the sound effects). Empty for kinds without per-item reveals.
+ */
+export function revealSlots(scene: Scene & { pace?: Pace }): { index: number; label: string }[] {
+  if (!hasItemTiming(scene.kind)) return [];
+  const items = shownItems(scene);
+  const n = items.length;
+  return items
+    .map((label, index) => ({ index, label, at: autoReveal(scene, index, n) }))
+    .sort((a, b) => a.at - b.at || a.index - b.index)
+    .map(({ index, label }) => ({ index, label }));
+}
+
+/** Custom reveals with slot `i` set to `frame`; the other slots keep their current times. */
+export function withReveal(scene: Scene & { pace?: Pace }, i: number, frame: number): number[] {
+  const n = shownItems(scene).length;
+  return Array.from({ length: n }, (_, k) => (k === i ? Math.max(0, Math.round(frame)) : itemReveal(scene, k, n)));
+}

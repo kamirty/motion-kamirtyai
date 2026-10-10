@@ -50,7 +50,14 @@ export interface Scene {
   items: string[];
   icon: string;
   image?: SceneImage;
+  /** Custom reveal frame (from scene start) per item, set by tap-to-sync or the timing editor. */
+  reveals?: number[];
+  /** How the scene's content enters, on top of the project transition. */
+  entrance?: EntranceId;
 }
+
+export type EntranceId = 'none' | 'rise' | 'drop' | 'zoom' | 'side' | 'spin';
+export const ENTRANCES: readonly EntranceId[] = ['none', 'rise', 'drop', 'zoom', 'side', 'spin'];
 
 export type DigitSystem = 'arabic' | 'latin';
 export type TransitionId = 'fade' | 'slide' | 'zoom' | 'wipe';
