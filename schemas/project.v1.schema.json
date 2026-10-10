@@ -30,7 +30,10 @@
       "const": 30
     },
     "durationFrames": {
-      "const": 3600
+      "type": "integer",
+      "minimum": 90,
+      "maximum": 18000,
+      "description": "Sum of the scene durations (at most 10 minutes)."
     },
     "size": {
       "type": "object",

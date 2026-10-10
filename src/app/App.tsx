@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ensureFontLoaded } from '../design/fonts';
 import { fullTheme, presetById } from '../design/presets';
 import { localizeDigits } from '../design/digits';
-import { rebalance, restack, sceneIndexAt, setSceneDuration } from '../domain/timeline';
-import { ASPECTS, DEFAULT_IMAGE, LIMITS, aspectOf as aspectOfSize, styleOf, type AspectId, type Project, type ProjectStyle, type Scene, type SceneImage, type Theme } from '../domain/types';
+import { rebalance, sceneIndexAt, setSceneDuration, totalFrames, withScenes } from '../domain/timeline';
+import { ASPECTS, DEFAULT_IMAGE, FPS, LIMITS, aspectOf as aspectOfSize, styleOf, type AspectId, type Project, type ProjectStyle, type Scene, type SceneImage, type Theme } from '../domain/types';
 import { PreviewAudio } from '../engine/audio/player';
 import { decodeAudioFile, fitAudio, renderMusic } from '../engine/audio/music';
 import { cuesKey, renderSoundtrack } from '../engine/audio/sfx';
@@ -89,14 +89,18 @@ export function App() {
     if (selected >= project.scenes.length) setSelected(project.scenes.length - 1);
   }, [project.scenes.length, selected]);
 
+  // Music is rendered to the video length (whole seconds), so its fade-out lands on the last scene.
+  const videoSeconds = Math.ceil(project.durationFrames / project.fps);
   const musicFor = useCallback((id: ProjectStyle['music']) => {
-    let p = musicCache.current.get(id);
+    const key = `${id}|${videoSeconds}`;
+    let p = musicCache.current.get(key);
     if (!p) {
-      p = renderMusic(id).catch(() => null);
-      musicCache.current.set(id, p);
+      p = renderMusic(id, videoSeconds).catch(() => null);
+      if (musicCache.current.size >= 6) musicCache.current.clear(); // each buffer is tens of MB
+      musicCache.current.set(key, p);
     }
     return p;
-  }, []);
+  }, [videoSeconds]);
 
   // Sound effects depend only on scene timing and item counts, not on wording, so typing
   // does not re-render the soundtrack.
@@ -256,33 +260,48 @@ export function App() {
     setProject((p) => {
       const scenes = [...p.scenes];
       [scenes[selected], scenes[j]] = [scenes[j], scenes[selected]];
-      return { ...p, scenes: restack(scenes) };
+      return withScenes(p, scenes);
     });
     setSelected(j);
   };
 
+  // Adding a scene lengthens the video; other scenes keep their lengths. Refused past 10 minutes.
+  const roomFor = () => LIMITS.maxTotalFrames - totalFrames(project.scenes);
+  const tooLong = () => {
+    setNotice({ kind: 'error', text: 'وصل الفيديو إلى الحد الأقصى (10 دقائق). قصّر مشهدًا أو احذفه أولًا.' });
+  };
+  const insertScene = (at: number, scene: Scene) => {
+    const room = roomFor();
+    if (project.scenes.length >= LIMITS.scenes) return;
+    if (room < LIMITS.minSceneFrames) return tooLong();
+    const fitted = { ...scene, durationFrames: Math.min(scene.durationFrames, room) };
+    setProject((p) => withScenes(p, [...p.scenes.slice(0, at), fitted, ...p.scenes.slice(at)]));
+    setSelected(at);
+  };
+
   const duplicateScene = () => {
-    setProject((p) => {
-      const copy = { ...p.scenes[selected], id: nextSceneId(p.scenes), items: [...p.scenes[selected].items] };
-      const scenes = [...p.scenes.slice(0, selected + 1), copy, ...p.scenes.slice(selected + 1)];
-      return { ...p, scenes: rebalance(scenes) };
-    });
-    setSelected(selected + 1);
+    const src = project.scenes[selected];
+    insertScene(selected + 1, { ...src, id: nextSceneId(project.scenes), items: [...src.items] });
   };
 
   const deleteScene = () => {
-    setProject((p) => ({ ...p, scenes: rebalance(p.scenes.filter((_, i) => i !== selected)) }));
+    setProject((p) => withScenes(p, p.scenes.filter((_, i) => i !== selected)));
     setSelected(Math.max(0, selected - 1));
   };
 
   const addScene = () => {
-    if (project.scenes.length >= LIMITS.scenes) return;
     const at = Math.min(selected + 1, project.scenes.length);
-    setProject((p) => {
-      const scene: Scene = { id: nextSceneId(p.scenes), kind: 'summary', startFrame: 0, durationFrames: 300, title: 'عنوان المشهد', items: ['معلومة أولى', 'معلومة ثانية'], icon: 'lightbulb' };
-      return { ...p, scenes: rebalance([...p.scenes.slice(0, at), scene, ...p.scenes.slice(at)]) };
-    });
-    setSelected(at);
+    insertScene(at, { id: nextSceneId(project.scenes), kind: 'summary', startFrame: 0, durationFrames: 300, title: 'عنوان المشهد', items: ['معلومة أولى', 'معلومة ثانية'], icon: 'lightbulb' });
+  };
+
+  /** Stretches or shrinks all scenes proportionally so the video ends with the narration. */
+  const fitToVoice = () => {
+    if (!customAudio) return;
+    const target = Math.round(customAudio.buffer.duration * project.fps);
+    const n = project.scenes.length;
+    const clamped = Math.min(LIMITS.maxTotalFrames, Math.max(n * LIMITS.minSceneFrames, target));
+    setProject((p) => withScenes(p, rebalance(p.scenes, clamped)));
+    setNotice({ kind: 'info', text: 'صارت مدة الفيديو مساوية لمدة التعليق الصوتي، ووُزّعت على المشاهد بالنسبة نفسها.' });
   };
 
   const onImageFile = async (file: File) => {
@@ -346,7 +365,8 @@ export function App() {
       return;
     }
     try {
-      const buffer = await fitAudio(await decodeAudioFile(file), 120, 48000, false);
+      const decoded = await decodeAudioFile(file);
+      const buffer = await fitAudio(decoded, Math.min(decoded.duration, LIMITS.maxTotalFrames / FPS), 48000, false);
       setCustomAudio({ name: file.name, buffer });
       setNotice({ kind: 'info', text: 'أُضيف تعليقك الصوتي، وستُخفض الموسيقى تحته تلقائيًا.' });
     } catch {
@@ -408,7 +428,7 @@ export function App() {
     <div className="app">
       <div className="ticker">
         <span className="ticker-label">جديد</span>
-        <span className="ticker-text">حوّل فكرتك إلى فيديو إنفوجرافيك عربي متحرك مدته دقيقتان… مجانًا وبدون تسجيل</span>
+        <span className="ticker-text">حوّل فكرتك إلى فيديو إنفوجرافيك عربي متحرك بالمدة التي تختارها… مجانًا وبدون تسجيل</span>
         <a className="ticker-link" href="https://www.kamirtyai.com/">الموقع الرئيسي</a>
         <ThemeToggle theme={uiTheme} onToggle={() => setUiTheme((t) => (t === 'dark' ? 'light' : 'dark'))} />
       </div>
@@ -468,6 +488,8 @@ export function App() {
           onTheme={setTheme}
           customAudioName={customAudio?.name ?? null}
           onAudioFile={(f) => void onAudioFile(f)}
+          voiceSeconds={customAudio ? customAudio.buffer.duration : null}
+          onFitToVoice={fitToVoice}
         />
         <div className="center">
           <Preview
@@ -488,7 +510,7 @@ export function App() {
           project={project}
           index={selected}
           onChange={updateScene}
-          onDuration={(sec) => setProject((p) => ({ ...p, scenes: setSceneDuration(p.scenes, selected, sec * p.fps) }), `dur-${selected}`)}
+          onDuration={(sec) => setProject((p) => withScenes(p, setSceneDuration(p.scenes, selected, sec * p.fps)), `dur-${selected}`)}
           onMove={moveScene}
           onDuplicate={duplicateScene}
           onDelete={deleteScene}

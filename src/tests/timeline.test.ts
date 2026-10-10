@@ -45,13 +45,12 @@ describe('frame distribution', () => {
     expect(rebalance(scenes).map((s) => s.durationFrames)).toEqual([600, 2000, 1000]);
   });
 
-  it('setSceneDuration keeps 120 s and respects the minimum of other scenes', () => {
+  it('setSceneDuration changes only that scene and clamps to the limits', () => {
     const out = setSceneDuration(sampleProject.scenes, 0, 450);
-    expect(out[0].durationFrames).toBe(450);
-    expect(validateTimeline(withScenes(out))).toEqual([]);
+    expect(out.map((s) => s.durationFrames)).toEqual([450, ...sampleProject.scenes.slice(1).map((s) => s.durationFrames)]);
     const greedy = setSceneDuration(sampleProject.scenes, 1, 99999);
-    expect(greedy.filter((_, i) => i !== 1).every((s) => s.durationFrames >= LIMITS.minSceneFrames)).toBe(true);
-    expect(validateTimeline(withScenes(greedy))).toEqual([]);
+    expect(greedy[1].durationFrames).toBe(LIMITS.maxSceneFrames);
+    expect(setSceneDuration(sampleProject.scenes, 1, 1)[1].durationFrames).toBe(LIMITS.minSceneFrames);
   });
 
   it('rebalance repairs deleted/added scenes back to 3600 frames', () => {
@@ -62,14 +61,17 @@ describe('frame distribution', () => {
   });
 });
 
-describe('setSceneDuration keeps other scenes fixed', () => {
-  it('only the last scene absorbs the change', async () => {
-    const { setSceneDuration: set } = await import('../domain/timeline');
-    const base = [600, 600, 600, 900, 900].map((d, i) => ({ id: `s${i}`, kind: 'summary' as const, startFrame: 0, durationFrames: d, title: 't', items: [], icon: 'x' }));
-    const out = set(base, 1, 450);
-    expect(out.map((s) => s.durationFrames)).toEqual([600, 450, 600, 900, 1050]);
-    const edLast = set(base, 4, 600);
-    expect(edLast.map((s) => s.durationFrames)).toEqual([600, 600, 600, 1200, 600]);
-    expect(out.reduce((a, s) => a + s.durationFrames, 0)).toBe(3600);
+describe('video length follows the scenes', () => {
+  it('project length is the sum of the scenes, up to 10 minutes', async () => {
+    const { withScenes: ws, totalFrames } = await import('../domain/timeline');
+    const { parseProject } = await import('../domain/sanitize');
+    const shorter = ws(sampleProject, setSceneDuration(sampleProject.scenes, 0, 300));
+    expect(shorter.durationFrames).toBe(totalFrames(shorter.scenes));
+    expect(shorter.durationFrames).toBeLessThan(3600);
+    expect(validateTimeline(shorter)).toEqual([]);
+    // Imported projects keep their own length; overly long ones are scaled to the limit.
+    expect(parseProject(JSON.parse(JSON.stringify(shorter))).durationFrames).toBe(shorter.durationFrames);
+    const huge = { ...sampleProject, scenes: sampleProject.scenes.concat(sampleProject.scenes.map((s, i) => ({ ...s, id: `x${i}` }))).map((s) => ({ ...s, durationFrames: 3600 })) };
+    expect(parseProject(JSON.parse(JSON.stringify(huge))).durationFrames).toBe(LIMITS.maxTotalFrames);
   });
 });

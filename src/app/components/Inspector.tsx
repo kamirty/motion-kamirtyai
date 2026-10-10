@@ -1,5 +1,6 @@
 import { localizeDigits } from '../../design/digits';
 import { LIMITS, styleOf, type Project, type Scene, type SceneImage } from '../../domain/types';
+import { maxSceneFrames } from '../../domain/timeline';
 import { IconPicker } from './IconPicker';
 import { ImageControls } from './ImageControls';
 import { TimingControls } from './TimingControls';
@@ -26,11 +27,8 @@ export function Inspector({ project, index, onChange, onDuration, onMove, onDupl
   if (!scene) return null;
   const digits = styleOf(project).digits;
   const seconds = Math.round(scene.durationFrames / project.fps);
-  const last = project.scenes.length - 1;
-  const absorber = index === last ? last - 1 : last;
-  const pool = project.scenes.reduce((sum: number, sc, i) => (i === index || i === absorber ? sum : sum - sc.durationFrames), project.durationFrames as number);
-  const maxSeconds = Math.floor((pool - LIMITS.minSceneFrames) / project.fps);
-  const absorberName = absorber === index ? '' : localizeDigits(`المشهد ${absorber + 1}`, digits);
+  const maxSeconds = Math.floor(maxSceneFrames(project.scenes, index) / project.fps);
+  const totalSeconds = Math.round(project.durationFrames / project.fps);
   const setItem = (k: number, v: string) => onChange({ items: scene.items.map((it, j) => (j === k ? v : it)) });
 
   return (
@@ -112,8 +110,8 @@ export function Inspector({ project, index, onChange, onDuration, onMove, onDupl
       <label className="label" htmlFor="scene-dur">
         المدة: {localizeDigits(`${seconds} ثانية`, digits)}
       </label>
-      <input id="scene-dur" type="range" min={3} max={Math.max(3, Math.min(60, maxSeconds))} value={seconds} onChange={(e) => onDuration(Number(e.target.value))} />
-      <p className="muted small">{project.scenes.length > 1 ? `مجموع الفيديو ثابت على دقيقتين؛ بقية المشاهد تبقى كما هي ويأخذ ${absorberName} الفرق فقط.` : 'مجموع الفيديو ثابت على دقيقتين.'}</p>
+      <input id="scene-dur" type="range" min={3} max={Math.max(3, maxSeconds)} value={seconds} onChange={(e) => onDuration(Number(e.target.value))} />
+      <p className="muted small">{localizeDigits(`مدة الفيديو الآن ${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, '0')} دقيقة — تساوي مجموع مدد المشاهد، ولا يتأثر أي مشهد آخر بتغيير هذا المشهد.`, digits)}</p>
     </aside>
   );
 }

@@ -1,3 +1,4 @@
+import { localizeDigits } from '../../design/digits';
 import { FONTS, cssFamily } from '../../design/fonts';
 import { PRESETS, contrast, fullTheme } from '../../design/presets';
 import { MUSIC_OPTIONS } from '../../engine/audio/music';
@@ -28,6 +29,9 @@ interface Props {
   onTheme: (patch: Partial<Theme>) => void;
   customAudioName: string | null;
   onAudioFile: (file: File | null) => void;
+  /** Narration length in seconds, when a narration is loaded. */
+  voiceSeconds: number | null;
+  onFitToVoice: () => void;
 }
 
 export function Sidebar(p: Props) {
@@ -194,12 +198,23 @@ export function Sidebar(p: Props) {
             حذف التعليق الصوتي
           </button>
         )}
+        {p.voiceSeconds !== null && (
+          <button type="button" onClick={p.onFitToVoice}>
+            ⏱ اجعل مدة الفيديو بطول تسجيلك ({localizeDigits(formatSeconds(p.voiceSeconds), style.digits)})
+          </button>
+        )}
         <label className="check">
           <input type="checkbox" checked={style.sfx} onChange={(e) => p.onStyle({ sfx: e.target.checked })} />
           مؤثرات صوتية تلقائية عند ظهور العناصر
         </label>
-        <p className="muted small">يمكن الجمع بين الموسيقى والتعليق الصوتي؛ تنخفض الموسيقى تلقائيًا تحت صوتك. الموسيقى والمؤثرات مولّدة داخل متصفحك وخالية من حقوق النشر، وتسجيلك لا يُرفع لأي خادم (يُقص إذا زاد عن دقيقتين).</p>
+        <p className="muted small">يمكن الجمع بين الموسيقى والتعليق الصوتي؛ تنخفض الموسيقى تلقائيًا تحت صوتك. الموسيقى والمؤثرات مولّدة داخل متصفحك وخالية من حقوق النشر، وتسجيلك لا يُرفع لأي خادم. مدة الفيديو هي مجموع مدد المشاهد (حتى 10 دقائق).</p>
       </section>
     </aside>
   );
+}
+
+/** 95 → "1:35". */
+function formatSeconds(sec: number): string {
+  const s = Math.round(sec);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }

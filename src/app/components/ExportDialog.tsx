@@ -120,7 +120,7 @@ export function ExportDialog({ project, getAudio, onClose }: Props) {
         {state.status !== 'done' && (
           <div className="row">
             <button type="button" className="primary big" onClick={start} disabled={!cap?.supported || running || errors.length > 0}>
-              🎬 ابدأ التصدير (دقيقتان)
+              🎬 ابدأ التصدير ({localizeDigits(`${Math.floor(Math.round(project.durationFrames / project.fps) / 60)}:${String(Math.round(project.durationFrames / project.fps) % 60).padStart(2, '0')}`, styleOf(project).digits)} دقيقة)
             </button>
             {state.status === 'running' && (
               <button type="button" onClick={() => abortRef.current?.abort()}>

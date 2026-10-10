@@ -22,7 +22,7 @@ describe('project.v1 schema', () => {
   });
 
   it('rejects a wrong duration, bad colour and unknown fields', () => {
-    expect(validate({ ...sampleProject, durationFrames: 1800 })).toBe(false);
+    expect(validate({ ...sampleProject, durationFrames: 99999 })).toBe(false);
     expect(validate({ ...sampleProject, theme: { ...sampleProject.theme, accent: 'red' } })).toBe(false);
     expect(validate({ ...sampleProject, apiKey: 'x' })).toBe(false);
   });
