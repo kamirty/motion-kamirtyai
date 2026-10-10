@@ -52,7 +52,9 @@ export function withAlpha(ctx: Ctx2D, a: number, draw: () => void): void {
 
 export function roundRect(ctx: Ctx2D, x: number, y: number, w: number, h: number, r: number): void {
   ctx.beginPath();
-  ctx.roundRect(x, y, w, h, Math.min(r, w / 2, h / 2));
+  // Browsers throw on a negative radius (which aborts a whole export), so clamp at 0; a
+  // collapsing shape (zero/negative size mid-animation) simply draws nothing visible.
+  ctx.roundRect(x, y, w, h, Math.max(0, Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2)) || 0);
 }
 
 /**

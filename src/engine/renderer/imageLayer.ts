@@ -18,7 +18,7 @@ function shapePath(ctx: Ctx2D, img: SceneImage, w: number, h: number): void {
   if (img.shape === 'circle') {
     ctx.ellipse(0, 0, Math.min(w, h) / 2, Math.min(w, h) / 2, 0, 0, Math.PI * 2);
   } else if (img.shape === 'rounded') {
-    ctx.roundRect(-w / 2, -h / 2, w, h, Math.min(w, h) * 0.08);
+    ctx.roundRect(-w / 2, -h / 2, w, h, Math.max(0, Math.min(w, h) * 0.08) || 0);
   } else {
     ctx.rect(-w / 2, -h / 2, w, h);
   }
