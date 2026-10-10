@@ -236,9 +236,6 @@
           "minLength": 1,
           "maxLength": 60
         },
-        "image": {
-          "$ref": "#/$defs/image"
-        },
         "reveals": {
           "type": "array",
           "maxItems": 6,
@@ -257,6 +254,13 @@
             "side",
             "spin"
           ]
+        },
+        "images": {
+          "type": "array",
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/image"
+          }
         }
       }
     },

@@ -74,7 +74,7 @@ export function parseProject(input: unknown): Project {
       title: str(s.title, LIMITS.titleChars),
       items: (Array.isArray(s.items) ? s.items : []).slice(0, LIMITS.items).map((it) => str(it, LIMITS.itemChars)),
       icon: str(s.icon, 60) || 'sparkles',
-      ...(parseImage(s.image) ? { image: parseImage(s.image) } : {}),
+      ...parseImages(s),
       ...parseReveals(s.reveals),
       ...(s.entrance && s.entrance !== 'none' ? { entrance: pick(s.entrance, ENTRANCES, 'none') } : {}),
     };
@@ -117,4 +117,11 @@ function parseReveals(v: unknown): { reveals?: number[] } {
   const out = v.slice(0, LIMITS.items).map((x) => Number(x));
   if (!out.every((x) => Number.isFinite(x) && x >= 0 && x <= 3600)) return {};
   return { reveals: out.map((x) => Math.round(x)) };
+}
+
+/** Scene pictures: the `images` list, or a legacy single `image`; malformed entries are dropped. */
+function parseImages(s: Record<string, unknown>): { images?: SceneImage[] } {
+  const raw = Array.isArray(s.images) ? s.images : s.image ? [s.image] : [];
+  const images = raw.slice(0, LIMITS.images).map(parseImage).filter((x): x is SceneImage => !!x);
+  return images.length ? { images } : {};
 }

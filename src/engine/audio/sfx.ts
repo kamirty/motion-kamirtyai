@@ -1,6 +1,6 @@
 import { styleOf, type Project } from '../../domain/types';
 import { hash01 } from '../renderer/animation';
-import { CHAPTER, DEFINITION, HEADER, HERO, IMAGE, KPIS, OUTRO, PICTOGRAM, QUIZ_COUNTDOWN, QUOTE, STAT, TIP, itemReveal, quizCountdown, shownItems } from '../timing';
+import { CHAPTER, DEFINITION, HEADER, HERO, KPIS, OUTRO, PICTOGRAM, QUIZ_COUNTDOWN, QUOTE, STAT, TIP, imageEnter, itemReveal, quizCountdown, shownItems } from '../timing';
 import { quizParts } from '../sceneModel';
 
 /**
@@ -34,7 +34,9 @@ export function planCues(project: Project): Cue[] {
     };
     // The whoosh starts just before the cut so its peak lands on it.
     if (si > 0) cues.push({ frame: Math.max(0, s0 - 8), kind: 'whoosh', step: 0 });
-    if (scene.image && scene.image.entrance !== 'none') add(IMAGE.enter, 'pop', 5);
+    (scene.images ?? []).forEach((img, k) => {
+      if (img.entrance !== 'none') add(imageEnter(k), 'pop', 5 + k);
+    });
 
     switch (scene.kind) {
       case 'hero':

@@ -26,7 +26,9 @@ export const CHAPTER = { mark: 0, title: 10, subtitle: 28 };
 export const TIP = { badge: 4, text: 24, note: 60 };
 export const QUIZ_COUNTDOWN = 90; // 3 s countdown before the answer is revealed
 /** A scene's picture enters at this frame over this many frames. */
-export const IMAGE = { enter: 6, length: 22 };
+export const IMAGE = { enter: 6, length: 22, stagger: 14 };
+/** Entrance frame of a scene's k-th picture (pictures arrive one after another). */
+export const imageEnter = (k: number) => IMAGE.enter + k * IMAGE.stagger;
 
 export type Pace = 'calm' | 'balanced' | 'fast';
 
