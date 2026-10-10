@@ -148,7 +148,7 @@ function cachedPlan(ctx: Ctx2D, fs: FontSpec, rows: ValueRow[], L: Layout, top: 
 
 /** Column with rounded top corners standing on the baseline. */
 function column(ctx: Ctx2D, x: number, y: number, w: number, h: number, r: number): void {
-  const rr = Math.min(r, w / 2, h);
+  const rr = Math.max(0, Math.min(r, Math.abs(w) / 2, Math.abs(h))) || 0;
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, [rr, rr, 0, 0]);
 }

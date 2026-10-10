@@ -19,6 +19,17 @@ export function createFakeCtx(): { ctx: Ctx2D; ops: string[] } {
           return gradient();
         };
       }
+      // Like real browsers: negative radii throw (they abort a whole export).
+      if (prop === 'roundRect' || prop === 'arc' || prop === 'ellipse') {
+        return (...args: unknown[]) => {
+          const radii = prop === 'roundRect' ? [args[4]].flat() : prop === 'arc' ? [args[2]] : [args[2], args[3]];
+          for (const r of radii) {
+            const v = typeof r === 'number' ? r : 0;
+            if (v < 0 || Number.isNaN(v)) throw new RangeError(`${prop}: radius ${v} is negative`);
+          }
+          ops.push(`${prop}(${args.map(fmt).join(',')})`);
+        };
+      }
       if (prop in state) return state[prop];
       return (...args: unknown[]) => {
         ops.push(`${prop}(${args.map(fmt).join(',')})`);
