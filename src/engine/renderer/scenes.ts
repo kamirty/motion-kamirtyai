@@ -1,12 +1,11 @@
 import { alpha, mix, readableOn, textAccent } from '../../design/presets';
-import { localizeDigits } from '../../design/digits';
 import type { Scene } from '../../domain/types';
-import { clamp, easeOutBack, easeOutCubic, hash01, progress, seedOf } from './animation';
+import { easeOutBack, easeOutCubic, hash01, progress, seedOf } from './animation';
 import { font } from './context';
 import { drawIcon } from './icons';
-import { appear, card, drawHeader, iconBadge, roundRect, withAlpha, type SceneDrawArgs, type SceneDrawer } from './kit';
+import { appear, drawHeader, iconBadge, roundRect, withAlpha, type SceneDrawArgs, type SceneDrawer } from './kit';
 import { formatStatValue, parseStatValue } from './numbers';
-import { drawLines, fitText, type FittedText } from './textLayout';
+import { drawLines, fitText } from './textLayout';
 import { HERO, OUTRO, QUOTE, STAT, comparisonBars, itemReveal, revealSpan, shownItems } from '../timing';
 
 import { drawKpis } from './scenes/kpis';
@@ -21,36 +20,63 @@ import { drawQuiz } from './scenes/quiz';
 import { drawDefinition } from './scenes/definition';
 import { drawChapter } from './scenes/chapter';
 import { drawTip } from './scenes/tip';
+import { drawSteps } from './scenes/steps';
+import { drawSummary, itemIcons } from './scenes/summary';
 
 export { layoutFor, type Layout, type SceneDrawArgs, type SceneDrawer } from './kit';
 
 // ───────────────────────── hero ─────────────────────────
+/** Rings with dots orbiting an icon disc (deterministic: driven by the frame only). */
+function orbitIcon(a: SceneDrawArgs, cx: number, cy: number, r: number): void {
+  const { ctx, scene, theme, frame } = a;
+  const t = easeOutBack(progress(frame, HERO.icon, 28));
+  withAlpha(ctx, appear(frame, 0, 24), () => {
+    [1.45, 1.85].forEach((k, i) => {
+      ctx.strokeStyle = alpha(i ? theme.accent2 : theme.accent, 0.35);
+      ctx.lineWidth = 2;
+      ctx.setLineDash(i ? [4, 10] : []);
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * k * t, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const ang = frame * (i ? -0.012 : 0.018) + i * 2;
+      for (let d = 0; d < 3; d++) {
+        const aa = ang + (d * Math.PI * 2) / 3;
+        ctx.fillStyle = d % 2 ? theme.accent2 : theme.accent;
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(aa) * r * k * t, cy + Math.sin(aa) * r * k * t, (i ? 6 : 9) * t, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+  });
+  // Soft glow, then the badge.
+  const g = ctx.createRadialGradient(cx, cy, r * 0.5, cx, cy, r * 1.4);
+  g.addColorStop(0, alpha(theme.accent, 0.25));
+  g.addColorStop(1, alpha(theme.accent, 0));
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 1.4, 0, Math.PI * 2);
+  ctx.fill();
+  iconBadge(ctx, theme, scene.icon, cx, cy, r * t);
+}
+
 function drawHero(a: SceneDrawArgs): void {
   const { ctx, scene, theme, frame, layout: L, font: fs } = a;
+  if (!L.portrait && !L.square) return drawHeroSplit(a);
   const cx = L.W / 2;
-  const iconR = L.portrait ? 84 : 70;
+  const iconR = L.portrait ? 80 : 64;
   const titleFit = fitText(ctx, fs, scene.title, {
     maxWidth: L.W - L.M * 2, maxLines: L.portrait ? 4 : 3, maxSize: L.portrait ? 64 : 72, minSize: 34, weight: 'bold', lineHeight: 1.35,
   });
   const subs = scene.items.slice(0, 2).map((it, i) =>
     fitText(ctx, fs, it, { maxWidth: L.W - L.M * (L.portrait ? 2 : 4), maxLines: 2, maxSize: i === 0 ? 32 : 24, minSize: 18, weight: 'regular' }),
   );
-  const block = iconR * 2 + 48 + titleFit.height + 24 + subs.reduce((s, f) => s + f.height + 8, 0);
+  const block = iconR * 3.7 + 48 + titleFit.height + 24 + subs.reduce((s, f) => s + f.height + 8, 0);
   let y = (L.H - block) / 2;
-  const iconCy = y + iconR;
+  const iconCy = y + iconR * 1.85;
 
-  for (let i = 0; i < 3; i++) {
-    const phase = ((frame + i * 30) % 90) / 90;
-    withAlpha(ctx, (1 - phase) * 0.45 * appear(frame, 0, 20), () => {
-      ctx.strokeStyle = i % 2 ? theme.accent2 : theme.accent;
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(cx, iconCy, iconR + phase * iconR * 1.4, 0, Math.PI * 2);
-      ctx.stroke();
-    });
-  }
-  iconBadge(ctx, theme, scene.icon, cx, iconCy, iconR * easeOutBack(progress(frame, HERO.icon, 28)));
-  y += iconR * 2 + 48;
+  orbitIcon(a, cx, iconCy, iconR);
+  y += iconR * 3.7 + 48;
 
   const tt = appear(frame, HERO.title, 30);
   withAlpha(ctx, tt, () => {
@@ -74,6 +100,53 @@ function drawHero(a: SceneDrawArgs): void {
   });
 }
 
+/** Landscape opening: title block on the right (reading start), orbiting icon on the left. */
+function drawHeroSplit(a: SceneDrawArgs): void {
+  const { ctx, scene, theme, frame, layout: L, font: fs } = a;
+  const r = 110;
+  const iconCx = L.M + r * 1.9;
+  const textR = L.W - L.M;
+  const textW = textR - (iconCx + r * 1.9 + 40);
+  const titleFit = fitText(ctx, fs, scene.title, { maxWidth: textW, maxLines: 3, maxSize: 82, minSize: 36, weight: 'bold', lineHeight: 1.3 });
+  const subs = scene.items.slice(0, 2).map((it, i) =>
+    fitText(ctx, fs, it, { maxWidth: textW, maxLines: 2, maxSize: i === 0 ? 36 : 26, minSize: 18, weight: i === 0 ? 'regular' : 'bold' }),
+  );
+  const block = titleFit.height + 40 + subs.reduce((s, f) => s + f.height + 14, 0);
+  let y = (L.H - block) / 2;
+  orbitIcon(a, iconCx, L.H / 2, r);
+  // Accent bar beside the title.
+  const bt = easeOutCubic(progress(frame, HERO.title - 4, 30));
+  ctx.fillStyle = theme.accent;
+  roundRect(ctx, textR + 22, y + 8, 10, (titleFit.height - 10) * bt, 5);
+  ctx.fill();
+  const tt = appear(frame, HERO.title, 30);
+  withAlpha(ctx, tt, () => {
+    ctx.fillStyle = theme.foreground;
+    ctx.textAlign = 'right';
+    drawLines(ctx, fs, titleFit, textR - (1 - tt) * 50, y);
+  });
+  y += titleFit.height + 24;
+  subs.forEach((f, i) => {
+    const st = appear(frame, HERO.subtitle(i), 26);
+    withAlpha(ctx, st, () => {
+      if (i === 0) {
+        ctx.fillStyle = alpha(theme.foreground, 0.85);
+        ctx.textAlign = 'right';
+        drawLines(ctx, fs, f, textR - (1 - st) * 30, y);
+      } else {
+        // Second line as an accent pill.
+        ctx.fillStyle = theme.accent2;
+        roundRect(ctx, textR - f.width - 36, y - 6, f.width + 36, f.height + 12, (f.height + 12) / 2);
+        ctx.fill();
+        ctx.fillStyle = readableOn(theme.accent2);
+        ctx.textAlign = 'right';
+        drawLines(ctx, fs, f, textR - 18, y);
+      }
+    });
+    y += f.height + 20;
+  });
+}
+
 // ───────────────────────── stat ─────────────────────────
 function drawStat(a: SceneDrawArgs): void {
   const { ctx, scene, theme, frame, layout: L, font: fs } = a;
@@ -89,9 +162,9 @@ function drawStat(a: SceneDrawArgs): void {
 
   if (isPercent && stat) {
     const side = !L.portrait && !L.square;
-    const R = side ? Math.min(avail * 0.42, 190) : Math.min(avail * 0.26, L.W * 0.3);
-    const cx = side ? L.M + R + 30 : L.W / 2;
-    const cy = side ? top + avail / 2 : top + R + 20;
+    const R = side ? Math.min(avail * 0.36, 170) : Math.min(avail * 0.22, L.W * 0.27);
+    const cx = side ? L.M + R * 1.3 + 20 : L.W / 2;
+    const cy = side ? top + avail / 2 : top + R * 1.3 + 20;
     ctx.save();
     ctx.lineWidth = R * 0.2;
     ctx.lineCap = 'round';
@@ -109,6 +182,20 @@ function drawStat(a: SceneDrawArgs): void {
       ctx.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + sweep);
       ctx.stroke();
     }
+    // Dial ticks outside the ring; the ones already covered light up.
+    const ticks = 60;
+    for (let k = 0; k < ticks; k++) {
+      const ang = -Math.PI / 2 + (k / ticks) * Math.PI * 2;
+      const on = k / ticks < (stat.value * countT) / 100;
+      const r1 = R + R * 0.17;
+      const r2 = r1 + (k % 5 === 0 ? R * 0.1 : R * 0.05);
+      ctx.strokeStyle = on ? theme.accent : alpha(theme.foreground, 0.18);
+      ctx.lineWidth = k % 5 === 0 ? 4 : 2;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(ang) * r1, cy + Math.sin(ang) * r1);
+      ctx.lineTo(cx + Math.cos(ang) * r2, cy + Math.sin(ang) * r2);
+      ctx.stroke();
+    }
     ctx.restore();
     const numFit = fitText(ctx, fs, finalText, { maxWidth: R * 1.35, maxLines: 1, maxSize: R * 0.62, minSize: 20, weight: 'bold' });
     ctx.font = font(fs, 'bold', numFit.fontSize);
@@ -119,9 +206,9 @@ function drawStat(a: SceneDrawArgs): void {
     ctx.textBaseline = 'alphabetic';
     if (desc) {
       const dx = side ? L.W - L.M : L.W / 2;
-      const maxW = side ? L.W - L.M * 2 - R * 2 - 90 : L.W - L.M * 2;
-      const dTop = side ? cy : cy + R + R * 0.2 + 36;
-      const f = fitText(ctx, fs, desc, { maxWidth: maxW, maxLines: side ? 5 : 4, maxSize: 34, minSize: 20, weight: 'regular', lineHeight: 1.6 });
+      const maxW = side ? L.W - L.M * 2 - R * 2.6 - 90 : L.W - L.M * 2;
+      const dTop = side ? cy : cy + R * 1.3 + 40;
+      const f = fitText(ctx, fs, desc, { maxWidth: maxW, maxLines: side ? 5 : 4, maxSize: 42, minSize: 20, weight: 'bold', lineHeight: 1.5 });
       withAlpha(ctx, appear(frame, STAT.description, 30), () => {
         ctx.fillStyle = theme.foreground;
         ctx.textAlign = side ? 'right' : 'center';
@@ -133,10 +220,29 @@ function drawStat(a: SceneDrawArgs): void {
 
   // Plain big number with a glowing underline.
   const numFit = fitText(ctx, fs, finalText, { maxWidth: L.W - L.M * 2, maxLines: 1, maxSize: L.portrait ? 140 : 170, minSize: 40, weight: 'bold' });
-  const f = desc ? fitText(ctx, fs, desc, { maxWidth: L.W - L.M * 2.5, maxLines: 4, maxSize: 34, minSize: 20, weight: 'regular', lineHeight: 1.6 }) : null;
+  const f = desc ? fitText(ctx, fs, desc, { maxWidth: L.W - L.M * 2.5, maxLines: 4, maxSize: 40, minSize: 20, weight: 'bold', lineHeight: 1.5 }) : null;
   const block = numFit.fontSize * 1.2 + 40 + (f?.height ?? 0);
   let y = top + Math.max(0, (avail - block) / 2);
   const s = 0.85 + 0.15 * easeOutBack(progress(frame, 10, 30));
+  // Slowly turning light rays behind the number.
+  const rays = 18;
+  const rr = Math.min(Math.max(numFit.width * 0.62, numFit.fontSize * 1.2), avail * 0.62);
+  const rcx = L.W / 2;
+  const rcy = y + numFit.fontSize * 0.6;
+  withAlpha(ctx, appear(frame, 6, 30) * 0.5, () => {
+    const rg = ctx.createRadialGradient(rcx, rcy, 0, rcx, rcy, rr);
+    rg.addColorStop(0, alpha(theme.accent, 0.35));
+    rg.addColorStop(1, alpha(theme.accent, 0));
+    ctx.fillStyle = rg;
+    for (let k = 0; k < rays; k++) {
+      const a0 = (k / rays) * Math.PI * 2 + frame * 0.003;
+      ctx.beginPath();
+      ctx.moveTo(rcx, rcy);
+      ctx.arc(rcx, rcy, rr, a0, a0 + Math.PI / rays);
+      ctx.closePath();
+      ctx.fill();
+    }
+  });
   ctx.save();
   ctx.translate(L.W / 2, y + numFit.fontSize * 0.6);
   ctx.scale(s, s);
@@ -167,67 +273,6 @@ function drawStat(a: SceneDrawArgs): void {
 }
 
 // ───────────────────────── steps ─────────────────────────
-function drawSteps(a: SceneDrawArgs): void {
-  const { ctx, scene, theme, frame, layout: L, font: fs, digits } = a;
-  const top = drawHeader(a);
-  const items = shownItems(scene);
-  if (!items.length) return;
-  const avail = L.H - top - L.M * 0.8;
-  const badgeR = L.portrait ? 30 : 28;
-  const textW = L.W - L.M * 2 - badgeR * 2 - 60;
-  let size = L.portrait ? 38 : 34;
-  let fits: FittedText[] = [];
-  const gap = 18;
-  for (; size >= 18; size -= 2) {
-    fits = items.map((it) => fitText(ctx, fs, it, { maxWidth: textW, maxLines: L.portrait ? 3 : 2, maxSize: size, minSize: size, weight: 'regular', lineHeight: 1.45 }));
-    const total = fits.reduce((s, f) => s + Math.max(f.height, badgeR * 2) + gap * 2, 0);
-    if (total <= avail) break;
-  }
-  const rowsH = fits.map((f) => Math.max(f.height, badgeR * 2) + gap * (L.portrait ? 2.6 : 2));
-  const totalH = rowsH.reduce((s, h) => s + h, 0);
-  let y = top + Math.max(0, (avail - totalH) / 2);
-  const span = revealSpan(scene, items.length);
-  const badgeX = L.W - L.M - badgeR;
-
-  // Connector grows with the reveal.
-  const firstCy = y + rowsH[0] / 2;
-  const lastCy = y + totalH - rowsH[rowsH.length - 1] / 2;
-  const lineT = progress(frame, itemReveal(scene, 0, items.length), span * (items.length - 1) + 1);
-  ctx.save();
-  ctx.strokeStyle = alpha(theme.accent, 0.45);
-  ctx.lineWidth = 4;
-  ctx.setLineDash([2, 10]);
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(badgeX, firstCy);
-  ctx.lineTo(badgeX, firstCy + (lastCy - firstCy) * lineT);
-  ctx.stroke();
-  ctx.restore();
-
-  items.forEach((_, i) => {
-    const t = progress(frame, itemReveal(scene, i, items.length), 22);
-    const cy = y + rowsH[i] / 2;
-    y += rowsH[i];
-    if (t <= 0) return;
-    const e = easeOutCubic(t);
-    const cardX = L.M;
-    const cardW = L.W - L.M * 2 - badgeR * 2 - 20;
-    withAlpha(ctx, e, () => {
-      card(ctx, theme, cardX - (1 - e) * 40, cy - rowsH[i] / 2 + 6, cardW, rowsH[i] - 12, 18);
-      iconBadge(ctx, theme, '', badgeX, cy, badgeR * easeOutBack(t), i % 2 ? theme.accent2 : theme.accent);
-      ctx.fillStyle = readableOn(i % 2 ? theme.accent2 : theme.accent);
-      ctx.font = font(fs, 'bold', badgeR);
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(localizeDigits(String(i + 1), digits), badgeX, cy + 1);
-      ctx.textBaseline = 'alphabetic';
-      ctx.fillStyle = theme.foreground;
-      ctx.textAlign = 'right';
-      drawLines(ctx, fs, fits[i], cardX + cardW - 26 - (1 - e) * 40, cy - fits[i].height / 2);
-    });
-  });
-}
-
 // ───────────────────────── comparison ─────────────────────────
 function drawBars(a: SceneDrawArgs, top: number, rows: { label: string; value: string; num: number }[]): void {
   const { ctx, theme, frame, layout: L, font: fs, scene } = a;
@@ -281,7 +326,7 @@ function splitHeading(text: string): { head: string; body: string } {
 }
 
 function drawComparison(a: SceneDrawArgs): void {
-  const { ctx, scene, theme, frame, layout: L, font: fs } = a;
+  const { scene } = a;
   const top = drawHeader(a);
   const items = shownItems(scene);
   const bars = comparisonBars(scene);
@@ -290,58 +335,96 @@ function drawComparison(a: SceneDrawArgs): void {
     return;
   }
   if (!items.length) return;
-  // Side-by-side cards (stacked on portrait) with a "VS"-style divider for two items.
+  drawVersus(a, top, items);
+}
+
+/**
+ * Text comparison as a split screen: each side is a full-height tinted panel with its own matched
+ * icon, a big heading and the explanation; a "مقابل" medallion sits on the seam. Panels slide in
+ * from their own side at their cue.
+ */
+function drawVersus(a: SceneDrawArgs, top: number, items: string[]): void {
+  const { ctx, scene, theme, frame, layout: L, font: fs } = a;
   const n = items.length;
-  const avail = L.H - top - L.M;
-  const cols = L.portrait ? 1 : Math.min(n, 3);
-  const rowsN = Math.ceil(n / cols);
-  const gap = n === 2 && !L.portrait ? 90 : 28;
-  const cw = (L.W - L.M * 2 - gap * (cols - 1)) / cols;
-  const ch = Math.min((avail - gap * (rowsN - 1)) / rowsN, L.portrait ? 300 : 380);
-  const startY = top + Math.max(0, (avail - (ch * rowsN + gap * (rowsN - 1))) / 2);
+  const icons = itemIcons(items.map((it) => splitHeading(it).head || it), scene.icon);
+  const vertical = L.portrait;
+  const gap = 18;
+  const area = { x: L.M * 0.6, y: top - 6, w: L.W - L.M * 1.2, h: L.H - top - L.M * 0.6 };
+  const pw = vertical ? area.w : (area.w - gap * (n - 1)) / n;
+  const ph = vertical ? (area.h - gap * (n - 1)) / n : area.h;
+  const colors = [theme.accent, theme.accent2, mix(theme.accent, theme.foreground, 0.4)];
   items.forEach((it, i) => {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const x = L.W - L.M - cw - col * (cw + gap);
-    const y = startY + row * (ch + gap);
-    const t = progress(frame, itemReveal(scene, i, n), 26);
-    const e = easeOutBack(t);
-    const color = i % 2 ? theme.accent2 : theme.accent;
+    const t = progress(frame, itemReveal(scene, i, n), 28);
+    if (t <= 0) return;
+    const e = easeOutCubic(t);
+    const color = colors[i % 3];
+    const x = vertical ? area.x : area.x + area.w - pw - i * (pw + gap);
+    const y = vertical ? area.y + i * (ph + gap) : area.y;
+    const dir = vertical ? 0 : i === 0 ? 1 : -1;
     const { head, body } = splitHeading(it);
-    withAlpha(ctx, clamp(t * 1.4), () => {
+    withAlpha(ctx, e, () => {
       ctx.save();
-      ctx.translate(x + cw / 2, y + ch / 2);
-      ctx.scale(0.9 + 0.1 * e, 0.9 + 0.1 * e);
-      ctx.translate(-(x + cw / 2), -(y + ch / 2));
-      card(ctx, theme, x, y, cw, ch, 24);
-      ctx.fillStyle = color;
-      roundRect(ctx, x, y, cw, 10, 5);
+      ctx.translate(dir * (1 - e) * 80, vertical ? (1 - e) * 40 : 0);
+      const g = ctx.createLinearGradient(0, y, 0, y + ph);
+      g.addColorStop(0, mix(theme.surface, color, 0.3));
+      g.addColorStop(1, mix(theme.surface, color, 0.08));
+      ctx.fillStyle = g;
+      roundRect(ctx, x, y, pw, ph, 28);
       ctx.fill();
-      let ty = y + 34;
-      if (head) {
-        const hf = fitText(ctx, fs, head, { maxWidth: cw - 48, maxLines: 1, maxSize: 34, minSize: 20, weight: 'bold' });
+      ctx.strokeStyle = alpha(color, 0.5);
+      ctx.lineWidth = 2;
+      roundRect(ctx, x + 1, y + 1, pw - 2, ph - 2, 27);
+      ctx.stroke();
+      // Large faint icon as a watermark, plus a crisp one in a disc.
+      ctx.globalAlpha *= 0.08;
+      drawIcon(ctx, icons[i], x + pw / 2, y + ph * 0.62, Math.min(pw, ph) * 0.62, color, 1.5);
+      ctx.globalAlpha /= 0.08;
+      const r = vertical ? 34 : 42;
+      const cy = y + (vertical ? ph / 2 : r + 34);
+      const cx = vertical ? x + pw - r - 28 : x + pw / 2;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+      drawIcon(ctx, icons[i], cx, cy, r * 1.05, readableOn(color), 2.2);
+      const tw = vertical ? pw - r * 2 - 80 : pw - 56;
+      const hf = head ? fitText(ctx, fs, head, { maxWidth: tw, maxLines: 2, maxSize: vertical ? 40 : 46, minSize: 22, weight: 'bold', lineHeight: 1.3 }) : null;
+      const bf = fitText(ctx, fs, body, { maxWidth: tw, maxLines: vertical ? 3 : 5, maxSize: vertical ? 30 : 32, minSize: 18, weight: 'regular', lineHeight: 1.5 });
+      const blockH = (hf ? hf.height + 14 : 0) + bf.height;
+      const tx = vertical ? cx - r - 26 : x + pw / 2;
+      const ty = vertical ? y + (ph - blockH) / 2 : cy + r + 26 + Math.max(0, (y + ph - 30 - (cy + r + 26) - blockH) / 2);
+      ctx.textAlign = vertical ? 'right' : 'center';
+      let yy = ty;
+      if (hf) {
         ctx.fillStyle = textAccent(theme, color);
-        ctx.textAlign = 'center';
-        ty = drawLines(ctx, fs, hf, x + cw / 2, ty) + 10;
+        yy = drawLines(ctx, fs, hf, tx, yy) + 14;
       }
-      const bf = fitText(ctx, fs, body, { maxWidth: cw - 48, maxLines: 6, maxSize: 30, minSize: 18, weight: 'regular', lineHeight: 1.55 });
       ctx.fillStyle = theme.foreground;
-      ctx.textAlign = 'center';
-      drawLines(ctx, fs, bf, x + cw / 2, ty + Math.max(0, (y + ch - 24 - ty - bf.height) / 2));
+      drawLines(ctx, fs, bf, tx, yy);
       ctx.restore();
     });
   });
-  if (n === 2 && !L.portrait) {
-    const cx = L.W / 2;
-    const cy = startY + ch / 2;
-    const t = easeOutBack(progress(frame, 44, 24));
-    if (t > 0) {
-      ctx.fillStyle = theme.foreground;
-      ctx.beginPath();
-      ctx.arc(cx, cy, 34 * t, 0, Math.PI * 2);
-      ctx.fill();
-      drawIcon(ctx, 'arrow-left-right', cx, cy, 36 * t, theme.background, 2.4);
-    }
+  // Seam medallion(s).
+  for (let i = 0; i < n - 1; i++) {
+    const t = easeOutBack(progress(frame, itemReveal(scene, i + 1, n) + 10, 22));
+    if (t <= 0) continue;
+    const cx = vertical ? area.x + area.w / 2 : area.x + area.w - (i + 1) * (pw + gap) + gap / 2;
+    const cy = vertical ? area.y + (i + 1) * (ph + gap) - gap / 2 : area.y + area.h / 2;
+    const r = (vertical ? 38 : 46) * t;
+    ctx.fillStyle = theme.background;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = theme.foreground;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = theme.background;
+    ctx.font = font(fs, 'bold', r * 0.5);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('مقابل', cx, cy + 2);
+    ctx.textBaseline = 'alphabetic';
   }
 }
 
@@ -391,38 +474,78 @@ function drawTimeline(a: SceneDrawArgs): void {
     return;
   }
 
-  // Horizontal, chronological from right to left.
-  const lineY = top + avail * 0.42;
+  // Horizontal road, chronological from right to left. Year pills sit on the road; events
+  // alternate above and below it, so each can use almost two slots of width.
+  const roadY = top + avail * 0.5;
   const step = (L.W - L.M * 2) / n;
-  const lt = progress(frame, 16, span * n);
-  ctx.fillStyle = alpha(theme.foreground, 0.15);
-  roundRect(ctx, L.M, lineY - 3, L.W - L.M * 2, 6, 3);
+  const roadH = 22;
+  const lt = progress(frame, 12, span * n);
+  ctx.fillStyle = alpha(theme.foreground, 0.1);
+  roundRect(ctx, L.M - 20, roadY - roadH / 2, L.W - L.M * 2 + 40, roadH, roadH / 2);
   ctx.fill();
-  const w = (L.W - L.M * 2) * lt;
-  ctx.fillStyle = theme.accent;
-  roundRect(ctx, L.W - L.M - w, lineY - 3, w, 6, 3);
+  const w = (L.W - L.M * 2 + 40) * lt;
+  const rg = ctx.createLinearGradient(L.W - L.M + 20, 0, L.M - 20, 0);
+  rg.addColorStop(0, theme.accent);
+  rg.addColorStop(1, theme.accent2);
+  ctx.fillStyle = rg;
+  roundRect(ctx, L.W - L.M + 20 - w, roadY - roadH / 2, w, roadH, roadH / 2);
   ctx.fill();
+  // Dashed centre marking.
+  ctx.save();
+  ctx.strokeStyle = alpha(theme.background, 0.55);
+  ctx.lineWidth = 3;
+  ctx.setLineDash([14, 12]);
+  ctx.beginPath();
+  ctx.moveTo(L.W - L.M + 10, roadY);
+  ctx.lineTo(L.W - L.M + 10 - Math.max(0, w - 20), roadY);
+  ctx.stroke();
+  ctx.restore();
+  const textW = Math.min(step * 1.75, 420) - 20;
   items.forEach((it, i) => {
     const t = progress(frame, itemReveal(scene, i, n), 24);
     if (t <= 0) return;
     const e = easeOutCubic(t);
     const cx = L.W - L.M - step * (i + 0.5);
+    const up = i % 2 === 0;
     const color = i % 2 ? theme.accent2 : theme.accent;
     withAlpha(ctx, e, () => {
-      ctx.fillStyle = theme.background;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 6;
+      // Stem from the road to the event.
+      const stem = (avail * 0.5 - 70) * 0.35 * e;
+      ctx.strokeStyle = alpha(color, 0.8);
+      ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(cx, lineY, 18 * easeOutBack(t), 0, Math.PI * 2);
-      ctx.fill();
+      ctx.moveTo(cx, roadY + (up ? -roadH : roadH));
+      ctx.lineTo(cx, roadY + (up ? -roadH - stem : roadH + stem));
       ctx.stroke();
-      const yearFit = fitText(ctx, fs, it.when, { maxWidth: step - 16, maxLines: 1, maxSize: L.square ? 36 : 40, minSize: 20, weight: 'bold' });
-      ctx.fillStyle = textAccent(theme, color);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(cx, roadY + (up ? -roadH - stem : roadH + stem), 6, 0, Math.PI * 2);
+      ctx.fill();
+      // Year pill on the road.
+      const yf = fitText(ctx, fs, it.when || String(i + 1), { maxWidth: step - 16, maxLines: 1, maxSize: L.square ? 30 : 32, minSize: 16, weight: 'bold' });
+      const pw = yf.width + 32;
+      const ph = yf.height + 12;
+      const s = easeOutBack(t);
+      ctx.save();
+      ctx.translate(cx, roadY);
+      ctx.scale(s, s);
+      ctx.fillStyle = theme.background;
+      roundRect(ctx, -pw / 2 - 5, -ph / 2 - 5, pw + 10, ph + 10, (ph + 10) / 2);
+      ctx.fill();
+      ctx.fillStyle = color;
+      roundRect(ctx, -pw / 2, -ph / 2, pw, ph, ph / 2);
+      ctx.fill();
+      ctx.fillStyle = readableOn(color);
       ctx.textAlign = 'center';
-      drawLines(ctx, fs, yearFit, cx, lineY - 40 - yearFit.height - (1 - e) * 20);
-      const f = fitText(ctx, fs, it.what, { maxWidth: step - 24, maxLines: L.square ? 5 : 4, maxSize: 26, minSize: 16, weight: 'regular', lineHeight: 1.45 });
+      drawLines(ctx, fs, yf, 0, -yf.height / 2);
+      ctx.restore();
+      // Event text.
+      const f = fitText(ctx, fs, it.what, { maxWidth: textW, maxLines: 3, maxSize: L.square ? 30 : 30, minSize: 16, weight: 'bold', lineHeight: 1.4 });
+      const tipY = roadY + (up ? -roadH - stem - 14 : roadH + stem + 14);
+      const tx = Math.min(L.W - L.M / 2 - textW / 2, Math.max(L.M / 2 + textW / 2, cx));
       ctx.fillStyle = theme.foreground;
-      drawLines(ctx, fs, f, cx, lineY + 40 + (1 - e) * 20);
+      ctx.textAlign = 'center';
+      drawLines(ctx, fs, f, tx, up ? tipY - f.height + (1 - e) * 16 : tipY - (1 - e) * 16);
     });
   });
 }
@@ -430,93 +553,64 @@ function drawTimeline(a: SceneDrawArgs): void {
 // ───────────────────────── quote ─────────────────────────
 function drawQuote(a: SceneDrawArgs): void {
   const { ctx, scene, theme, frame, layout: L, font: fs } = a;
+  const pad = L.portrait ? L.M : L.M * 1.6;
+  const barX = L.W - pad;
+  const textW = L.W - pad * 2 - 40;
   const qf = fitText(ctx, fs, scene.title, {
-    maxWidth: L.W - L.M * (L.portrait ? 2 : 3.5), maxLines: L.portrait ? 7 : 4, maxSize: L.portrait ? 48 : 52, minSize: 24, weight: 'bold', lineHeight: 1.6,
+    maxWidth: textW, maxLines: L.portrait ? 7 : 4, maxSize: L.portrait ? 62 : 66, minSize: 26, weight: 'bold', lineHeight: 1.5,
   });
   const by = scene.items[0];
-  const bf = by ? fitText(ctx, fs, `— ${by}`, { maxWidth: L.W - L.M * 2, maxLines: 1, maxSize: 30, minSize: 18, weight: 'regular' }) : null;
-  const block = 120 + qf.height + (bf ? bf.height + 30 : 0);
-  let y = (L.H - block) / 2;
-  withAlpha(ctx, appear(frame, QUOTE.icon, 24) * 0.9, () => drawIcon(ctx, scene.icon || 'quote', L.W / 2, y + 40, 90 * easeOutBack(progress(frame, QUOTE.icon, 30)), theme.accent, 1.6));
-  y += 120;
-  // Words fade in progressively along the reading direction, line by line.
+  const bf = by ? fitText(ctx, fs, by, { maxWidth: textW - 80, maxLines: 1, maxSize: 30, minSize: 18, weight: 'bold' }) : null;
+  const block = qf.height + (bf ? bf.height + 70 : 0) + 90;
+  const y0 = (L.H - block) / 2 + 90;
+  // Big accent quotation mark above the text, popping in first.
+  const mt = easeOutBack(progress(frame, QUOTE.icon, 26));
+  if (mt > 0) {
+    ctx.save();
+    ctx.translate(barX + 6, y0 - 112);
+    ctx.scale(mt, mt);
+    ctx.font = font(fs, 'bold', 220);
+    ctx.fillStyle = theme.accent;
+    ctx.textAlign = 'right';
+    ctx.fillText('”', 0, 150);
+    ctx.restore();
+  }
+  // Accent bar grows down along the quote.
+  const barH = (qf.height + 10) * easeOutCubic(progress(frame, QUOTE.icon + 4, 30));
+  ctx.fillStyle = theme.accent;
+  roundRect(ctx, barX - 8, y0, 8, barH, 4);
+  ctx.fill();
+  const tx = barX - 36;
   qf.lines.forEach((line, i) => {
-    withAlpha(ctx, appear(frame, QUOTE.line(i), 26), () => {
+    const t = appear(frame, QUOTE.line(i), 26);
+    withAlpha(ctx, t, () => {
       ctx.font = font(fs, 'bold', qf.fontSize);
       ctx.fillStyle = theme.foreground;
-      ctx.textAlign = 'center';
+      ctx.textAlign = 'right';
       ctx.textBaseline = 'middle';
-      ctx.fillText(line, L.W / 2, y + qf.lineHeight * (i + 0.5));
+      ctx.fillText(line, tx - (1 - t) * 24, y0 + qf.lineHeight * (i + 0.5));
       ctx.textBaseline = 'alphabetic';
     });
   });
-  y += qf.height + 30;
   if (bf) {
-    withAlpha(ctx, appear(frame, QUOTE.line(qf.lines.length) + 14, 26), () => {
+    const t = appear(frame, QUOTE.line(qf.lines.length) + 14, 26);
+    withAlpha(ctx, t, () => {
+      const py = y0 + qf.height + 40;
+      const r = bf.height / 2 + 14;
+      // Author pill: icon disc + name.
+      ctx.fillStyle = mix(theme.surface, theme.accent2, 0.18);
+      roundRect(ctx, tx - bf.width - r * 2 - 40, py, bf.width + r * 2 + 40, r * 2, r);
+      ctx.fill();
+      ctx.fillStyle = theme.accent2;
+      ctx.beginPath();
+      ctx.arc(tx - r, py + r, r - 6, 0, Math.PI * 2);
+      ctx.fill();
+      drawIcon(ctx, 'user', tx - r, py + r, (r - 6) * 1.1, readableOn(theme.accent2), 2.2);
       ctx.fillStyle = textAccent(theme, theme.accent2);
-      ctx.textAlign = 'center';
-      drawLines(ctx, fs, bf, L.W / 2, y);
+      ctx.textAlign = 'right';
+      drawLines(ctx, fs, bf, tx - r * 2 - 14, py + r - bf.height / 2);
     });
   }
-}
-
-// ───────────────────────── summary ─────────────────────────
-function drawSummary(a: SceneDrawArgs): void {
-  const { ctx, scene, theme, frame, layout: L, font: fs } = a;
-  const top = drawHeader(a);
-  const items = shownItems(scene);
-  if (!items.length) return;
-  const n = items.length;
-  const avail = L.H - top - L.M;
-  const cols = L.portrait ? 1 : n === 4 ? 2 : Math.min(n, 3);
-  const rowsN = Math.ceil(n / cols);
-  const gap = 26;
-  const single = n === 1;
-  const rowStyle = cols === 1 && !single;
-  const cw = single && !L.portrait ? Math.min(L.W - L.M * 2, 820) : (L.W - L.M * 2 - gap * (cols - 1)) / cols;
-  const ch = Math.min((avail - gap * (rowsN - 1)) / rowsN, single ? 360 : rowStyle ? (L.portrait ? 260 : 220) : 320);
-  const startY = top + Math.max(0, (avail - (ch * rowsN + gap * (rowsN - 1))) / 2);
-  items.forEach((it, i) => {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const x = single ? (L.W - cw) / 2 : L.W - L.M - cw - col * (cw + gap);
-    const y = startY + row * (ch + gap);
-    const t = progress(frame, itemReveal(scene, i, n), 26);
-    if (t <= 0) return;
-    const e = easeOutBack(t);
-    const color = i % 2 ? theme.accent2 : theme.accent;
-    withAlpha(ctx, clamp(t * 1.5), () => {
-      ctx.save();
-      ctx.translate(x + cw / 2, y + ch / 2);
-      ctx.scale(0.88 + 0.12 * e, 0.88 + 0.12 * e);
-      ctx.translate(-(x + cw / 2), -(y + ch / 2));
-      card(ctx, theme, x, y, cw, ch, 22);
-      if (rowStyle) {
-        // Row card: marker on the right, text to its left.
-        ctx.fillStyle = color;
-        roundRect(ctx, x + cw - 10, y, 10, ch, 5);
-        ctx.fill();
-        drawIcon(ctx, 'circle-check', x + cw - 50, y + ch / 2, 40, color, 2.2);
-        const f = fitText(ctx, fs, it, { maxWidth: cw - 120, maxLines: 4, maxSize: L.portrait ? 34 : 30, minSize: 18, weight: 'regular', lineHeight: 1.5 });
-        ctx.fillStyle = theme.foreground;
-        ctx.textAlign = 'right';
-        drawLines(ctx, fs, f, x + cw - 90, y + ch / 2 - f.height / 2);
-      } else {
-        const iconY = y + (single ? 70 : 52);
-        ctx.fillStyle = alpha(color, 0.16);
-        ctx.beginPath();
-        ctx.arc(x + cw / 2, iconY, single ? 44 : 30, 0, Math.PI * 2);
-        ctx.fill();
-        drawIcon(ctx, single ? scene.icon : 'circle-check', x + cw / 2, iconY, single ? 52 : 36, color, 2.2);
-        const f = fitText(ctx, fs, it, { maxWidth: cw - 56, maxLines: 6, maxSize: single ? 36 : 30, minSize: 17, weight: 'regular', lineHeight: 1.5 });
-        ctx.fillStyle = theme.foreground;
-        ctx.textAlign = 'center';
-        const textTop = iconY + (single ? 64 : 44);
-        drawLines(ctx, fs, f, x + cw / 2, textTop + Math.max(0, (y + ch - 20 - textTop - f.height) / 2));
-      }
-      ctx.restore();
-    });
-  });
 }
 
 // ───────────────────────── outro ─────────────────────────

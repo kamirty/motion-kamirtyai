@@ -32,13 +32,13 @@ describe('renderFrame', () => {
   it('sets RTL direction and draws Arabic text without reversing it', () => {
     const ops = render({ ...sampleProject, style: { digits: 'latin' } }, 600);
     expect(ops).toContain('direction="rtl"');
-    const text = drawnText(ops).join('\n');
+    const text = drawnText(ops).join(' ');
     expect(text).toContain('المياه على كوكب الأرض');
     expect(text).not.toContain('ضرلأا');
   });
 
   it('localises digits to Arabic-Indic and keeps Latin terms', () => {
-    const text = drawnText(render({ ...sampleProject, style: { digits: 'arabic' } }, 1600)).join('\n');
+    const text = drawnText(render({ ...sampleProject, style: { digits: 'arabic' } }, 1600)).join(' ');
     expect(text).toContain('٧١٪');
     expect(text).toContain('UN Water');
     expect(text).not.toMatch(/\b71%/);

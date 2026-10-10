@@ -30,7 +30,7 @@ export function drawQuiz(a: SceneDrawArgs): void {
   const areaW = L.W - L.M * 2 - counterW;
   const avail = L.H - top - L.M - counterH;
   const cw = (areaW - gap * (cols - 1)) / cols;
-  const ch = Math.min(L.portrait ? 130 : 120, (avail - gap * (rows - 1)) / rows);
+  const ch = Math.min(L.portrait ? 150 : 150, (avail - gap * (rows - 1)) / rows);
   const y0 = top + Math.max(0, (avail - (ch * rows + gap * (rows - 1))) / 2);
   options.forEach((opt, i) => {
     const t = progress(frame, itemReveal(scene, i, n), 20);
@@ -51,18 +51,24 @@ export function drawQuiz(a: SceneDrawArgs): void {
       card(ctx, theme, x, y, cw, ch, 16, correct ? theme.accent : theme.surface);
       const fg = correct ? readableOn(theme.accent) : theme.foreground;
       const hasLetter = /^\s*[أابجدهـو1-6١-٦][).:-]/u.test(opt);
-      const r = Math.min(30, ch * 0.28);
+      const r = Math.min(36, ch * 0.3);
       if (correct) {
         ctx.fillStyle = readableOn(theme.accent);
         ctx.beginPath();
         ctx.arc(x + cw - 24 - r, y + ch / 2, r, 0, Math.PI * 2);
         ctx.fill();
         drawIcon(ctx, 'check', x + cw - 24 - r, y + ch / 2, r * 1.3, theme.accent, 3);
+      } else if (revealed) {
+        ctx.fillStyle = alpha(theme.foreground, 0.15);
+        ctx.beginPath();
+        ctx.arc(x + cw - 24 - r, y + ch / 2, r, 0, Math.PI * 2);
+        ctx.fill();
+        drawIcon(ctx, 'x', x + cw - 24 - r, y + ch / 2, r * 1.2, theme.foreground, 3);
       } else if (!hasLetter) {
         discLabel(ctx, fs, LETTERS[i] ?? localizeDigits(String(i + 1), digits), x + cw - 24 - r, y + ch / 2, r, alpha(theme.accent, 0.9));
       }
-      const pad = hasLetter && !correct ? 26 : r * 2 + 44;
-      const f = measure(ctx, fs, opt, { maxWidth: cw - pad - 24, maxLines: 2, maxSize: L.portrait ? 34 : 32, minSize: 18, weight: 'bold', lineHeight: 1.35 });
+      const pad = hasLetter && !revealed ? 26 : r * 2 + 44;
+      const f = measure(ctx, fs, opt, { maxWidth: cw - pad - 24, maxLines: 2, maxSize: L.portrait ? 40 : 40, minSize: 18, weight: 'bold', lineHeight: 1.35 });
       ctx.fillStyle = fg;
       ctx.textAlign = 'right';
       drawLines(ctx, fs, f, x + cw - pad, y + ch / 2 - f.height / 2);
