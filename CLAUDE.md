@@ -3,7 +3,7 @@
 You are implementing a browser-first, Arabic RTL motion-infographic editor. Read README.md, docs/PRODUCT_BRIEF_AR.md, docs/TECHNICAL_ARCHITECTURE_AR.md, docs/TEST_PLAN_AR.md, and schemas/project.v1.schema.json before making changes.
 
 ## Non-negotiable product rules
-- Each project targets **exactly 120 seconds** of media duration (3600 frames at 30fps).
+- Video length = **sum of the scene durations** (owner decision, Oct 2026). New projects start at 120 s (3600 frames at 30fps); limits: 3 s–120 s per scene, 10 min total. Changing one scene never changes another.
 - The site must remain a **static deploy**: React, TypeScript, Vite, client-side Canvas/SVG, Mediabunny + WebCodecs only when supported. No server render, paid AI/video/TTS API, backend account, billing, database, or cloud user content uploads.
 - Do not send descriptions, uploaded assets, or user-produced video to external services. Static library/font delivery is allowed only if self-hosted and privacy reviewed.
 - Deterministic function `renderFrame(project, frameIndex, ctx)` is the single source of truth for preview and export.

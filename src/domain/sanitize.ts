@@ -1,5 +1,5 @@
-import { ASPECTS, DEFAULT_IMAGE, ENTRANCES, DEFAULT_STYLE, DURATION_FRAMES, FPS, LIMITS, SCENE_KINDS, type Project, type ProjectStyle, type Scene, type SceneImage } from './types';
-import { rebalance, validateTimeline } from './timeline';
+import { ASPECTS, DEFAULT_IMAGE, ENTRANCES, DEFAULT_STYLE, FPS, LIMITS, SCENE_KINDS, type Project, type ProjectStyle, type Scene, type SceneImage } from './types';
+import { rebalance, validateTimeline, withScenes } from './timeline';
 
 const COLOR = /^#[0-9A-Fa-f]{6}$/;
 const ID = /^[A-Za-z0-9_-]{1,40}$/;
@@ -35,7 +35,8 @@ export function parseImage(v: unknown): SceneImage | undefined {
 
 /**
  * Parses untrusted JSON (imported file or local autosave) into a valid project, or throws with an
- * Arabic message. Unknown fields are dropped, strings clamped, and timing repaired to exactly 120 s.
+ * Arabic message. Unknown fields are dropped, strings clamped, and scene lengths clamped (the video
+ * length is the sum of the scenes, at most LIMITS.maxTotalFrames).
  */
 export function parseProject(input: unknown): Project {
   if (!input || typeof input !== 'object') throw new Error('الملف ليس مشروعًا صالحًا.');
@@ -69,7 +70,7 @@ export function parseProject(input: unknown): Project {
       id,
       kind: pick(s.kind, SCENE_KINDS, 'summary'),
       startFrame: 0,
-      durationFrames: Number.isFinite(d) && d > 0 ? Math.round(d) : LIMITS.minSceneFrames,
+      durationFrames: Number.isFinite(d) ? Math.min(LIMITS.maxSceneFrames, Math.max(LIMITS.minSceneFrames, Math.round(d))) : LIMITS.minSceneFrames,
       title: str(s.title, LIMITS.titleChars),
       items: (Array.isArray(s.items) ? s.items : []).slice(0, LIMITS.items).map((it) => str(it, LIMITS.itemChars)),
       icon: str(s.icon, 60) || 'sparkles',
@@ -96,12 +97,15 @@ export function parseProject(input: unknown): Project {
     title: str(o.title, 140) || 'مشروع بدون عنوان',
     locale: 'ar',
     fps: FPS,
-    durationFrames: DURATION_FRAMES,
+    durationFrames: 0,
     size: { width, height },
     theme: t,
-    scenes: rebalance(scenes),
+    scenes: [],
     style,
   };
+  // Too long overall: scale every scene down proportionally to the 10-minute limit.
+  const sum = scenes.reduce((a, s) => a + s.durationFrames, 0);
+  Object.assign(project, withScenes(project, sum > LIMITS.maxTotalFrames ? rebalance(scenes, LIMITS.maxTotalFrames) : scenes));
   const errors = validateTimeline(project);
   if (errors.length) throw new Error(`تعذر إصلاح توقيت المشروع: ${errors.join('، ')}`);
   return project;

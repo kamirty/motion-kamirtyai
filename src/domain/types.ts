@@ -1,5 +1,6 @@
 export const FPS = 30;
-export const DURATION_FRAMES = 3600; // 120 s at 30 fps
+/** Default length for a newly generated video (120 s at 30 fps); the real length is the sum of its scenes. */
+export const DURATION_FRAMES = 3600;
 
 export const SCENE_KINDS = [
   'hero', 'steps', 'comparison', 'stat', 'timeline', 'quote', 'summary', 'outro',
@@ -82,7 +83,8 @@ export interface Project {
   title: string;
   locale: 'ar';
   fps: typeof FPS;
-  durationFrames: typeof DURATION_FRAMES;
+  /** Always the sum of the scene durations. */
+  durationFrames: number;
   size: { width: number; height: number };
   theme: Theme;
   scenes: Scene[];
@@ -137,4 +139,7 @@ export const LIMITS = {
   items: 6,
   scenes: 20,
   minSceneFrames: 3 * FPS,
+  maxSceneFrames: 120 * FPS,
+  /** Longest video: 10 minutes. */
+  maxTotalFrames: 600 * FPS,
 };

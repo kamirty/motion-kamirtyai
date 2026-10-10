@@ -21,7 +21,7 @@ export function sceneAt(project: Project, frameIndex: number): Scene | null {
 export function validateTimeline(project: Project): string[] {
   const errors: string[] = [];
   if (project.fps !== FPS) errors.push(`fps must be ${FPS}`);
-  if (project.durationFrames !== DURATION_FRAMES) errors.push(`durationFrames must be ${DURATION_FRAMES}`);
+  if (project.durationFrames > LIMITS.maxTotalFrames) errors.push(`durationFrames must be at most ${LIMITS.maxTotalFrames}`);
   if (project.scenes.length === 0) errors.push('at least one scene is required');
 
   let cursor = 0;
@@ -82,20 +82,23 @@ export function rebalance(scenes: Scene[], total: number = DURATION_FRAMES): Sce
   return restack(scenes.map((s, i) => ({ ...s, durationFrames: frames[i] })));
 }
 
-/**
- * Sets one scene's duration and scales the others to keep the total fixed.
- * The requested duration is clamped so every other scene keeps the minimum length.
- */
-export function setSceneDuration(scenes: Scene[], index: number, frames: number, total: number = DURATION_FRAMES): Scene[] {
-  if (scenes.length === 1) return restack([{ ...scenes[0], durationFrames: total }]);
-  // Every other scene keeps its exact length; only the last scene (or the one before it, when the
-  // last is being edited) absorbs the difference so the video stays exactly `total` frames.
-  const last = scenes.length - 1;
-  const absorber = index === last ? last - 1 : last;
-  const fixed = scenes.reduce((sum, s, i) => (i === index || i === absorber ? sum : sum + s.durationFrames), 0);
-  const pool = total - fixed;
-  const clamped = Math.round(Math.min(pool - LIMITS.minSceneFrames, Math.max(LIMITS.minSceneFrames, frames)));
-  return restack(
-    scenes.map((s, i) => (i === index ? { ...s, durationFrames: clamped } : i === absorber ? { ...s, durationFrames: pool - clamped } : s)),
-  );
+/** Total length of a scene list (the video length). */
+export const totalFrames = (scenes: Scene[]): number => scenes.reduce((a, s) => a + s.durationFrames, 0);
+
+/** Restacks scenes and sets the project length to their sum. */
+export function withScenes<P extends Project>(project: P, scenes: Scene[]): P {
+  const stacked = restack(scenes);
+  return { ...project, scenes: stacked, durationFrames: totalFrames(stacked) };
+}
+
+/** Longest a scene may be without pushing the video past LIMITS.maxTotalFrames. */
+export function maxSceneFrames(scenes: Scene[], index: number): number {
+  const others = totalFrames(scenes) - (scenes[index]?.durationFrames ?? 0);
+  return Math.max(LIMITS.minSceneFrames, Math.min(LIMITS.maxSceneFrames, LIMITS.maxTotalFrames - others));
+}
+
+/** Sets one scene's duration; every other scene keeps its exact length (the video grows or shrinks). */
+export function setSceneDuration(scenes: Scene[], index: number, frames: number): Scene[] {
+  const clamped = Math.round(Math.min(maxSceneFrames(scenes, index), Math.max(LIMITS.minSceneFrames, frames)));
+  return restack(scenes.map((s, i) => (i === index ? { ...s, durationFrames: clamped } : s)));
 }
