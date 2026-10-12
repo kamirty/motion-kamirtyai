@@ -9,6 +9,7 @@ import { HEADER } from '../timing';
 import { clamp, easeOutBack, easeOutCubic, progress } from './animation';
 import type { Ctx2D, FontSpec } from './context';
 import { drawIcon } from './icons';
+import { activeLook } from './look';
 import { drawLines, fitText } from './textLayout';
 
 export interface Layout {
@@ -62,6 +63,13 @@ export function roundRect(ctx: Ctx2D, x: number, y: number, w: number, h: number
  * fast on machines without GPU canvas acceleration.
  */
 export function card(ctx: Ctx2D, theme: Required<Theme>, x: number, y: number, w: number, h: number, r = 22, fill = theme.surface): void {
+  if (activeLook() !== 'modern') {
+    // Minimal and cartoon draw their own edge/shadow (see look.ts).
+    ctx.fillStyle = fill;
+    roundRect(ctx, x, y, w, h, r);
+    ctx.fill();
+    return;
+  }
   ctx.fillStyle = alpha('#000000', 0.07);
   roundRect(ctx, x - 2, y + 4, w + 4, h + 6, r + 2);
   ctx.fill();

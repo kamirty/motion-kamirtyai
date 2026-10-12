@@ -5,6 +5,7 @@ import { styleOf, type DigitSystem, type Project, type ProjectStyle, type Scene,
 import { TRANSITION_FRAMES, easeInOutCubic, hash01, progress } from './animation';
 import { fontSpec, type Ctx2D } from './context';
 import { drawSceneImage } from './imageLayer';
+import { beginLook } from './look';
 import { drawScene, layoutFor, type Layout } from './scenes';
 
 const localized = new WeakMap<Scene, Map<string, Scene>>();
@@ -212,7 +213,9 @@ export function renderFrame(project: Project, frameIndex: number, ctx: Ctx2D, ou
   ctx.direction = 'rtl';
   ctx.textBaseline = 'alphabetic';
 
-  drawBackground(ctx, L, theme, style, frameIndex);
+  // Minimal look: a calm plain background; the look layer then wraps the content drawing.
+  drawBackground(ctx, L, theme, style.look === 'minimal' ? { ...style, background: 'plain' } : style, frameIndex);
+  const endLook = beginLook(ctx, style.look, theme);
 
   const index = sceneIndexAt(project, frameIndex);
   const raw = project.scenes[index];
@@ -271,6 +274,7 @@ export function renderFrame(project: Project, frameIndex: number, ctx: Ctx2D, ou
     }
   }
 
+  endLook();
   // Overall progress bar (fills right→left). No logo or site mark is drawn on the video.
   const p = Math.min(1, (frameIndex + 1) / project.durationFrames);
   ctx.globalAlpha = 1;
