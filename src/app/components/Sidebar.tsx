@@ -144,6 +144,15 @@ export function Sidebar(p: Props) {
           </button>
         </div>
 
+        <label className="label">النمط البصري</label>
+        <div className="seg">
+          {([['modern', 'عصري', 'تدرجات وظلال ناعمة'], ['minimal', 'بسيط', 'ألوان مسطحة وخلفية هادئة'], ['cartoon', 'كرتوني', 'حدود سميكة وظلال بارزة']] as const).map(([id, label, hint]) => (
+            <button type="button" key={id} title={hint} className={style.look === id ? 'active' : ''} aria-pressed={style.look === id} onClick={() => p.onStyle({ look: id })}>
+              {label}
+            </button>
+          ))}
+        </div>
+
         <label className="label">سرعة الحركة</label>
         <div className="seg">
           {([['calm', 'هادئة'], ['balanced', 'متوازنة'], ['fast', 'سريعة']] as const).map(([id, label]) => (

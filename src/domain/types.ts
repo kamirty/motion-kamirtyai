@@ -61,6 +61,9 @@ export interface Scene {
 export type EntranceId = 'none' | 'rise' | 'drop' | 'zoom' | 'side' | 'spin';
 export const ENTRANCES: readonly EntranceId[] = ['none', 'rise', 'drop', 'zoom', 'side', 'spin'];
 
+export type LookId = 'modern' | 'minimal' | 'cartoon';
+export const LOOKS: readonly LookId[] = ['modern', 'minimal', 'cartoon'];
+
 export type DigitSystem = 'arabic' | 'latin';
 export type TransitionId = 'fade' | 'slide' | 'zoom' | 'wipe';
 export type MusicId = 'none' | 'calm' | 'bright' | 'epic';
@@ -77,6 +80,8 @@ export interface ProjectStyle {
   sfx: boolean;
   /** Motion speed: how spread out element reveals are. */
   pace: 'calm' | 'balanced' | 'fast';
+  /** Visual look applied to every scene. */
+  look: LookId;
 }
 
 export interface Project {
@@ -101,6 +106,7 @@ export const DEFAULT_STYLE: ProjectStyle = {
   music: 'calm',
   sfx: true,
   pace: 'balanced',
+  look: 'modern',
 };
 
 export const styleOf = (project: Project): ProjectStyle => ({ ...DEFAULT_STYLE, ...project.style });

@@ -12,6 +12,8 @@ export function createFakeCtx(): { ctx: Ctx2D; ops: string[] } {
   const gradient = () => ({ addColorStop: (o: number, c: string) => ops.push(`stop(${fmt(o)},${c})`) });
   const handler: ProxyHandler<object> = {
     get(_t, prop: string) {
+      // Methods a test or the look layer installed on the instance win over the built-ins.
+      if (typeof state[prop] === 'function') return state[prop];
       if (prop === 'measureText') return (text: string) => ({ width: [...text].length * fontSize() * 0.5 });
       if (prop === 'createLinearGradient' || prop === 'createRadialGradient') {
         return (...args: unknown[]) => {
@@ -34,6 +36,10 @@ export function createFakeCtx(): { ctx: Ctx2D; ops: string[] } {
       return (...args: unknown[]) => {
         ops.push(`${prop}(${args.map(fmt).join(',')})`);
       };
+    },
+    deleteProperty(_t, prop: string) {
+      delete state[prop];
+      return true;
     },
     set(_t, prop: string, value) {
       state[prop] = value;
