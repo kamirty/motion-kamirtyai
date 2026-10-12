@@ -7,10 +7,11 @@ import { alpha, mix, readableOn } from '../../design/presets';
 import type { DigitSystem, EntranceId, Scene, Theme } from '../../domain/types';
 import { HEADER } from '../timing';
 import { bounceOut, clamp, easeOutBack, easeOutCubic, progress } from './animation';
-import type { Ctx2D, FontSpec } from './context';
+import { font, type Ctx2D, type FontSpec } from './context';
 import { drawIcon } from './icons';
+import { orbitRing, typewriter, waveLine } from './ambient';
 import { activeLook } from './look';
-import { drawLines, fitText } from './textLayout';
+import { drawLines, fitText, type FittedText } from './textLayout';
 
 export interface Layout {
   W: number;
@@ -84,7 +85,7 @@ export function card(ctx: Ctx2D, theme: Required<Theme>, x: number, y: number, w
 }
 
 /** Accent disc with the scene icon in a readable colour. */
-export function iconBadge(ctx: Ctx2D, theme: Required<Theme>, icon: string, cx: number, cy: number, r: number, color = theme.accent): void {
+export function iconBadge(ctx: Ctx2D, theme: Required<Theme>, icon: string, cx: number, cy: number, r: number, color = theme.accent, drawn = 1): void {
   if (r <= 0) return;
   const grad = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
   grad.addColorStop(0, color);
@@ -93,41 +94,45 @@ export function iconBadge(ctx: Ctx2D, theme: Required<Theme>, icon: string, cx: 
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fill();
-  if (icon) drawIcon(ctx, icon, cx, cy, r * 1.05, readableOn(color), 2);
+  if (icon) drawIcon(ctx, icon, cx, cy, r * 1.05, readableOn(color), 2, drawn);
 }
 
 /** Scene title with icon badge; returns the y where content can start. */
 export function drawHeader(a: SceneDrawArgs): number {
   const { ctx, scene, theme, frame, layout: L, font: fs } = a;
   const t = appear(frame, HEADER.icon, 24);
+  // The icon traces itself in, then a dashed ring keeps turning around it.
+  const drawn = easeOutCubic(progress(frame, HEADER.icon + 6, 34));
+  const typed = progress(frame, HEADER.title, 30);
   const top = L.portrait ? L.M * 2.2 : L.M * 0.9;
+  const typeLines = (fitted: FittedText, right: (w: number) => number, textTop: number) => {
+    ctx.font = font(fs, fitted.weight, fitted.fontSize);
+    const widths = fitted.lines.map((l) => ctx.measureText(l).width);
+    typewriter(ctx, typed, fitted.lines.length, fitted.lineHeight, textTop, (i) => right(widths[i]), (i) => widths[i], theme.accent, frame, () => {
+      ctx.fillStyle = theme.foreground;
+      drawLines(ctx, fs, fitted, ctx.textAlign === 'center' ? L.W / 2 : right(0), textTop);
+    });
+  };
   if (L.portrait) {
     const r = 46;
-    withAlpha(ctx, t, () => iconBadge(ctx, theme, scene.icon, L.W / 2, top + r, r * easeOutBack(t)));
+    orbitRing(ctx, L.W / 2, top + r, r, theme.accent, frame, t);
+    withAlpha(ctx, t, () => iconBadge(ctx, theme, scene.icon, L.W / 2, top + r, r * easeOutBack(t), theme.accent, drawn));
     const fitted = fitText(ctx, fs, scene.title, { maxWidth: L.W - L.M * 2, maxLines: 3, maxSize: 52, minSize: 30, weight: 'bold', lineHeight: 1.45 });
-    withAlpha(ctx, appear(frame, HEADER.title, 24), () => {
-      ctx.fillStyle = theme.foreground;
-      ctx.textAlign = 'center';
-      drawLines(ctx, fs, fitted, L.W / 2, top + r * 2 + 24 + (1 - t) * 20);
-    });
+    ctx.textAlign = 'center';
+    typeLines(fitted, (w) => L.W / 2 + w / 2, top + r * 2 + 24);
     return top + r * 2 + 24 + fitted.height + 40;
   }
   const r = 36;
   const badgeX = L.W - L.M - r;
-  withAlpha(ctx, t, () => iconBadge(ctx, theme, scene.icon, badgeX, top + r, r * easeOutBack(t)));
-  const fitted = fitText(ctx, fs, scene.title, { maxWidth: L.W - L.M * 2 - r * 2 - 28, maxLines: 2, maxSize: 48, minSize: 28, weight: 'bold', lineHeight: 1.4 });
+  orbitRing(ctx, badgeX, top + r, r, theme.accent, frame, t);
+  withAlpha(ctx, t, () => iconBadge(ctx, theme, scene.icon, badgeX, top + r, r * easeOutBack(t), theme.accent, drawn));
+  const fitted = fitText(ctx, fs, scene.title, { maxWidth: L.W - L.M * 2 - r * 2 - 40, maxLines: 2, maxSize: 48, minSize: 28, weight: 'bold', lineHeight: 1.4 });
   const textTop = top + r - Math.max(fitted.height, r * 2) / 2 + Math.max(0, (r * 2 - fitted.height) / 2);
-  withAlpha(ctx, appear(frame, HEADER.title, 24), () => {
-    ctx.fillStyle = theme.foreground;
-    ctx.textAlign = 'right';
-    drawLines(ctx, fs, fitted, badgeX - r - 24 + (1 - t) * -30, textTop);
-  });
-  // Accent underline grows from the right.
-  const lineW = Math.min(fitted.width, 220) * appear(frame, 14, 30);
+  ctx.textAlign = 'right';
+  typeLines(fitted, () => badgeX - r - 30, textTop);
+  // Accent underline grows from the right, then ripples.
   const lineY = Math.max(top + r * 2, textTop + fitted.height) + 14;
-  ctx.fillStyle = theme.accent;
-  roundRect(ctx, badgeX - r - 24 - lineW, lineY, lineW, 6, 3);
-  ctx.fill();
+  waveLine(ctx, badgeX - r - 30, lineY, Math.min(fitted.width, 220), theme.accent, frame, appear(frame, 14, 30));
   return lineY + 44;
 }
 

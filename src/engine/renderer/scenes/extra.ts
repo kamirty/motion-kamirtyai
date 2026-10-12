@@ -3,6 +3,7 @@ import { alpha, mix, readableOn, textAccent } from '../../../design/presets';
 import { clamp, easeOutBack, easeOutCubic, progress } from '../animation';
 import { font } from '../context';
 import { drawIcon } from '../icons';
+import { confetti } from '../ambient';
 import { appear, drawHeader, itemEnter, roundRect, withAlpha, type SceneDrawArgs } from '../kit';
 import { drawLines, fitText } from '../textLayout';
 import { beforeAfterParts, chartRows, shownItems, trueFalseParts } from '../../sceneModel';
@@ -78,6 +79,8 @@ export function drawRanking(a: SceneDrawArgs): void {
       });
     });
   }
+  // Confetti when the winner takes first place.
+  confetti(ctx, slotX(0), floor - heights[0] - 44, frame - itemReveal(scene, 0, n) - 16, MEDALS.concat(theme.accent), 11);
   // Floor line.
   ctx.fillStyle = alpha(theme.foreground, 0.2);
   ctx.fillRect(areaR - areaW, floor, areaW, 4);
@@ -176,6 +179,7 @@ export function drawTrueFalse(a: SceneDrawArgs): void {
       ctx.textBaseline = 'alphabetic';
       ctx.restore();
     }));
+    if (right) confetti(ctx, cx, cy, frame - revealAt, [color, theme.accent, '#FFD166', '#6C63FF'], 7);
   });
   if (answer === null) return;
   // Countdown, then the note under the choices.

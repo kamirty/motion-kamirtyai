@@ -87,7 +87,7 @@ export function drawSummary(a: SceneDrawArgs): void {
         ctx.beginPath();
         ctx.arc(x + tw / 2, y, r, 0, Math.PI * 2);
         ctx.fill();
-        drawIcon(ctx, icons[i], x + tw / 2, y, r * 1.05, readableOn(color), 2.2);
+        drawIcon(ctx, icons[i], x + tw / 2, y, r * 1.05, readableOn(color), 2.2, progress(frame, itemReveal(scene, i, n) + 6, 34));
       }
     }));
   });

@@ -53,7 +53,7 @@ describe('renderFrame', () => {
           ...base,
           size: { width: ASPECTS[aspect].width, height: ASPECTS[aspect].height },
           scenes: kinds.map((s, i) => ({ ...s, startFrame: i * 450, durationFrames: 450 })),
-          style: { transition, background: (['gradient', 'dots', 'waves', 'plain'] as const)[kinds.length % 4] },
+          style: { transition, background: (['gradient', 'dots', 'waves', 'plain', 'bubbles', 'aurora'] as const)[kinds.length % 6] },
         };
         for (let f = 0; f < 3600; f += 61) expect(() => render(p, f)).not.toThrow();
       }

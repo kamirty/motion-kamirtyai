@@ -121,7 +121,9 @@
             "gradient",
             "dots",
             "waves",
-            "plain"
+            "plain",
+            "bubbles",
+            "aurora"
           ]
         },
         "music": {
