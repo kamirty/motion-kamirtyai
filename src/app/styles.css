@@ -366,3 +366,20 @@ pre { overflow-x: auto; font-size: 0.75rem; background: var(--panel-2); padding:
 .timing-list input { flex: 0 0 76px; width: 76px; min-width: 0; direction: ltr; text-align: center; }
 .sync-box { border: 2px dashed var(--accent, #FFEB3B); border-radius: 12px; padding: 10px; display: grid; gap: 8px; }
 .sync-tap { font-size: 1rem; padding: 14px; white-space: normal; }
+
+/* Teacher workflow */
+.teacher-box { border-top: 4px solid #FFEB3B; }
+.teacher-box .primary { width: 100%; }
+.modal.wizard { width: min(680px, 100%); }
+.wizard-steps { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; padding: 0; margin: 14px 0; }
+.wizard-steps button { font-size: 0.85rem; padding: 6px 10px; border-radius: 999px; }
+.wizard-steps button.active { background: #FFEB3B; border-color: #111; color: #111; font-weight: 700; }
+.wizard-steps button.done { opacity: 0.75; }
+.wizard-body { display: grid; gap: 10px; min-height: 240px; }
+.wizard-body .field { display: grid; gap: 4px; flex: 1; }
+.wizard-body .field input, .wizard-body .field textarea { width: 100%; }
+.wizard-body .lines { display: grid; gap: 6px; }
+.wizard-body .item-row { display: flex; gap: 6px; align-items: center; }
+.wizard-body .item-row input:not([type=radio]) { flex: 1; min-width: 0; }
+.wizard-summary { background: var(--surface, rgba(127,127,127,0.08)); border-radius: 12px; padding: 10px 12px; }
+.wizard-nav { justify-content: space-between; margin-top: 14px; }
