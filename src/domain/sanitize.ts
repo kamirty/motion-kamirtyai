@@ -76,7 +76,8 @@ export function parseProject(input: unknown): Project {
       icon: str(s.icon, 60) || 'sparkles',
       ...parseImages(s),
       ...parseReveals(s.reveals),
-      ...(s.entrance && s.entrance !== 'none' ? { entrance: pick(s.entrance, ENTRANCES, 'none') } : {}),
+      // Absent (or unknown) means automatic; 'none' is an explicit choice and is kept.
+      ...((ENTRANCES as readonly unknown[]).includes(s.entrance) ? { entrance: s.entrance as Scene['entrance'] } : {}),
     };
   });
 
@@ -91,6 +92,7 @@ export function parseProject(input: unknown): Project {
     sfx: typeof st.sfx === 'boolean' ? st.sfx : DEFAULT_STYLE.sfx,
     pace: pick(st.pace, ['calm', 'balanced', 'fast'] as const, DEFAULT_STYLE.pace),
     look: pick(st.look, LOOKS, DEFAULT_STYLE.look),
+    variety: typeof st.variety === 'boolean' ? st.variety : DEFAULT_STYLE.variety,
   };
 
   const project: Project = {

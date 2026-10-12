@@ -54,12 +54,12 @@ export interface Scene {
   images?: SceneImage[];
   /** Custom reveal frame (from scene start) per item, set by tap-to-sync or the timing editor. */
   reveals?: number[];
-  /** How the scene's content enters, on top of the project transition. */
+  /** How the scene's content enters, on top of the project transition; absent = automatic. */
   entrance?: EntranceId;
 }
 
-export type EntranceId = 'none' | 'rise' | 'drop' | 'zoom' | 'side' | 'spin';
-export const ENTRANCES: readonly EntranceId[] = ['none', 'rise', 'drop', 'zoom', 'side', 'spin'];
+export type EntranceId = 'none' | 'rise' | 'drop' | 'zoom' | 'side' | 'spin' | 'pop' | 'bounce' | 'flip' | 'wipe' | 'iris' | 'swing';
+export const ENTRANCES: readonly EntranceId[] = ['none', 'rise', 'drop', 'zoom', 'side', 'spin', 'pop', 'bounce', 'flip', 'wipe', 'iris', 'swing'];
 
 export type LookId = 'modern' | 'minimal' | 'cartoon';
 export const LOOKS: readonly LookId[] = ['modern', 'minimal', 'cartoon'];
@@ -80,6 +80,8 @@ export interface ProjectStyle {
   sfx: boolean;
   /** Motion speed: how spread out element reveals are. */
   pace: 'calm' | 'balanced' | 'fast';
+  /** Scenes without their own entrance get a varied one automatically. */
+  variety: boolean;
   /** Visual look applied to every scene. */
   look: LookId;
 }
@@ -107,6 +109,7 @@ export const DEFAULT_STYLE: ProjectStyle = {
   sfx: true,
   pace: 'balanced',
   look: 'modern',
+  variety: true,
 };
 
 export const styleOf = (project: Project): ProjectStyle => ({ ...DEFAULT_STYLE, ...project.style });

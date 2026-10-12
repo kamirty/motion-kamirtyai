@@ -16,6 +16,32 @@ function path2d(d: string): Path2D | null {
 }
 
 /**
+ * Frame clock for the icons' idle motion, set by renderFrame for each frame it draws (so the
+ * motion is a pure function of the frame, identical in preview and export).
+ */
+let clock = 0;
+let lively = true;
+export function setIconClock(frame: number, enabled = true): void {
+  clock = frame;
+  lively = enabled;
+}
+
+/**
+ * Idle motion of an icon at (cx, cy): a gentle bob, a slow tilt, a soft pulse and, every four
+ * seconds, a short playful wiggle. Each icon gets its own phase from its position so a row of
+ * icons never moves in lockstep. Small icons (markers, pictogram units) stay still.
+ */
+function idle(cx: number, cy: number, size: number): { dy: number; rot: number; scale: number } {
+  if (!lively || size < 26) return { dy: 0, rot: 0, scale: 1 };
+  const phase = (((Math.round(cx) * 73856093) ^ (Math.round(cy) * 19349663)) >>> 0) % 997;
+  const f = clock + phase;
+  let rot = Math.sin(f / 27) * 0.05;
+  const w = (f * 1.0) % 120;
+  if (w < 18) rot += Math.sin((w / 18) * Math.PI * 3) * 0.2 * (1 - w / 18);
+  return { dy: Math.sin(f / 16) * size * 0.03, rot, scale: 1 + 0.035 * Math.sin(f / 11) };
+}
+
+/**
  * Draws a 24×24 Lucide icon centred at (cx, cy) scaled to `size`, stroked like the SVG original
  * (2px round strokes, no fill). Unknown ids draw a ring so a scene never fails to render.
  */
@@ -23,8 +49,12 @@ export function drawIcon(ctx: Ctx2D, id: string, cx: number, cy: number, size: n
   if (size <= 0) return;
   const icon = iconById(id);
   const k = size / 24;
+  const m = idle(cx, cy, size);
   ctx.save();
-  ctx.translate(cx - size / 2, cy - size / 2);
+  ctx.translate(cx, cy + m.dy);
+  if (m.rot) ctx.rotate(m.rot);
+  if (m.scale !== 1) ctx.scale(m.scale, m.scale);
+  ctx.translate(-size / 2, -size / 2);
   ctx.scale(k, k);
   ctx.strokeStyle = color;
   ctx.lineWidth = strokeWidth;

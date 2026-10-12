@@ -153,6 +153,11 @@ export function Sidebar(p: Props) {
           ))}
         </div>
 
+        <label className="check">
+          <input type="checkbox" checked={style.variety} onChange={(e) => p.onStyle({ variety: e.target.checked })} />
+          نوّع حركة دخول المشاهد تلقائيًا (قفزة، مسح، دائرة، تأرجح…)
+        </label>
+
         <label className="label">سرعة الحركة</label>
         <div className="seg">
           {([['calm', 'هادئة'], ['balanced', 'متوازنة'], ['fast', 'سريعة']] as const).map(([id, label]) => (

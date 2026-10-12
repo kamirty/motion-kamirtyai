@@ -59,7 +59,7 @@ describe('entrance and validation', () => {
     expect(p.scenes[0].reveals).toEqual([10, 20]);
     expect(p.scenes[0].entrance).toBe('zoom');
     expect(p.scenes[1].reveals).toBeUndefined();
-    expect(p.scenes[1].entrance).toBe('none');
+    expect(p.scenes[1].entrance).toBeUndefined(); // unknown → automatic
     const validate = new Ajv2020({ allErrors: true }).compile(schema);
     expect(validate(JSON.parse(JSON.stringify(p))), JSON.stringify(validate.errors)).toBe(true);
   });

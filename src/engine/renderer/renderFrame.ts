@@ -1,11 +1,12 @@
 import { localizeDigits } from '../../design/digits';
 import { alpha, fullTheme, mix } from '../../design/presets';
 import { sceneIndexAt } from '../../domain/timeline';
-import { styleOf, type DigitSystem, type Project, type ProjectStyle, type Scene, type Theme } from '../../domain/types';
-import { TRANSITION_FRAMES, easeInOutCubic, hash01, progress } from './animation';
+import { styleOf, type DigitSystem, type EntranceId, type Project, type ProjectStyle, type Scene, type Theme } from '../../domain/types';
+import { TRANSITION_FRAMES, easeInOutCubic, easeOutBack, hash01, progress } from './animation';
 import { fontSpec, type Ctx2D } from './context';
 import { drawSceneImage } from './imageLayer';
 import { beginLook } from './look';
+import { setIconClock } from './icons';
 import { drawScene, layoutFor, type Layout } from './scenes';
 
 const localized = new WeakMap<Scene, Map<string, Scene>>();
@@ -24,6 +25,18 @@ function localizeScene(scene: Scene, digits: DigitSystem, pace: string): Scene {
 }
 
 let lowResCache: { canvas: OffscreenCanvas; ctx: OffscreenCanvasRenderingContext2D } | null = null;
+
+/** Ball-drop easing: falls, then bounces twice before resting. */
+function bounceOut(x: number): number {
+  const n = 7.5625, d = 2.75;
+  if (x < 1 / d) return n * x * x;
+  if (x < 2 / d) return n * (x -= 1.5 / d) * x + 0.75;
+  if (x < 2.5 / d) return n * (x -= 2.25 / d) * x + 0.9375;
+  return n * (x -= 2.625 / d) * x + 0.984375;
+}
+
+/** Rotation used by «تنويع تلقائي»: neighbouring scenes always enter differently. */
+const AUTO_ENTRANCES: EntranceId[] = ['rise', 'pop', 'wipe', 'side', 'iris', 'zoom', 'swing', 'drop', 'flip', 'bounce'];
 
 /** Content entrance over the first ENTRANCE_FRAMES of a scene; returns an opacity factor. */
 const ENTRANCE_FRAMES = 24;
@@ -45,6 +58,35 @@ function applyEntrance(ctx: Ctx2D, L: Layout, entrance: Scene['entrance'], local
       ctx.translate(cx, cy); ctx.rotate(-(1 - t) * 0.35); ctx.scale(k, k); ctx.translate(-cx, -cy);
       break;
     }
+    case 'pop': {
+      // Springs past full size, then settles.
+      const k = 0.5 + 0.5 * easeOutBack(progress(local, 0, ENTRANCE_FRAMES));
+      ctx.translate(cx, cy); ctx.scale(k, k); ctx.translate(-cx, -cy);
+      break;
+    }
+    case 'bounce':
+      ctx.translate(0, -(1 - bounceOut(progress(local, 0, ENTRANCE_FRAMES))) * L.H * 0.35);
+      return Math.min(1, t * 3);
+    case 'flip': {
+      const k = Math.max(0.02, t);
+      ctx.translate(cx, 0); ctx.scale(k, 1); ctx.translate(-cx, 0);
+      break;
+    }
+    case 'wipe':
+      // Revealed in reading order: from the right edge towards the left.
+      ctx.beginPath();
+      ctx.rect(L.W * (1 - t), 0, L.W * t, L.H);
+      ctx.clip();
+      return 1;
+    case 'iris':
+      ctx.beginPath();
+      ctx.arc(cx, cy, Math.hypot(cx, cy) * t, 0, Math.PI * 2);
+      ctx.clip();
+      return 1;
+    case 'swing':
+      // Hinged at the top-right corner like a sign swinging into place.
+      ctx.translate(L.W, 0); ctx.rotate((1 - t) * 0.5); ctx.translate(-L.W, 0);
+      break;
   }
   return t;
 }
@@ -214,6 +256,7 @@ export function renderFrame(project: Project, frameIndex: number, ctx: Ctx2D, ou
   ctx.textBaseline = 'alphabetic';
 
   // Minimal look: a calm plain background; the look layer then wraps the content drawing.
+  setIconClock(frameIndex);
   drawBackground(ctx, L, theme, style.look === 'minimal' ? { ...style, background: 'plain' } : style, frameIndex);
   const endLook = beginLook(ctx, style.look, theme);
 
@@ -250,7 +293,7 @@ export function renderFrame(project: Project, frameIndex: number, ctx: Ctx2D, ou
       case 'wipe':
         break;
     }
-    opacity *= applyEntrance(ctx, L, scene.entrance, local);
+    opacity *= applyEntrance(ctx, L, scene.entrance ?? (style.variety && index > 0 ? AUTO_ENTRANCES[index % AUTO_ENTRANCES.length] : 'none'), local);
     ctx.globalAlpha = opacity;
     if (opacity > 0.001) {
       const images = scene.images ?? [];
