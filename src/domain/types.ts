@@ -5,6 +5,7 @@ export const DURATION_FRAMES = 3600;
 export const SCENE_KINDS = [
   'hero', 'steps', 'comparison', 'stat', 'timeline', 'quote', 'summary', 'outro',
   'kpis', 'donut', 'columns', 'pictogram', 'cycle', 'pyramid', 'proscons', 'checklist', 'quiz', 'definition', 'chapter', 'tip',
+  'truefalse', 'ranking', 'linechart', 'beforeafter', 'warning',
 ] as const;
 export type SceneKind = (typeof SCENE_KINDS)[number];
 

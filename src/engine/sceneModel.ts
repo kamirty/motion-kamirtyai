@@ -101,3 +101,20 @@ export function quizParts(scene: Scene): { options: string[]; answer: number } {
   const answer = items.findIndex((it) => /(?:✓|✔|✅|\*)/u.test(it));
   return { options: items.map((it) => it.replace(ANSWER_MARK, ' ').trim()), answer };
 }
+
+/** True/false: the title is the statement, the first item the answer («صح» / «خطأ»), then a note. */
+export function trueFalseParts(scene: Scene): { answer: boolean | null; note: string } {
+  const [first = '', ...rest] = shownItems(scene);
+  const a = first.replace(/[✓✔✅✗✘❌]/gu, '').trim();
+  const answer = /^(صح|صحيح|صحيحة|نعم|true)$/iu.test(a) || /[✓✔✅]/u.test(first) ? true : /^(خطأ|خطا|خاطئ|خاطئة|لا|false)$/iu.test(a) || /[✗✘❌]/u.test(first) ? false : null;
+  return { answer, note: (answer === null ? [first, ...rest] : rest).join(' ').trim() };
+}
+
+/** Before/after: «قبل: …» and «بعد: …» (or simply the first and second items). */
+export function beforeAfterParts(scene: Scene): { before: string; after: string } {
+  const items = shownItems(scene);
+  const strip = (s: string) => s.replace(/^\s*(?:قبل|بعد|before|after)\s*[:：\-–—]\s*/iu, '').trim();
+  const before = items.find((i) => /^\s*(?:قبل|before)(?![\p{L}])/iu.test(i)) ?? items[0] ?? '';
+  const after = items.find((i) => /^\s*(?:بعد|after)(?![\p{L}])/iu.test(i)) ?? items.find((i) => i !== before) ?? '';
+  return { before: strip(before), after: strip(after) };
+}

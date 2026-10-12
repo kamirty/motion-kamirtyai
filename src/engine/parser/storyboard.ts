@@ -58,6 +58,15 @@ const STEPS_HINT = /(?:خطوات|خطوة|مراحل|طريقة|طرق|كيف|�
 const ORDERED_MARKER = /^\s*\(?[0-9٠-٩]{1,2}\s*[.)\-–:]/;
 const isQuestion = (t: string) => /[؟?]\s*$/.test(t);
 
+// True/false: "صح أم خطأ: العبارة" then optionally "الإجابة: صح، لأن …".
+const TRUE_FALSE = /^(?:صح|صحيح)\s*(?:أم|ام|أو|او)\s*(?:خطأ|خطا)\s*[؟?]?\s*[:：\-–—]\s*(.{4,})$/u;
+const TF_ANSWER = /^(?:(?:الإجابة|الاجابة|الجواب)\s*[:：\-–—]?\s*)?(صح|صحيح|خطأ|خطا)(?![\p{L}])\s*[،,.:：\-–—]?\s*(.*)$/u;
+// Before/after: "قبل: …" followed by "بعد: …".
+const BEFORE_LINE = /^قبل\s*[:：\-–—]\s*(.+)$/u;
+const AFTER_LINE = /^بعد\s*[:：\-–—]\s*(.+)$/u;
+// Warnings: an explicit "تحذير:" / "تنبيه:" line.
+const WARNING_LINE = /^(?:[\p{Extended_Pictographic}\u200d\ufe0f]+\s*)?(?:تحذير|تنبيه)\s*[!！]?\s*[:：\-–—]\s*(.+)$/u;
+
 // Tips: "هل تعلم أن …؟" and "نصيحة: …" (also "نصيحة اليوم: …", "💡 نصيحة: …").
 const DID_YOU_KNOW = /^(?:[\p{Extended_Pictographic}\u200d\ufe0f]+\s*)?هل\s+تعلم(?:ين|ون)?(?![\p{L}])\s*[؟?!:：،,]?\s*/u;
 /** "هل تعلم كيف/لماذا/ما …؟" asks a question that the next sentence answers; it is not a tip. */
@@ -440,6 +449,33 @@ function blocksToScenes(blocks: Block[]): DraftScene[] {
 
     if (block.type === 'sentence') {
       const text = block.text;
+
+      const tf = TRUE_FALSE.exec(text);
+      if (tf) {
+        flushSentences();
+        const ans = next?.type === 'sentence' ? TF_ANSWER.exec(next.text) : null;
+        const items = ans ? [/^خط/u.test(ans[1]) ? 'خطأ' : 'صح', ...(trimPunct(ans[2]) ? [clampWords(trimPunct(ans[2]), MAX_ITEM)] : [])] : [];
+        push('truefalse', trimPunct(tf[1]).replace(/[؟?]$/u, ''), items, 'circle-help');
+        if (ans) b++;
+        continue;
+      }
+      const before = BEFORE_LINE.exec(text);
+      const after = before && next?.type === 'sentence' ? AFTER_LINE.exec(next.text) : null;
+      if (before && after) {
+        flushSentences();
+        push('beforeafter', 'قبل وبعد', [`قبل: ${clampWords(trimPunct(before[1]), MAX_ITEM)}`, `بعد: ${clampWords(trimPunct(after[1]), MAX_ITEM)}`], 'arrow-left-right');
+        b++;
+        continue;
+      }
+      const warn = WARNING_LINE.exec(text);
+      if (warn) {
+        flushSentences();
+        const body = trimPunct(warn[1]);
+        if (body.length <= 70) push('warning', body, [], 'triangle-alert');
+        else push('warning', 'تنبيه!', [clampWords(body, MAX_ITEM)], 'triangle-alert');
+        continue;
+      }
+
       let kind = sentenceKind(text);
 
       if (kind === 'tip') {
@@ -629,6 +665,7 @@ function weightOf(s: DraftScene): number {
   const base: Record<SceneKind, number> = {
     hero: 8, outro: 7, stat: 9, steps: 8, comparison: 9, timeline: 9, quote: 8, summary: 7,
     kpis: 9, donut: 9, columns: 9, pictogram: 9, cycle: 9, pyramid: 9, proscons: 9, checklist: 8, quiz: 12, definition: 8, chapter: 5, tip: 8,
+    truefalse: 11, ranking: 10, linechart: 9, beforeafter: 9, warning: 7,
   };
   return base[s.kind] + Math.min(10, chars / 18) + s.items.length * 0.8;
 }

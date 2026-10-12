@@ -5,6 +5,26 @@ import type { Scene, SceneKind } from '../../domain/types';
  * tests and by the visual review harness. `long` variants stress wrapping and limits.
  */
 export const KIND_SAMPLES: Partial<Record<SceneKind, { title: string; items: string[]; icon: string }[]>> = {
+  truefalse: [
+    { title: 'الماء يغلي عند 100 درجة مئوية عند سطح البحر', items: ['صح', 'عند الضغط الجوي العادي 1 atm يغلي الماء عند 100°C.'], icon: 'circle-help' },
+    { title: 'الشمس تدور حول الأرض', items: ['خطأ', 'الأرض هي التي تدور حول الشمس مرة كل 365 يومًا.'], icon: 'sun' },
+  ],
+  ranking: [
+    { title: 'أكبر الدول العربية مساحة (مليون كم²)', items: ['الجزائر: 2.38', 'السعودية: 2.15', 'السودان: 1.88', 'ليبيا: 1.76', 'مصر: 1.01'], icon: 'trophy' },
+    { title: 'أبطال مسابقة القراءة', items: ['سارة أحمد', 'محمد علي', 'نورة خالد'], icon: 'trophy' },
+  ],
+  linechart: [
+    { title: 'مستخدمو الإنترنت في العالم (مليار)', items: ['2010: 2', '2014: 2.9', '2018: 3.9', '2022: 5.3', '2024: 5.5'], icon: 'chart-line' },
+    { title: 'درجات الطالب خلال الفصل', items: ['الأسبوع 1: 60', 'الأسبوع 2: 68', 'الأسبوع 3: 75', 'الأسبوع 4: 90'], icon: 'chart-line' },
+  ],
+  beforeafter: [
+    { title: 'غرفة الصف قبل المبادرة وبعدها', items: ['قبل: نفايات على الأرض وإضاءة ضعيفة', 'بعد: صف نظيف ومنظم بإضاءة LED موفرة'], icon: 'sparkles' },
+    { title: 'استهلاك الماء في البيت', items: ['قبل: 250 لترًا يوميًا', 'بعد: 150 لترًا يوميًا بعد الترشيد'], icon: 'droplet' },
+  ],
+  warning: [
+    { title: 'لا تشارك كلمة المرور مع أحد', items: ['حتى لو ادّعى أنه من الدعم الفني أو البنك.', 'فعّل التحقق بخطوتين 2FA'], icon: 'triangle-alert' },
+    { title: 'احذر من الشمس وقت الظهيرة', items: ['تجنّب الخروج من 12 إلى 3 عصرًا في الصيف واشرب الماء باستمرار.'], icon: 'sun' },
+  ],
   hero: [
     { title: 'رحلة قطرة الماء', items: ['كيف تصل المياه إلى بيوتنا؟'], icon: 'droplet' },
     { title: 'الذكاء الاصطناعي AI في حياتنا اليومية 2026', items: ['دليل مبسّط للطلاب وأولياء الأمور في ٥ دقائق'], icon: 'brain-circuit' },
