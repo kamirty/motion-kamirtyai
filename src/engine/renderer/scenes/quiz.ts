@@ -6,6 +6,7 @@ import { card, drawHeader, itemEnter, withAlpha, type SceneDrawArgs } from '../k
 import { QUIZ_COUNTDOWN, itemReveal, quizCountdown } from '../../timing';
 import { quizParts } from '../../sceneModel';
 import { drawIcon } from '../icons';
+import { confetti } from '../ambient';
 import { discLabel, measure } from './common';
 import { drawLines } from '../textLayout';
 
@@ -74,6 +75,7 @@ export function drawQuiz(a: SceneDrawArgs): void {
       drawLines(ctx, fs, f, x + cw - pad, y + ch / 2 - f.height / 2);
       ctx.restore();
     }));
+    if (correct) confetti(ctx, x + cw / 2, y + ch / 2, frame - revealAt, [theme.accent, theme.accent2, '#FF6B6B', '#4ECDC4'], 3);
   });
   if (answer < 0) return;
   // Countdown ring with the current digit.

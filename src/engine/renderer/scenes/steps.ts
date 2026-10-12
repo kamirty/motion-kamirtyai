@@ -2,7 +2,8 @@ import { alpha, mix, readableOn } from '../../../design/presets';
 import { localizeDigits } from '../../../design/digits';
 import { clamp, easeOutBack, easeOutCubic, progress } from '../animation';
 import { font } from '../context';
-import { drawHeader, itemEnter, roundRect, withAlpha, type SceneDrawArgs } from '../kit';
+import { appear, drawHeader, itemEnter, roundRect, withAlpha, type SceneDrawArgs } from '../kit';
+import { travellingSpark } from '../ambient';
 import { drawLines, fitText, type FittedText } from '../textLayout';
 import { itemReveal, shownItems } from '../../timing';
 
@@ -91,6 +92,15 @@ export function drawSteps(a: SceneDrawArgs): void {
     }
     });
   });
+  // When every step stands, a spark climbs the stairs over and over.
+  const done = itemReveal(scene, n - 1, n) + 30;
+  if (frame > done && n > 1) {
+    const pts: [number, number][] = items.map((_, i) => {
+      const h = hMin + ((hMax - hMin) * (n === 1 ? 1 : i / (n - 1)));
+      return [L.W - L.M - bw / 2 - i * (bw + gap), floor - h - medal - 14];
+    });
+    withAlpha(ctx, appear(frame, done, 20), () => travellingSpark(ctx, pts, frame, theme.accent, 40 * n));
+  }
 }
 
 function drawStairRows(a: SceneDrawArgs, top: number, items: string[]): void {

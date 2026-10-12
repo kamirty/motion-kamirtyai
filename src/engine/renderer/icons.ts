@@ -45,7 +45,8 @@ function idle(cx: number, cy: number, size: number): { dy: number; rot: number; 
  * Draws a 24×24 Lucide icon centred at (cx, cy) scaled to `size`, stroked like the SVG original
  * (2px round strokes, no fill). Unknown ids draw a ring so a scene never fails to render.
  */
-export function drawIcon(ctx: Ctx2D, id: string, cx: number, cy: number, size: number, color: string, strokeWidth = 2): void {
+/** `drawn` < 1 draws the strokes partially, as if a pen were still tracing the icon. */
+export function drawIcon(ctx: Ctx2D, id: string, cx: number, cy: number, size: number, color: string, strokeWidth = 2, drawn = 1): void {
   if (size <= 0) return;
   const icon = iconById(id);
   const k = size / 24;
@@ -60,6 +61,7 @@ export function drawIcon(ctx: Ctx2D, id: string, cx: number, cy: number, size: n
   ctx.lineWidth = strokeWidth;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
+  if (drawn < 1) ctx.setLineDash([Math.max(0.01, drawn) * 90, 200]);
   if (!icon) {
     ctx.beginPath();
     ctx.arc(12, 12, 9, 0, Math.PI * 2);

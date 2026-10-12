@@ -87,7 +87,7 @@ export function parseProject(input: unknown): Project {
     font: str(st.font, 40) || DEFAULT_STYLE.font,
     digits: pick(st.digits, ['arabic', 'latin'] as const, DEFAULT_STYLE.digits),
     transition: pick(st.transition, ['fade', 'slide', 'zoom', 'wipe'] as const, DEFAULT_STYLE.transition),
-    background: pick(st.background, ['gradient', 'dots', 'waves', 'plain'] as const, DEFAULT_STYLE.background),
+    background: pick(st.background, ['gradient', 'dots', 'waves', 'plain', 'bubbles', 'aurora'] as const, DEFAULT_STYLE.background),
     music: pick(st.music, ['none', 'calm', 'bright', 'epic'] as const, DEFAULT_STYLE.music),
     sfx: typeof st.sfx === 'boolean' ? st.sfx : DEFAULT_STYLE.sfx,
     pace: pick(st.pace, ['calm', 'balanced', 'fast'] as const, DEFAULT_STYLE.pace),

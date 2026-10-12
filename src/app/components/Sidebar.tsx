@@ -16,6 +16,8 @@ const BACKGROUNDS: { id: BackgroundId; label: string }[] = [
   { id: 'gradient', label: 'تدرّج' },
   { id: 'waves', label: 'أمواج' },
   { id: 'dots', label: 'نقاط' },
+  { id: 'aurora', label: 'شفق' },
+  { id: 'bubbles', label: 'فقاعات' },
   { id: 'plain', label: 'سادة' },
 ];
 

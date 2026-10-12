@@ -23,6 +23,7 @@ import { drawTip } from './scenes/tip';
 import { drawSteps } from './scenes/steps';
 import { drawBeforeAfter, drawLineChart, drawRanking, drawTrueFalse, drawWarning } from './scenes/extra';
 import { drawSummary, itemIcons } from './scenes/summary';
+import { radarPulse, travellingSpark } from './ambient';
 
 export { layoutFor, type Layout, type SceneDrawArgs, type SceneDrawer } from './kit';
 
@@ -58,7 +59,7 @@ function orbitIcon(a: SceneDrawArgs, cx: number, cy: number, r: number): void {
   ctx.beginPath();
   ctx.arc(cx, cy, r * 1.4, 0, Math.PI * 2);
   ctx.fill();
-  iconBadge(ctx, theme, scene.icon, cx, cy, r * t);
+  iconBadge(ctx, theme, scene.icon, cx, cy, r * t, theme.accent, easeOutCubic(progress(frame, HERO.icon + 8, 40)));
 }
 
 function drawHero(a: SceneDrawArgs): void {
@@ -149,6 +150,26 @@ function drawHeroSplit(a: SceneDrawArgs): void {
 }
 
 // ───────────────────────── stat ─────────────────────────
+/**
+ * Draws a counting number like a slot-machine reel: while it counts, faint copies of it slide
+ * above and below (stronger the faster it counts); once settled it is drawn plainly.
+ * Uses the caller's font, colour and middle baseline.
+ */
+function rollingNumber(ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D, text: string, x: number, y: number, size: number, countT: number): void {
+  const speed = countT < 1 ? 1 - countT : 0;
+  if (speed > 0.02) {
+    const off = ((countT * 40) % 1) * size * 0.55;
+    const a = ctx.globalAlpha;
+    ctx.globalAlpha = a * 0.22 * speed;
+    ctx.fillText(text, x, y - size * 0.55 + off);
+    ctx.fillText(text, x, y + off);
+    ctx.globalAlpha = a;
+    ctx.fillText(text, x, y - off * 0.15);
+    return;
+  }
+  ctx.fillText(text, x, y);
+}
+
 function drawStat(a: SceneDrawArgs): void {
   const { ctx, scene, theme, frame, layout: L, font: fs } = a;
   const top = drawHeader(a);
@@ -166,6 +187,8 @@ function drawStat(a: SceneDrawArgs): void {
     const R = side ? Math.min(avail * 0.36, 170) : Math.min(avail * 0.22, L.W * 0.27);
     const cx = side ? L.M + R * 1.3 + 20 : L.W / 2;
     const cy = side ? top + avail / 2 : top + R * 1.3 + 20;
+    // Radar pulses keep the dial alive once it has filled.
+    withAlpha(ctx, appear(frame, STAT.countStart + STAT.countLength, 30), () => radarPulse(ctx, cx, cy, R * 1.25, theme.accent, frame));
     ctx.save();
     ctx.lineWidth = R * 0.2;
     ctx.lineCap = 'round';
@@ -203,7 +226,7 @@ function drawStat(a: SceneDrawArgs): void {
     ctx.fillStyle = theme.foreground;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(display, cx, cy + numFit.fontSize * 0.05);
+    rollingNumber(ctx, display, cx, cy + numFit.fontSize * 0.05, numFit.fontSize, countT);
     ctx.textBaseline = 'alphabetic';
     if (desc) {
       const dx = side ? L.W - L.M : L.W / 2;
@@ -225,6 +248,7 @@ function drawStat(a: SceneDrawArgs): void {
   const block = numFit.fontSize * 1.2 + 40 + (f?.height ?? 0);
   let y = top + Math.max(0, (avail - block) / 2);
   const s = 0.85 + 0.15 * easeOutBack(progress(frame, 10, 30));
+  withAlpha(ctx, appear(frame, STAT.countStart + STAT.countLength, 30), () => radarPulse(ctx, L.W / 2, y + numFit.fontSize * 0.6, Math.max(numFit.fontSize * 0.9, numFit.width * 0.35), theme.accent, frame, 75));
   // Slowly turning light rays behind the number.
   const rays = 18;
   const rr = Math.min(Math.max(numFit.width * 0.62, numFit.fontSize * 1.2), avail * 0.62);
@@ -256,7 +280,7 @@ function drawStat(a: SceneDrawArgs): void {
   ctx.fillStyle = grad;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(display, 0, 0);
+  rollingNumber(ctx, display, 0, 0, numFit.fontSize, countT);
   ctx.restore();
   y += numFit.fontSize * 1.2 + 10;
   const lw = Math.min(numFit.width, 320) * appear(frame, 40, 30);
@@ -451,6 +475,7 @@ function drawTimeline(a: SceneDrawArgs): void {
     ctx.fillRect(lineX - 3, y0, 6, rowH * n);
     ctx.fillStyle = theme.accent;
     ctx.fillRect(lineX - 3, y0, 6, rowH * n * lt);
+    if (lt >= 1) withAlpha(ctx, appear(frame, 16 + span * n, 20), () => travellingSpark(ctx, [[lineX, y0], [lineX, y0 + rowH * n]], frame, theme.accent, 120));
     items.forEach((it, i) => {
       const t = progress(frame, itemReveal(scene, i, n), 24);
       const cy = y0 + rowH * i + 40;
@@ -501,6 +526,8 @@ function drawTimeline(a: SceneDrawArgs): void {
   ctx.lineTo(L.W - L.M + 10 - Math.max(0, w - 20), roadY);
   ctx.stroke();
   ctx.restore();
+  // Once the road is complete, a spark keeps travelling along it in reading order.
+  if (lt >= 1) withAlpha(ctx, appear(frame, 12 + span * n, 20), () => travellingSpark(ctx, [[L.W - L.M + 10, roadY], [L.M - 10, roadY]], frame, theme.accent, 150));
   const textW = Math.min(step * 1.75, 420) - 20;
   items.forEach((it, i) => {
     const t = progress(frame, itemReveal(scene, i, n), 24);

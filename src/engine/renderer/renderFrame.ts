@@ -6,6 +6,7 @@ import { TRANSITION_FRAMES, bounceOut, easeInOutCubic, easeOutBack, hash01, prog
 import { fontSpec, type Ctx2D } from './context';
 import { drawSceneImage } from './imageLayer';
 import { beginLook } from './look';
+import { lightSweep } from './ambient';
 import { setIconClock } from './icons';
 import { drawScene, layoutFor, type Layout } from './scenes';
 
@@ -131,6 +132,60 @@ function drawBackground(ctx: Ctx2D, L: Layout, theme: Required<Theme>, style: Pr
   ctx.fillStyle = theme.background;
   ctx.fillRect(0, 0, W, H);
   const t = frame / 30;
+  if (style.background === 'bubbles') {
+    // Bubbles rising and swaying, each on its own deterministic track.
+    const rg = ctx.createLinearGradient(0, 0, 0, H);
+    rg.addColorStop(0, theme.background);
+    rg.addColorStop(1, mix(theme.background, theme.accent2, 0.14));
+    ctx.fillStyle = rg;
+    ctx.fillRect(0, 0, W, H);
+    for (let i = 0; i < 28; i++) {
+      const r = 6 + hash01(i, 21) * 22;
+      const speed = 0.6 + hash01(i, 22) * 1.4;
+      const span = H + r * 4;
+      const y = H + r * 2 - ((frame * speed + hash01(i, 23) * span) % span);
+      const x = W * hash01(i, 24) + Math.sin(frame / (30 + i) + i) * 18;
+      const c = i % 3 ? theme.accent : theme.accent2;
+      ctx.fillStyle = alpha(c, 0.06 + 0.05 * hash01(i, 25));
+      ctx.strokeStyle = alpha(c, 0.22);
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      // Highlight.
+      ctx.fillStyle = alpha('#ffffff', 0.18);
+      ctx.beginPath();
+      ctx.arc(x - r * 0.35, y - r * 0.35, r * 0.22, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    return;
+  }
+  if (style.background === 'aurora') {
+    // Large colourful light patches drifting and breathing (drawn small, scaled up).
+    const low = lowRes(W, H);
+    const target: Ctx2D = low?.ctx ?? ctx;
+    const k = low ? 1 / 8 : 1;
+    target.fillStyle = theme.background;
+    target.fillRect(0, 0, W * k, H * k);
+    const cols = [theme.accent, theme.accent2, mix(theme.accent, '#6C63FF', 0.5), mix(theme.accent2, '#00C2A8', 0.5)];
+    cols.forEach((c, i) => {
+      const cx = W * (0.5 + 0.38 * Math.sin(t * (0.07 + i * 0.03) * 2 * Math.PI + i * 1.7)) * k;
+      const cy = H * (0.5 + 0.34 * Math.cos(t * (0.05 + i * 0.025) * 2 * Math.PI + i)) * k;
+      const r = Math.max(W, H) * (0.38 + 0.08 * Math.sin(t * 0.6 + i)) * k;
+      const g = target.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0, alpha(c, 0.26));
+      g.addColorStop(1, alpha(c, 0));
+      target.fillStyle = g;
+      target.fillRect(0, 0, W * k, H * k);
+    });
+    if (low) {
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'low';
+      ctx.drawImage(low.canvas, 0, 0, W, H);
+    }
+    return;
+  }
   if (style.background === 'gradient') {
     const blobs = [
       { x: 0.15, y: 0.2, r: 0.45, c: theme.accent, sx: 0.11, sy: 0.07 },
@@ -311,6 +366,8 @@ export function renderFrame(project: Project, frameIndex: number, ctx: Ctx2D, ou
   }
 
   endLook();
+  // A soft light sweep crosses the frame every seven seconds (not in the calm minimal look).
+  if (style.look !== 'minimal') lightSweep(ctx, L, frameIndex);
   // Overall progress bar (fills right→left). No logo or site mark is drawn on the video.
   const p = Math.min(1, (frameIndex + 1) / project.durationFrames);
   ctx.globalAlpha = 1;

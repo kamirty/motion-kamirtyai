@@ -68,7 +68,7 @@ export const LOOKS: readonly LookId[] = ['modern', 'minimal', 'cartoon'];
 export type DigitSystem = 'arabic' | 'latin';
 export type TransitionId = 'fade' | 'slide' | 'zoom' | 'wipe';
 export type MusicId = 'none' | 'calm' | 'bright' | 'epic';
-export type BackgroundId = 'gradient' | 'dots' | 'waves' | 'plain';
+export type BackgroundId = 'gradient' | 'dots' | 'waves' | 'plain' | 'bubbles' | 'aurora';
 
 export interface ProjectStyle {
   preset: string;
