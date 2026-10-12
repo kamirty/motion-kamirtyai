@@ -383,3 +383,8 @@ pre { overflow-x: auto; font-size: 0.75rem; background: var(--panel-2); padding:
 .wizard-body .item-row input:not([type=radio]) { flex: 1; min-width: 0; }
 .wizard-summary { background: var(--surface, rgba(127,127,127,0.08)); border-radius: 12px; padding: 10px 12px; }
 .wizard-nav { justify-content: space-between; margin-top: 14px; }
+.guide-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.guide-cards button { display: grid; gap: 4px; text-align: start; padding: 10px; border-radius: 12px; }
+.guide-cards button.active { background: #FFEB3B; color: #111; border-color: #111; }
+.guide-cards .guide-emoji { font-size: 1.6rem; }
+.guide-cards small { font-weight: 400; opacity: 0.85; line-height: 1.5; }

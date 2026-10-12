@@ -45,10 +45,10 @@ export function Sidebar(p: Props) {
   return (
     <aside className="sidebar">
       <section className="box teacher-box">
-        <h2>🎓 للمعلمين</h2>
-        <p className="muted small">املأ درسك في ست خطوات قصيرة: الهدف، والمفهوم، والنقاط، ومعلومة، وسؤال تقويم، وخاتمة؛ فيخرج فيديو كامل جاهز.</p>
+        <h2>🧭 أنشئ فيديو خطوة بخطوة</h2>
+        <p className="muted small">اختر ما تريد: 📚 درس تعليمي، 🎓 عرض مشروع، 🍽 إعلان مطعم أو متجر، 📢 حملة توعية. أجب عن ست خطوات قصيرة فيخرج فيديو كامل جاهز.</p>
         <button type="button" className="primary" onClick={p.onTeacher}>
-          ابدأ مسار الدرس خطوة بخطوة
+          ابدأ الآن
         </button>
       </section>
 

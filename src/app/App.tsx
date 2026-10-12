@@ -16,7 +16,7 @@ import { addImageFile, loadAssets, onAssetsChanged, projectAssetIds } from '../s
 import { downloadBlob, loadLocal, projectFileBlob, readProjectFile, saveLocal } from '../storage/projectJson';
 import { Assistant } from './components/Assistant';
 import { ExportDialog } from './components/ExportDialog';
-import { TeacherWizard } from './components/TeacherWizard';
+import { GuideWizard } from './components/GuideWizard';
 import { Inspector } from './components/Inspector';
 import { Preview } from './components/Preview';
 import { Sidebar } from './components/Sidebar';
@@ -605,7 +605,7 @@ export function App() {
       />
 
       {wizardOpen && (
-        <TeacherWizard
+        <GuideWizard
           digits={style.digits}
           onClose={() => setWizardOpen(false)}
           onCreate={(scenes, title) => {
@@ -614,7 +614,7 @@ export function App() {
             setSelected(0);
             setFrame(0);
             setWizardOpen(false);
-            setNotice({ kind: 'info', text: 'جاهز! هذا فيديو درسك. عدّل أي مشهد من لوحة المشهد، ثم صدّره.' });
+            setNotice({ kind: 'info', text: 'جاهز! هذا فيديوك. عدّل أي مشهد من لوحة المشهد، ثم صدّره.' });
           }}
         />
       )}
