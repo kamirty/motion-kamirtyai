@@ -3,9 +3,9 @@ import type { SceneKind } from '../../domain/types';
 /** Scene kinds grouped for the inspector picker. */
 export const KIND_GROUPS: { label: string; kinds: SceneKind[] }[] = [
   { label: 'أساسية', kinds: ['hero', 'chapter', 'outro'] },
-  { label: 'نصوص وأفكار', kinds: ['summary', 'steps', 'checklist', 'tip', 'definition', 'quote'] },
-  { label: 'أرقام وبيانات', kinds: ['stat', 'kpis', 'columns', 'donut', 'pictogram', 'comparison'] },
-  { label: 'مخططات وتفاعل', kinds: ['timeline', 'cycle', 'pyramid', 'proscons', 'quiz'] },
+  { label: 'نصوص وأفكار', kinds: ['summary', 'steps', 'checklist', 'tip', 'warning', 'definition', 'quote', 'beforeafter'] },
+  { label: 'أرقام وبيانات', kinds: ['stat', 'kpis', 'columns', 'linechart', 'donut', 'pictogram', 'ranking', 'comparison'] },
+  { label: 'مخططات وتفاعل', kinds: ['timeline', 'cycle', 'pyramid', 'proscons', 'quiz', 'truefalse'] },
 ];
 
 export const KIND_LABELS: Record<SceneKind, string> = {
@@ -28,6 +28,11 @@ export const KIND_LABELS: Record<SceneKind, string> = {
   quiz: 'سؤال واختيارات',
   definition: 'تعريف',
   chapter: 'فاصل قسم',
+  truefalse: 'صح أم خطأ',
+  ranking: 'ترتيب ومنصة',
+  linechart: 'رسم خطي',
+  beforeafter: 'قبل وبعد',
+  warning: 'تنبيه',
   tip: 'نصيحة',
 };
 
@@ -52,4 +57,9 @@ export const KIND_HINTS: Record<SceneKind, string> = {
   definition: 'العنوان هو المصطلح، والعنصر الأول تعريفه، وما بعده أمثلة.',
   chapter: 'فاصل بين أجزاء الفيديو: العنوان اسم القسم، والعنصر الأول وصف قصير (اختياري).',
   tip: 'العنوان مثل «نصيحة» أو «هل تعلم؟»، والعنصر الأول نص النصيحة، والثاني مصدر أو ملاحظة (اختياري).',
+  truefalse: 'العنوان هو العبارة، والعنصر الأول «صح» أو «خطأ»، والثاني شرح يظهر بعد كشف الإجابة (اختياري). يظهر عدّ تنازلي ثم ختم على الإجابة.',
+  ranking: 'رتّب العناصر من الأول إلى الأخير، ويمكن كتابة «الاسم: الرقم». الثلاثة الأوائل على منصة بميداليات، وتظهر من الأخير إلى الأول للتشويق.',
+  linechart: 'كل عنصر بصيغة «السنة أو الفترة: الرقم» (عنصران على الأقل). يُرسم خط يتصاعد نقطة بعد نقطة.',
+  beforeafter: 'عنصران: «قبل: …» ثم «بعد: …». تظهر لوحة «قبل» ثم تنزلق لوحة «بعد» بجانبها.',
+  warning: 'العنوان هو التحذير، والعنصر الأول نصه، والثاني ملاحظة (اختياري). مثلث تحذير يهتز مع شريط تنبيه.',
 };

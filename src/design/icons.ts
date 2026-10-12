@@ -30,6 +30,11 @@ export const KIND_ICONS: Record<string, string> = {
   definition: 'book-open',
   chapter: 'flag',
   tip: 'lightbulb',
+  truefalse: 'circle-help',
+  ranking: 'trophy',
+  linechart: 'chart-line',
+  beforeafter: 'arrow-left-right',
+  warning: 'triangle-alert',
 };
 
 const shortKeyword = new Map<string, RegExp>();

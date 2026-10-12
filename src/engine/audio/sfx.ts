@@ -1,7 +1,7 @@
 import { styleOf, type Project } from '../../domain/types';
 import { hash01 } from '../renderer/animation';
-import { CHAPTER, DEFINITION, HEADER, HERO, KPIS, OUTRO, PICTOGRAM, QUIZ_COUNTDOWN, QUOTE, STAT, TIP, imageEnter, itemReveal, quizCountdown, shownItems } from '../timing';
-import { quizParts } from '../sceneModel';
+import { CHAPTER, DEFINITION, HEADER, HERO, KPIS, OUTRO, PICTOGRAM, QUIZ_COUNTDOWN, QUOTE, STAT, TIP, imageEnter, itemReveal, quizCountdown, shownItems, TRUEFALSE, WARNING, trueFalseCountdown, BEFORE_AFTER, beforeAfterAt } from '../timing';
+import { trueFalseParts, quizParts } from '../sceneModel';
 
 /**
  * Automatic sound effects cued from the same reveal timings the renderer animates with,
@@ -59,6 +59,8 @@ export function planCues(project: Project): Cue[] {
         for (let i = 0; i < n; i++) add(itemReveal(scene, i, n), 'pop', i);
         break;
       }
+      case 'linechart':
+      case 'ranking':
       case 'cycle':
       case 'pyramid':
       case 'proscons':
@@ -102,6 +104,27 @@ export function planCues(project: Project): Cue[] {
       case 'chapter':
         add(CHAPTER.mark + 2, 'rise');
         add(CHAPTER.title, 'pop', 4);
+        break;
+      case 'truefalse': {
+        add(TRUEFALSE.statement, 'pop', 0);
+        add(TRUEFALSE.choices, 'pop', 1);
+        add(TRUEFALSE.choices + 10, 'pop', 2);
+        if (trueFalseParts(scene).answer !== null) {
+          const c = trueFalseCountdown(scene);
+          for (let k = 0; k < 3; k++) add(c + k * 30, 'tick', 3 - k);
+          add(c + QUIZ_COUNTDOWN, 'ding');
+        }
+        break;
+      }
+      case 'beforeafter':
+        add(HEADER.title, 'tick');
+        add(BEFORE_AFTER.before, 'pop', 0);
+        add(beforeAfterAt(scene), 'whoosh');
+        break;
+      case 'warning':
+        add(WARNING.badge, 'rise');
+        add(WARNING.title, 'pop', 2);
+        add(WARNING.text, 'tick', 3);
         break;
       case 'tip':
         add(TIP.badge, 'rise');

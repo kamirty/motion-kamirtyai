@@ -21,6 +21,7 @@ import { drawDefinition } from './scenes/definition';
 import { drawChapter } from './scenes/chapter';
 import { drawTip } from './scenes/tip';
 import { drawSteps } from './scenes/steps';
+import { drawBeforeAfter, drawLineChart, drawRanking, drawTrueFalse, drawWarning } from './scenes/extra';
 import { drawSummary, itemIcons } from './scenes/summary';
 
 export { layoutFor, type Layout, type SceneDrawArgs, type SceneDrawer } from './kit';
@@ -685,6 +686,11 @@ export const SCENE_DRAWERS: Record<Scene['kind'], SceneDrawer> = {
   definition: drawDefinition,
   chapter: drawChapter,
   tip: drawTip,
+  truefalse: drawTrueFalse,
+  ranking: drawRanking,
+  linechart: drawLineChart,
+  beforeafter: drawBeforeAfter,
+  warning: drawWarning,
 };
 
 export const drawScene: SceneDrawer = (args) => (SCENE_DRAWERS[args.scene.kind] ?? drawHero)(args);

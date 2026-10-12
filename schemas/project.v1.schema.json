@@ -216,7 +216,12 @@
             "quiz",
             "definition",
             "chapter",
-            "tip"
+            "tip",
+            "truefalse",
+            "ranking",
+            "linechart",
+            "beforeafter",
+            "warning"
           ]
         },
         "startFrame": {

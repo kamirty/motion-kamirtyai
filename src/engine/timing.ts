@@ -25,6 +25,20 @@ export const DEFINITION = { term: 8, body: 40, example: (i: number) => 70 + i * 
 export const CHAPTER = { mark: 0, title: 10, subtitle: 28 };
 export const TIP = { badge: 4, text: 24, note: 60 };
 export const QUIZ_COUNTDOWN = 90; // 3 s countdown before the answer is revealed
+/** True/false: statement, the two choices, a countdown, then the stamp and the note. */
+export const TRUEFALSE = { statement: 10, choices: 40, note: 24 };
+/** Warning: triangle, headline, text, note. */
+export const WARNING = { badge: 4, title: 14, text: 34, note: 70 };
+/** Before/after: the 'after' panel sweeps in at this share of the scene. */
+export const BEFORE_AFTER = { before: 20, afterShare: 0.42 };
+
+/** Frame at which the 'after' panel of a before/after scene sweeps in. */
+export const beforeAfterAt = (scene: Scene): number => Math.max(BEFORE_AFTER.before + 40, Math.round(scene.durationFrames * BEFORE_AFTER.afterShare));
+
+/** Countdown start for a true/false scene; the answer stamps QUIZ_COUNTDOWN frames later. */
+export function trueFalseCountdown(scene: Scene): number {
+  return Math.max(TRUEFALSE.choices + 30, Math.min(Math.round(scene.durationFrames * 0.3), scene.durationFrames - QUIZ_COUNTDOWN - 60));
+}
 /** A scene's picture enters at this frame over this many frames. */
 export const IMAGE = { enter: 6, length: 22, stagger: 14 };
 /** Entrance frame of a scene's k-th picture (pictures arrive one after another). */
@@ -67,12 +81,13 @@ export function autoReveal(scene: Scene & { pace?: Pace }, i: number, count: num
   const span = revealSpan(scene, count);
   switch (scene.kind) {
     case 'pyramid':
-      // Built from the base (last item) up to the top (first item).
+    case 'ranking':
+      // Pyramid: built from the base up. Ranking: revealed from last place to first (suspense).
       return 20 + (count - 1 - i) * span;
     case 'definition':
       return i === 0 ? DEFINITION.body : DEFINITION.body + 30 + (i - 1) * Math.max(20, Math.floor(span / 2));
     case 'steps': case 'cycle': case 'checklist': case 'timeline': case 'summary': case 'comparison':
-    case 'kpis': case 'donut': case 'columns': case 'proscons': case 'quiz':
+    case 'kpis': case 'donut': case 'columns': case 'proscons': case 'quiz': case 'linechart':
       return 20 + i * span;
     default:
       return 0;
