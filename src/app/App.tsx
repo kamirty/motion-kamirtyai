@@ -16,6 +16,7 @@ import { addImageFile, loadAssets, onAssetsChanged, projectAssetIds } from '../s
 import { downloadBlob, loadLocal, projectFileBlob, readProjectFile, saveLocal } from '../storage/projectJson';
 import { Assistant } from './components/Assistant';
 import { ExportDialog } from './components/ExportDialog';
+import { GuideWizard } from './components/GuideWizard';
 import { Inspector } from './components/Inspector';
 import { Preview } from './components/Preview';
 import { Sidebar } from './components/Sidebar';
@@ -45,6 +46,7 @@ export function App() {
   const [renderKey, setRenderKey] = useState(0);
   const [notice, setNotice] = useState<{ kind: 'info' | 'error'; text: string } | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [uiTheme, setUiTheme] = useUiTheme();
   const [exportFormat, setExportFormat] = useState<AssistantContext['exportFormat']>('unknown');
   useEffect(() => {
@@ -529,6 +531,7 @@ export function App() {
           description={description}
           onDescription={setDescription}
           onGenerate={generate}
+          onTeacher={() => setWizardOpen(true)}
           project={project}
           onAspect={setAspect}
           onStyle={setStyle}
@@ -601,6 +604,20 @@ export function App() {
         onAction={onAssistantAction}
       />
 
+      {wizardOpen && (
+        <GuideWizard
+          digits={style.digits}
+          onClose={() => setWizardOpen(false)}
+          onCreate={(scenes, title) => {
+            setPlaying(false);
+            setProject((p) => withScenes({ ...p, title }, scenes));
+            setSelected(0);
+            setFrame(0);
+            setWizardOpen(false);
+            setNotice({ kind: 'info', text: 'جاهز! هذا فيديوك. عدّل أي مشهد من لوحة المشهد، ثم صدّره.' });
+          }}
+        />
+      )}
       {exportOpen && <ExportDialog project={project} getAudio={getAudio} onClose={() => setExportOpen(false)} />}
     </div>
   );

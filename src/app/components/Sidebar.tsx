@@ -23,6 +23,7 @@ interface Props {
   description: string;
   onDescription: (v: string) => void;
   onGenerate: () => void;
+  onTeacher: () => void;
   project: Project;
   onAspect: (a: AspectId) => void;
   onStyle: (patch: Partial<ProjectStyle>, theme?: Theme) => void;
@@ -43,6 +44,14 @@ export function Sidebar(p: Props) {
 
   return (
     <aside className="sidebar">
+      <section className="box teacher-box">
+        <h2>🧭 أنشئ فيديو خطوة بخطوة</h2>
+        <p className="muted small">اختر ما تريد: 📚 درس تعليمي، 🎓 عرض مشروع، 🍽 إعلان مطعم أو متجر، 📢 حملة توعية. أجب عن ست خطوات قصيرة فيخرج فيديو كامل جاهز.</p>
+        <button type="button" className="primary" onClick={p.onTeacher}>
+          ابدأ الآن
+        </button>
+      </section>
+
       <section className="box">
         <h2>
           <span className="step">١</span> اكتب فكرتك

@@ -1,0 +1,101 @@
+import { KIND_ICONS, suggestIcon } from '../design/icons';
+import { LIMITS, type Scene, type SceneKind } from '../domain/types';
+import { GUIDES, type GuideId } from './guides';
+import { QUIZ_COUNTDOWN } from './timing';
+
+/**
+ * Guided workflow («أنشئ فيديو خطوة بخطوة»): six steps filled in become a complete video —
+ * opening, objective, concept, key points, a surprising fact, a check-for-understanding quiz and
+ * a closing. Pure and deterministic; it only arranges what the teacher typed (never invents).
+ */
+export interface LessonInput {
+  /** Which guided template words the steps and titles the scenes. */
+  template: GuideId;
+  subject: string;
+  grade: string;
+  title: string;
+  objective: string;
+  /** Concept name (defaults to the lesson title) and its short definition. */
+  concept: string;
+  definition: string;
+  examples: string[];
+  pointsTitle: string;
+  points: string[];
+  pointsStyle: 'steps' | 'summary' | 'cycle' | 'checklist' | 'timeline' | 'pyramid';
+  fact: string;
+  question: string;
+  options: string[];
+  /** Index into `options` of the right answer (-1: none marked). */
+  correct: number;
+  summary: string;
+  closing: string;
+}
+
+export const EMPTY_LESSON: LessonInput = {
+  template: 'lesson',
+  subject: '', grade: '', title: '', objective: '', concept: '', definition: '', examples: [],
+  pointsTitle: '', points: [], pointsStyle: 'steps', fact: '', question: '', options: [], correct: -1, summary: '', closing: '',
+};
+
+export const SAMPLE_LESSON: LessonInput = { ...GUIDES.lesson.sample, template: 'lesson' };
+
+/** The ready-made example of a template. */
+export const sampleFor = (id: GuideId): LessonInput => ({ ...GUIDES[id].sample, template: id });
+
+const clean = (s: string, max: number = LIMITS.itemChars) => s.replace(/\s+/g, ' ').trim().slice(0, max);
+const list = (xs: string[], max = LIMITS.items) => xs.map((x) => clean(x)).filter(Boolean).slice(0, max);
+
+/** Seconds → frames at 30 fps. */
+const s = (sec: number) => Math.round(sec * 30);
+
+function scene(kind: SceneKind, title: string, items: string[], durationFrames: number, iconText = title): Omit<Scene, 'id' | 'startFrame'> {
+  return { kind, title: clean(title, LIMITS.titleChars), items, durationFrames, icon: suggestIcon(iconText, KIND_ICONS[kind] ?? 'sparkles') };
+}
+
+/** Scenes in lesson order (ids and start frames are assigned by the caller via withScenes). */
+export function lessonScenes(input: LessonInput): Scene[] {
+  const out: Omit<Scene, 'id' | 'startFrame'>[] = [];
+  const t = (GUIDES[input.template] ?? GUIDES.lesson).titles;
+  const title = clean(input.title, LIMITS.titleChars) || 'درس جديد';
+  const meta = [clean(input.subject), clean(input.grade)].filter(Boolean).join(' · ');
+
+  out.push(scene('hero', title, meta ? [meta] : [], s(6), `${input.subject} ${title}`));
+
+  if (clean(input.objective)) out.push({ ...scene('tip', t.objective, [clean(input.objective)], s(8)), icon: 'target' });
+
+  if (clean(input.definition)) {
+    const examples = list(input.examples, LIMITS.items - 1);
+    out.push(scene('definition', clean(input.concept, LIMITS.titleChars) || title, [clean(input.definition), ...examples], s(10 + examples.length * 2)));
+  }
+
+  const points = list(input.points);
+  if (points.length) {
+    const kind: SceneKind = points.length < 3 && (input.pointsStyle === 'cycle' || input.pointsStyle === 'pyramid') ? 'steps' : input.pointsStyle;
+    out.push(scene(kind, clean(input.pointsTitle, LIMITS.titleChars) || t.points, points, s(5 + points.length * 4), `${input.pointsTitle} ${title}`));
+  }
+
+  if (clean(input.fact)) out.push({ ...scene('tip', t.fact, [clean(input.fact)], s(8)), icon: 'lightbulb' });
+
+  const options = list(input.options);
+  if (clean(input.question) && options.length >= 2) {
+    const marked = options.map((o, i) => (i === input.correct ? `${o} ✓` : o));
+    // Options appear one by one, then a 3-second countdown, then the answer stays readable.
+    const frames = s(4) + options.length * s(2.5) + QUIZ_COUNTDOWN + s(4);
+    out.push({ ...scene('quiz', clean(input.question, LIMITS.titleChars), marked, frames), icon: 'circle-help' });
+  }
+
+  const closing = clean(input.closing);
+  out.push(scene('outro', clean(input.summary, LIMITS.titleChars) || t.outro, closing ? [closing] : [], s(7)));
+
+  return out.slice(0, LIMITS.scenes).map((sc, i) => ({ ...sc, id: `s${i + 1}`, startFrame: 0 }));
+}
+
+/** Which wizard steps still need something to produce their scene (for the progress hints). */
+export function lessonGaps(input: LessonInput): string[] {
+  const gaps: string[] = [];
+  if (!clean(input.title)) gaps.push('العنوان');
+  if (!list(input.points).length) gaps.push('النقاط');
+  if (clean(input.question) && list(input.options).length < 2) gaps.push('خياران على الأقل للسؤال');
+  if (clean(input.question) && input.correct < 0) gaps.push('الإجابة الصحيحة');
+  return gaps;
+}
