@@ -146,6 +146,13 @@
             "balanced",
             "fast"
           ]
+        },
+        "look": {
+          "enum": [
+            "modern",
+            "minimal",
+            "cartoon"
+          ]
         }
       }
     },

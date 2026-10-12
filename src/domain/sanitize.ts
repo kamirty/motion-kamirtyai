@@ -1,4 +1,4 @@
-import { ASPECTS, DEFAULT_IMAGE, ENTRANCES, DEFAULT_STYLE, FPS, LIMITS, SCENE_KINDS, type Project, type ProjectStyle, type Scene, type SceneImage } from './types';
+import { ASPECTS, DEFAULT_IMAGE, ENTRANCES, LOOKS, DEFAULT_STYLE, FPS, LIMITS, SCENE_KINDS, type Project, type ProjectStyle, type Scene, type SceneImage } from './types';
 import { rebalance, validateTimeline, withScenes } from './timeline';
 
 const COLOR = /^#[0-9A-Fa-f]{6}$/;
@@ -90,6 +90,7 @@ export function parseProject(input: unknown): Project {
     music: pick(st.music, ['none', 'calm', 'bright', 'epic'] as const, DEFAULT_STYLE.music),
     sfx: typeof st.sfx === 'boolean' ? st.sfx : DEFAULT_STYLE.sfx,
     pace: pick(st.pace, ['calm', 'balanced', 'fast'] as const, DEFAULT_STYLE.pace),
+    look: pick(st.look, LOOKS, DEFAULT_STYLE.look),
   };
 
   const project: Project = {

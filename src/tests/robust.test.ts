@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { fullTheme, PRESETS } from '../design/presets';
-import { ASPECTS, SCENE_KINDS, type AspectId, type Project, type Scene } from '../domain/types';
+import { ASPECTS, LOOKS, SCENE_KINDS, type AspectId, type Project, type Scene } from '../domain/types';
 import { renderFrame } from '../engine/renderer/renderFrame';
 import { sampleScene } from './fixtures/kindSamples';
 import { createFakeCtx } from './fakeCtx';
@@ -16,15 +16,16 @@ const variants = (kind: Scene['kind'], d: number): Scene[] => [
 
 describe('every scene renders without canvas errors (negative radii abort exports)', () => {
   for (const aspect of Object.keys(ASPECTS) as AspectId[]) {
-    for (const kind of SCENE_KINDS) {
-      it(`${kind} · ${aspect}`, () => {
+    for (const [ki, kind] of SCENE_KINDS.entries()) {
+      const look = LOOKS[ki % LOOKS.length];
+      it(`${kind} · ${aspect} · ${look}`, () => {
         for (const d of [90, 450]) {
           for (const scene of variants(kind, d)) {
             const project: Project = {
               version: 1, title: 't', locale: 'ar', fps: 30, durationFrames: d,
               size: { width: ASPECTS[aspect].width, height: ASPECTS[aspect].height },
               theme: fullTheme(PRESETS[0].theme), scenes: [scene],
-              style: { preset: PRESETS[0].id, font: 'cairo', digits: 'arabic', transition: 'fade', background: 'plain', music: 'none', sfx: false, pace: 'balanced' },
+              style: { preset: PRESETS[0].id, font: 'cairo', digits: 'arabic', transition: 'fade', background: 'plain', music: 'none', sfx: false, pace: 'balanced', look },
             } as Project;
             for (let f = 0; f < d; f += 3) {
               const { ctx } = createFakeCtx();
