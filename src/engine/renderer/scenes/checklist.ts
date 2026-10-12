@@ -2,7 +2,7 @@ import { localizeDigits } from '../../../design/digits';
 import { alpha } from '../../../design/presets';
 import { easeOutCubic, progress } from '../animation';
 import { font } from '../context';
-import { card, drawHeader, roundRect, withAlpha, type SceneDrawArgs } from '../kit';
+import { card, drawHeader, itemEnter, roundRect, withAlpha, type SceneDrawArgs } from '../kit';
 import { itemReveal, shownItems } from '../../timing';
 import { measure } from './common';
 import { drawLines } from '../textLayout';
@@ -33,7 +33,7 @@ export function drawChecklist(a: SceneDrawArgs): void {
     const row = i % rows;
     const x = L.W - L.M - colW - col * (colW + gap);
     const y = y0 + row * (rowH + gap);
-    withAlpha(ctx, t, () => {
+    itemEnter(a, progress(frame, reveal, 18), x + colW / 2, y + rowH / 2, colW, rowH, () => withAlpha(ctx, t, () => {
       ctx.save();
       ctx.translate(-(1 - t) * 40, 0);
       card(ctx, theme, x, y, colW, rowH, 12, tick >= 1 ? alpha(theme.accent, 0.12) : theme.surface);
@@ -74,7 +74,7 @@ export function drawChecklist(a: SceneDrawArgs): void {
       ctx.textAlign = 'right';
       drawLines(ctx, fs, f, bx - 20, y + rowH / 2 - f.height / 2);
       ctx.restore();
-    });
+    }));
   });
   // Progress counter.
   const label = localizeDigits(`${checked}/${n}`, digits);

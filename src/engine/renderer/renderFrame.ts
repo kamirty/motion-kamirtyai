@@ -2,7 +2,7 @@ import { localizeDigits } from '../../design/digits';
 import { alpha, fullTheme, mix } from '../../design/presets';
 import { sceneIndexAt } from '../../domain/timeline';
 import { styleOf, type DigitSystem, type EntranceId, type Project, type ProjectStyle, type Scene, type Theme } from '../../domain/types';
-import { TRANSITION_FRAMES, easeInOutCubic, easeOutBack, hash01, progress } from './animation';
+import { TRANSITION_FRAMES, bounceOut, easeInOutCubic, easeOutBack, hash01, progress } from './animation';
 import { fontSpec, type Ctx2D } from './context';
 import { drawSceneImage } from './imageLayer';
 import { beginLook } from './look';
@@ -25,15 +25,6 @@ function localizeScene(scene: Scene, digits: DigitSystem, pace: string): Scene {
 }
 
 let lowResCache: { canvas: OffscreenCanvas; ctx: OffscreenCanvasRenderingContext2D } | null = null;
-
-/** Ball-drop easing: falls, then bounces twice before resting. */
-function bounceOut(x: number): number {
-  const n = 7.5625, d = 2.75;
-  if (x < 1 / d) return n * x * x;
-  if (x < 2 / d) return n * (x -= 1.5 / d) * x + 0.75;
-  if (x < 2.5 / d) return n * (x -= 2.25 / d) * x + 0.9375;
-  return n * (x -= 2.625 / d) * x + 0.984375;
-}
 
 /** Rotation used by «تنويع تلقائي»: neighbouring scenes always enter differently. */
 const AUTO_ENTRANCES: EntranceId[] = ['rise', 'pop', 'wipe', 'side', 'iris', 'zoom', 'swing', 'drop', 'flip', 'bounce'];
@@ -293,12 +284,14 @@ export function renderFrame(project: Project, frameIndex: number, ctx: Ctx2D, ou
       case 'wipe':
         break;
     }
-    opacity *= applyEntrance(ctx, L, scene.entrance ?? (style.variety && index > 0 ? AUTO_ENTRANCES[index % AUTO_ENTRANCES.length] : 'none'), local);
+    // One motion per scene: the whole scene enters with it, and so does each element at its cue.
+    const motion: EntranceId = scene.entrance ?? (style.variety ? AUTO_ENTRANCES[index % AUTO_ENTRANCES.length] : 'none');
+    opacity *= applyEntrance(ctx, L, index === 0 && !scene.entrance ? 'none' : motion, local);
     ctx.globalAlpha = opacity;
     if (opacity > 0.001) {
       const images = scene.images ?? [];
       images.forEach((img, k) => img.layer === 'back' && drawSceneImage(ctx, img, k, theme, L, local, scene.durationFrames));
-      drawScene({ ctx, scene, theme, frame: local, layout: L, font: fs, digits: style.digits });
+      drawScene({ ctx, scene, theme, frame: local, layout: L, font: fs, digits: style.digits, motion });
       images.forEach((img, k) => img.layer !== 'back' && drawSceneImage(ctx, img, k, theme, L, local, scene.durationFrames));
     }
     ctx.restore();

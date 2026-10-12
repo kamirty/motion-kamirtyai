@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import schema from '../../schemas/project.v1.schema.json';
 import { sampleProject } from '../domain/sampleProject';
 import { parseProject } from '../domain/sanitize';
-import type { Project, Scene } from '../domain/types';
+import { ENTRANCES, type Project, type Scene } from '../domain/types';
 import { planCues } from '../engine/audio/sfx';
 import { renderFrame } from '../engine/renderer/renderFrame';
 import { autoReveal, hasItemTiming, itemReveal, revealSlots, withReveal } from '../engine/timing';
@@ -65,15 +65,38 @@ describe('entrance and validation', () => {
   });
 
   it('renders every entrance without throwing and stays deterministic', () => {
-    for (const entrance of ['rise', 'drop', 'zoom', 'side', 'spin'] as const) {
+    for (const entrance of ENTRANCES.filter((e) => e !== 'none')) {
       const project = { ...sampleProject, scenes: sampleProject.scenes.map((s) => ({ ...s, entrance })) } as Project;
       const a = createFakeCtx();
       const b = createFakeCtx();
-      renderFrame(project, 8, createFakeCtx().ctx); // warm caches
-      renderFrame(project, 8, a.ctx);
-      renderFrame(project, 8, b.ctx);
+      renderFrame(project, 30, createFakeCtx().ctx); // warm caches
+      renderFrame(project, 30, a.ctx);
+      renderFrame(project, 30, b.ctx);
       expect(a.ops).toEqual(b.ops);
       expect(a.ops.length).toBeGreaterThan(0);
     }
+  });
+
+  it('varies scene motion automatically and applies it to each element as it appears', () => {
+    const steps = sampleProject.scenes.map((s) => ({ ...s, entrance: undefined }));
+    const varied = { ...sampleProject, scenes: steps, style: { ...sampleProject.style!, variety: true } } as Project;
+    const plain = { ...varied, style: { ...varied.style!, variety: false } } as Project;
+    // Shortly after the second scene starts, an automatic motion transforms or clips its content.
+    const f = sampleProject.scenes[1].startFrame + 10;
+    const a = createFakeCtx();
+    const b = createFakeCtx();
+    renderFrame(varied, f, a.ctx);
+    renderFrame(plain, f, b.ctx);
+    expect(a.ops).not.toEqual(b.ops);
+  });
+
+  it('keeps icons lively but deterministic', () => {
+    const at = (f: number) => {
+      const { ctx, ops } = createFakeCtx();
+      renderFrame(sampleProject, f, ctx);
+      return ops.filter((o) => o.startsWith('rotate(') || o.startsWith('scale(')).join();
+    };
+    expect(at(700)).toBe(at(700));
+    expect(at(700)).not.toBe(at(715));
   });
 });

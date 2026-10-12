@@ -1,6 +1,6 @@
 import { mix, readableOn } from '../../../design/presets';
 import { easeOutCubic, progress } from '../animation';
-import { drawHeader, withAlpha, type SceneDrawArgs } from '../kit';
+import { drawHeader, itemEnter, withAlpha, type SceneDrawArgs } from '../kit';
 import { itemReveal, shownItems } from '../../timing';
 import { measure } from './common';
 import { drawLines } from '../textLayout';
@@ -28,7 +28,7 @@ export function drawPyramid(a: SceneDrawArgs): void {
     const wTop = topW + ((baseW - topW) * i) / n;
     const wBot = topW + ((baseW - topW) * (i + 1)) / n;
     const fill = mix(theme.accent, theme.accent2 === theme.accent ? theme.foreground : theme.accent2, n > 1 ? (i / (n - 1)) * 0.55 : 0);
-    withAlpha(ctx, e, () => {
+    itemEnter(a, t, cx, yA + layerH / 2, wBot, layerH, () => withAlpha(ctx, e, () => {
       ctx.save();
       ctx.translate(0, (1 - e) * 40);
       ctx.fillStyle = fill;
@@ -52,6 +52,6 @@ export function drawPyramid(a: SceneDrawArgs): void {
       ctx.textAlign = 'center';
       drawLines(ctx, fs, f, cx, yA + (i === 0 ? layerH * 0.6 : layerH / 2) - f.height / 2);
       ctx.restore();
-    });
+    }));
   });
 }

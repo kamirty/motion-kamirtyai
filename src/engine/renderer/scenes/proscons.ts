@@ -1,7 +1,7 @@
 import { alpha, mix, readableOn, textAccent } from '../../../design/presets';
 import { easeOutBack, easeOutCubic, progress } from '../animation';
 import { font } from '../context';
-import { drawHeader, roundRect, withAlpha, type SceneDrawArgs } from '../kit';
+import { drawHeader, itemEnter, roundRect, withAlpha, type SceneDrawArgs } from '../kit';
 import { itemReveal, shownItems } from '../../timing';
 import { prosCons } from '../../sceneModel';
 import { drawIcon } from '../icons';
@@ -65,7 +65,7 @@ export function drawProsCons(a: SceneDrawArgs): void {
       if (t <= 0) return;
       const y = rowsTop + k * (rowH + rowGap);
       const e = easeOutCubic(t);
-      withAlpha(ctx, e, () => {
+itemEnter(a, t, x + colW / 2, y + rowH / 2, colW, rowH, () =>       withAlpha(ctx, e, () => {
         const mx = x + colW - 46;
         const s = easeOutBack(t);
         ctx.fillStyle = alpha(g.color, 0.2);
@@ -81,7 +81,7 @@ export function drawProsCons(a: SceneDrawArgs): void {
           ctx.fillStyle = alpha(theme.foreground, 0.08);
           ctx.fillRect(x + 30, y + rowH + rowGap / 2, colW - 60, 1.5);
         }
-      });
+      }));
     });
   });
 }

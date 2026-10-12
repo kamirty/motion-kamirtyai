@@ -2,7 +2,7 @@ import { localizeDigits } from '../../../design/digits';
 import { alpha, readableOn } from '../../../design/presets';
 import { easeOutBack, easeOutCubic, progress } from '../animation';
 import { font } from '../context';
-import { card, drawHeader, withAlpha, type SceneDrawArgs } from '../kit';
+import { card, drawHeader, itemEnter, withAlpha, type SceneDrawArgs } from '../kit';
 import { QUIZ_COUNTDOWN, itemReveal, quizCountdown } from '../../timing';
 import { quizParts } from '../../sceneModel';
 import { drawIcon } from '../icons';
@@ -42,7 +42,7 @@ export function drawQuiz(a: SceneDrawArgs): void {
     const correct = revealed && i === answer;
     const dim = revealed && i !== answer ? 1 - 0.55 * rt : 1;
     const pulse = correct ? 1 + 0.03 * Math.sin((frame - revealAt) / 5) : 1;
-    withAlpha(ctx, Math.min(1, t * 1.4) * dim, () => {
+    itemEnter(a, t, x + cw / 2, y + ch / 2, cw, ch, () => withAlpha(ctx, Math.min(1, t * 1.4) * dim, () => {
       ctx.save();
       const s = (0.9 + 0.1 * easeOutBack(t)) * pulse;
       ctx.translate(x + cw / 2, y + ch / 2);
@@ -73,7 +73,7 @@ export function drawQuiz(a: SceneDrawArgs): void {
       ctx.textAlign = 'right';
       drawLines(ctx, fs, f, x + cw - pad, y + ch / 2 - f.height / 2);
       ctx.restore();
-    });
+    }));
   });
   if (answer < 0) return;
   // Countdown ring with the current digit.
