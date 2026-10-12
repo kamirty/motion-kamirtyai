@@ -4,6 +4,7 @@ import { itemReveal, revealSlots, withReveal, type Pace } from '../../engine/tim
 
 const ENTRANCE_LABELS: Record<EntranceId, string> = {
   none: 'بدون', rise: 'صعود', drop: 'هبوط', zoom: 'تكبير', side: 'انزلاق', spin: 'دوران',
+  pop: 'قفزة', bounce: 'ارتداد', flip: 'قلب', wipe: 'مسح', iris: 'دائرة', swing: 'تأرجح',
 };
 
 interface Props {
@@ -30,11 +31,14 @@ export function TimingControls({ scene, pace, fps, digits, syncNext, onChange, o
     <>
       <label className="label">شكل دخول المشهد</label>
       <div className="seg wrap">
-        {ENTRANCES.map((e) => (
-          <button key={e} type="button" className={(scene.entrance ?? 'none') === e ? 'active' : ''} aria-pressed={(scene.entrance ?? 'none') === e} onClick={() => onChange({ entrance: e === 'none' ? undefined : e })}>
-            {ENTRANCE_LABELS[e]}
-          </button>
-        ))}
+        {(['auto', ...ENTRANCES] as const).map((e) => {
+          const on = (scene.entrance ?? 'auto') === e;
+          return (
+            <button key={e} type="button" className={on ? 'active' : ''} aria-pressed={on} onClick={() => onChange({ entrance: e === 'auto' ? undefined : e })}>
+              {e === 'auto' ? 'تلقائي' : ENTRANCE_LABELS[e]}
+            </button>
+          );
+        })}
       </div>
 
       {n > 0 && (

@@ -4,9 +4,9 @@
  * (1280×720, 720×1280 or 1080×1080); renderFrame scales it to the output size.
  */
 import { alpha, mix, readableOn } from '../../design/presets';
-import type { DigitSystem, Scene, Theme } from '../../domain/types';
+import type { DigitSystem, EntranceId, Scene, Theme } from '../../domain/types';
 import { HEADER } from '../timing';
-import { clamp, easeOutBack, easeOutCubic, progress } from './animation';
+import { bounceOut, clamp, easeOutBack, easeOutCubic, progress } from './animation';
 import type { Ctx2D, FontSpec } from './context';
 import { drawIcon } from './icons';
 import { activeLook } from './look';
@@ -37,6 +37,8 @@ export interface SceneDrawArgs {
   layout: Layout;
   font: FontSpec;
   digits: DigitSystem;
+  /** Entrance motion of this scene, also applied to each element as it appears. */
+  motion?: EntranceId;
 }
 
 export type SceneDrawer = (args: SceneDrawArgs) => void;
@@ -127,4 +129,45 @@ export function drawHeader(a: SceneDrawArgs): number {
   roundRect(ctx, badgeX - r - 24 - lineW, lineY, lineW, 6, 3);
   ctx.fill();
   return lineY + 44;
+}
+
+/**
+ * Draws one element with the scene's entrance motion while it appears (`t` = its own reveal
+ * progress 0→1), centred on its box (cx, cy, w, h). Once revealed, or with no motion, it draws
+ * unchanged — the drawer's own animation still runs inside.
+ */
+export function itemEnter(a: SceneDrawArgs, t: number, cx: number, cy: number, w: number, h: number, draw: () => void): void {
+  const m = a.motion;
+  if (!m || m === 'none' || t >= 1) return draw();
+  if (t <= 0) return;
+  const { ctx } = a;
+  const e = easeOutCubic(t);
+  ctx.save();
+  switch (m) {
+    case 'rise': ctx.translate(0, (1 - e) * 50); break;
+    case 'drop': ctx.translate(0, -(1 - e) * 50); break;
+    case 'side': ctx.translate(-(1 - e) * 80, 0); break;
+    case 'zoom': ctx.translate(cx, cy); ctx.scale(1.35 - 0.35 * e, 1.35 - 0.35 * e); ctx.translate(-cx, -cy); break;
+    case 'spin': ctx.translate(cx, cy); ctx.rotate((1 - e) * 0.8); ctx.scale(0.4 + 0.6 * e, 0.4 + 0.6 * e); ctx.translate(-cx, -cy); break;
+    case 'pop': {
+      const k = 0.3 + 0.7 * easeOutBack(t);
+      ctx.translate(cx, cy); ctx.scale(k, k); ctx.translate(-cx, -cy);
+      break;
+    }
+    case 'bounce': ctx.translate(0, -(1 - bounceOut(t)) * (h + 60)); break;
+    case 'flip': ctx.translate(cx, cy); ctx.scale(Math.max(0.02, e), 1); ctx.translate(-cx, -cy); break;
+    case 'wipe':
+      ctx.beginPath();
+      ctx.rect(cx + w / 2 + 40 - (w + 80) * e, cy - h / 2 - 60, (w + 80) * e, h + 120);
+      ctx.clip();
+      break;
+    case 'iris':
+      ctx.beginPath();
+      ctx.arc(cx, cy, (Math.hypot(w, h) / 2 + 40) * e, 0, Math.PI * 2);
+      ctx.clip();
+      break;
+    case 'swing': ctx.translate(cx + w / 2, cy - h / 2); ctx.rotate((1 - e) * 0.6); ctx.translate(-(cx + w / 2), -(cy - h / 2)); break;
+  }
+  draw();
+  ctx.restore();
 }

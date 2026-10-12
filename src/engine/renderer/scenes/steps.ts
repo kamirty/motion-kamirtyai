@@ -2,7 +2,7 @@ import { alpha, mix, readableOn } from '../../../design/presets';
 import { localizeDigits } from '../../../design/digits';
 import { clamp, easeOutBack, easeOutCubic, progress } from '../animation';
 import { font } from '../context';
-import { drawHeader, roundRect, withAlpha, type SceneDrawArgs } from '../kit';
+import { drawHeader, itemEnter, roundRect, withAlpha, type SceneDrawArgs } from '../kit';
 import { drawLines, fitText, type FittedText } from '../textLayout';
 import { itemReveal, shownItems } from '../../timing';
 
@@ -49,6 +49,7 @@ export function drawSteps(a: SceneDrawArgs): void {
     const y = floor - h * grow;
     const fill = mix(theme.surface, theme.accent, 0.25 + 0.75 * k);
     const ink = readableOn(fill);
+    itemEnter(a, t, x + bw / 2, floor - h / 2, bw, h, () => {
     ctx.save();
     ctx.beginPath();
     ctx.rect(x - 4, top - 80, bw + 8, floor - top + 80);
@@ -88,6 +89,7 @@ export function drawSteps(a: SceneDrawArgs): void {
       ctx.fillText(localizeDigits(String(i + 1), digits), x + bw / 2, y + r * 0.08);
       ctx.textBaseline = 'alphabetic';
     }
+    });
   });
 }
 
@@ -115,7 +117,7 @@ function drawStairRows(a: SceneDrawArgs, top: number, items: string[]): void {
     const fill = mix(theme.surface, theme.accent, 0.2 + 0.8 * k);
     const x = L.W - L.M - rowW - i * shift;
     const y = y0 + i * (rowH + gap);
-    withAlpha(ctx, e, () => {
+    itemEnter(a, t, x + rowW / 2, y + rowH / 2, rowW, rowH, () => withAlpha(ctx, e, () => {
       ctx.fillStyle = fill;
       roundRect(ctx, x + (1 - e) * 60, y, rowW, rowH, 18);
       ctx.fill();
@@ -133,6 +135,6 @@ function drawStairRows(a: SceneDrawArgs, top: number, items: string[]): void {
       ctx.fillStyle = readableOn(fill);
       ctx.textAlign = 'right';
       drawLines(ctx, fs, fits[i], cx - badge - 22, y + rowH / 2 - fits[i].height / 2);
-    });
+    }));
   });
 }

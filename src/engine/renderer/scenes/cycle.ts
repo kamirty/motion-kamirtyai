@@ -1,7 +1,7 @@
 import { alpha, mix } from '../../../design/presets';
 import { easeOutBack, easeOutCubic, progress } from '../animation';
 import { localizeDigits } from '../../../design/digits';
-import { card, drawHeader, iconBadge, withAlpha, type SceneDrawArgs } from '../kit';
+import { card, drawHeader, iconBadge, itemEnter, withAlpha, type SceneDrawArgs } from '../kit';
 import { itemReveal, shownItems } from '../../timing';
 import { discLabel, measure } from './common';
 import { drawLines } from '../textLayout';
@@ -65,11 +65,11 @@ export function drawCycle(a: SceneDrawArgs): void {
     const bh = f.height + 18;
     const bx = Math.max(L.M * 0.4, Math.min(L.W - L.M * 0.4 - bw, lx - bw / 2));
     const by = Math.max(top - 10, Math.min(L.H - L.M * 0.5 - bh, ly - bh / 2));
-    withAlpha(ctx, easeOutCubic(t), () => {
+    itemEnter(a, t, bx + bw / 2, by + bh / 2, bw, bh, () => withAlpha(ctx, easeOutCubic(t), () => {
       card(ctx, theme, bx, by, bw, bh, 12, i === active ? alpha(theme.accent, 0.25) : theme.surface);
       ctx.fillStyle = theme.foreground;
       ctx.textAlign = 'center';
       drawLines(ctx, fs, f, bx + bw / 2, by + 9);
-    });
+    }));
   });
 }

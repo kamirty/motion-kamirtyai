@@ -5,7 +5,7 @@ import { KPIS, itemReveal, shownItems } from '../../timing';
 import { clamp, easeOutBack, easeOutCubic, progress } from '../animation';
 import { font, type Ctx2D, type FontSpec } from '../context';
 import { drawIcon } from '../icons';
-import { card, drawHeader, iconBadge, roundRect, withAlpha, type Layout, type SceneDrawArgs } from '../kit';
+import { card, drawHeader, iconBadge, itemEnter, roundRect, withAlpha, type Layout, type SceneDrawArgs } from '../kit';
 import { formatStatValue, parseStatValue, type StatValue } from '../numbers';
 import { drawLines, fitText, type FittedText } from '../textLayout';
 
@@ -534,7 +534,7 @@ export function drawKpis(a: SceneDrawArgs): void {
     const other = s.tone ? theme.accent : theme.accent2;
     const c: TileCtx = { a, plan, t, s, i, rev, color, ink: textAccent(theme, color), cx: s.x + s.w / 2, cy: s.y + s.h / 2 };
 
-    withAlpha(ctx, clamp(tp * 1.8), () => {
+    itemEnter(a, tp, c.cx, c.cy, s.w, s.h, () => withAlpha(ctx, clamp(tp * 1.8), () => {
       ctx.translate(c.cx, c.cy + (1 - easeOutCubic(tp)) * 26);
       ctx.scale(sc, sc);
       ctx.translate(-c.cx, -c.cy);
@@ -560,6 +560,6 @@ export function drawKpis(a: SceneDrawArgs): void {
 
       if (plan.style === 'stack') drawStackTile(c);
       else drawRowTile(c);
-    });
+    }));
   });
 }

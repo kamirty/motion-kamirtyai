@@ -153,6 +153,9 @@
             "minimal",
             "cartoon"
           ]
+        },
+        "variety": {
+          "type": "boolean"
         }
       }
     },
@@ -259,7 +262,13 @@
             "drop",
             "zoom",
             "side",
-            "spin"
+            "spin",
+            "pop",
+            "bounce",
+            "flip",
+            "wipe",
+            "iris",
+            "swing"
           ]
         },
         "images": {

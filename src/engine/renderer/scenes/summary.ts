@@ -2,7 +2,7 @@ import { iconById, suggestIcon } from '../../../design/icons';
 import { alpha, mix, readableOn } from '../../../design/presets';
 import { clamp, easeOutBack, progress } from '../animation';
 import { drawIcon } from '../icons';
-import { drawHeader, roundRect, withAlpha, type SceneDrawArgs } from '../kit';
+import { drawHeader, itemEnter, roundRect, withAlpha, type SceneDrawArgs } from '../kit';
 import { drawLines, fitText, type FittedText } from '../textLayout';
 import { itemReveal, shownItems } from '../../timing';
 
@@ -57,7 +57,7 @@ export function drawSummary(a: SceneDrawArgs): void {
     const y = y0 + row * (th + gapY);
     const color = [theme.accent, theme.accent2, mix(theme.accent, theme.foreground, 0.35)][i % 3];
     const e = easeOutBack(t);
-    withAlpha(ctx, clamp(t * 1.6), () => {
+    itemEnter(a, t, x + tw / 2, y + th / 2, tw, th, () => withAlpha(ctx, clamp(t * 1.6), () => {
       ctx.save();
       ctx.translate(x + tw / 2, y + th);
       ctx.scale(1, 0.6 + 0.4 * e);
@@ -89,6 +89,6 @@ export function drawSummary(a: SceneDrawArgs): void {
         ctx.fill();
         drawIcon(ctx, icons[i], x + tw / 2, y, r * 1.05, readableOn(color), 2.2);
       }
-    });
+    }));
   });
 }

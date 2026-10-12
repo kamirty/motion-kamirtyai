@@ -3,7 +3,7 @@ import type { Scene } from '../../domain/types';
 import { easeOutBack, easeOutCubic, hash01, progress, seedOf } from './animation';
 import { font } from './context';
 import { drawIcon } from './icons';
-import { appear, drawHeader, iconBadge, roundRect, withAlpha, type SceneDrawArgs, type SceneDrawer } from './kit';
+import { appear, drawHeader, iconBadge, itemEnter, roundRect, withAlpha, type SceneDrawArgs, type SceneDrawer } from './kit';
 import { formatStatValue, parseStatValue } from './numbers';
 import { drawLines, fitText } from './textLayout';
 import { HERO, OUTRO, QUOTE, STAT, comparisonBars, itemReveal, revealSpan, shownItems } from '../timing';
@@ -362,7 +362,7 @@ function drawVersus(a: SceneDrawArgs, top: number, items: string[]): void {
     const y = vertical ? area.y + i * (ph + gap) : area.y;
     const dir = vertical ? 0 : i === 0 ? 1 : -1;
     const { head, body } = splitHeading(it);
-    withAlpha(ctx, e, () => {
+    itemEnter(a, t, x + pw / 2, y + ph / 2, pw, ph, () => withAlpha(ctx, e, () => {
       ctx.save();
       ctx.translate(dir * (1 - e) * 80, vertical ? (1 - e) * 40 : 0);
       const g = ctx.createLinearGradient(0, y, 0, y + ph);
@@ -402,7 +402,7 @@ function drawVersus(a: SceneDrawArgs, top: number, items: string[]): void {
       ctx.fillStyle = theme.foreground;
       drawLines(ctx, fs, bf, tx, yy);
       ctx.restore();
-    });
+    }));
   });
   // Seam medallion(s).
   for (let i = 0; i < n - 1; i++) {
@@ -455,7 +455,7 @@ function drawTimeline(a: SceneDrawArgs): void {
       const cy = y0 + rowH * i + 40;
       if (t <= 0) return;
       const e = easeOutCubic(t);
-      withAlpha(ctx, e, () => {
+      itemEnter(a, t, L.W / 2, cy + 30, L.W - L.M * 2, rowH, () => withAlpha(ctx, e, () => {
         ctx.fillStyle = i % 2 ? theme.accent2 : theme.accent;
         ctx.beginPath();
         ctx.arc(lineX, cy, 16 * easeOutBack(t), 0, Math.PI * 2);
@@ -469,7 +469,7 @@ function drawTimeline(a: SceneDrawArgs): void {
         const f = fitText(ctx, fs, it.what, { maxWidth: L.W - L.M * 2 - 80, maxLines: 3, maxSize: 28, minSize: 18, weight: 'regular', lineHeight: 1.45 });
         ctx.fillStyle = theme.foreground;
         drawLines(ctx, fs, f, lineX - 40 - (1 - e) * 30, cy + 26);
-      });
+      }));
     });
     return;
   }
@@ -508,7 +508,7 @@ function drawTimeline(a: SceneDrawArgs): void {
     const cx = L.W - L.M - step * (i + 0.5);
     const up = i % 2 === 0;
     const color = i % 2 ? theme.accent2 : theme.accent;
-    withAlpha(ctx, e, () => {
+    itemEnter(a, t, cx, roadY, step, avail * 0.8, () => withAlpha(ctx, e, () => {
       // Stem from the road to the event.
       const stem = (avail * 0.5 - 70) * 0.35 * e;
       ctx.strokeStyle = alpha(color, 0.8);
@@ -546,7 +546,7 @@ function drawTimeline(a: SceneDrawArgs): void {
       ctx.fillStyle = theme.foreground;
       ctx.textAlign = 'center';
       drawLines(ctx, fs, f, tx, up ? tipY - f.height + (1 - e) * 16 : tipY - (1 - e) * 16);
-    });
+    }));
   });
 }
 
