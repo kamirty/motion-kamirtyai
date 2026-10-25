@@ -345,9 +345,11 @@ export function renderFrame(project: Project, frameIndex: number, ctx: Ctx2D, ou
     ctx.globalAlpha = opacity;
     if (opacity > 0.001) {
       const images = scene.images ?? [];
-      images.forEach((img, k) => img.layer === 'back' && drawSceneImage(ctx, img, k, theme, L, local, scene.durationFrames));
+      // A profile card shows its first picture as the portrait, not as a free picture.
+      const free = (k: number) => !(scene.kind === 'profile' && k === 0);
+      images.forEach((img, k) => free(k) && img.layer === 'back' && drawSceneImage(ctx, img, k, theme, L, local, scene.durationFrames));
       drawScene({ ctx, scene, theme, frame: local, layout: L, font: fs, digits: style.digits, motion });
-      images.forEach((img, k) => img.layer !== 'back' && drawSceneImage(ctx, img, k, theme, L, local, scene.durationFrames));
+      images.forEach((img, k) => free(k) && img.layer !== 'back' && drawSceneImage(ctx, img, k, theme, L, local, scene.durationFrames));
     }
     ctx.restore();
     if (style.transition === 'wipe') {

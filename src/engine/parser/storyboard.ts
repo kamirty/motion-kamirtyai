@@ -666,6 +666,7 @@ function weightOf(s: DraftScene): number {
     hero: 8, outro: 7, stat: 9, steps: 8, comparison: 9, timeline: 9, quote: 8, summary: 7,
     kpis: 9, donut: 9, columns: 9, pictogram: 9, cycle: 9, pyramid: 9, proscons: 9, checklist: 8, quiz: 12, definition: 8, chapter: 5, tip: 8,
     truefalse: 11, ranking: 10, linechart: 9, beforeafter: 9, warning: 7,
+    mindmap: 10, venn: 9, table: 10, gauges: 9, flowchart: 10, profile: 9,
   };
   return base[s.kind] + Math.min(10, chars / 18) + s.items.length * 0.8;
 }

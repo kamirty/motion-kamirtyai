@@ -1,12 +1,50 @@
 import type { SceneKind } from '../../domain/types';
 
-/** Scene kinds grouped for the inspector picker. */
+/** Scene kinds grouped for the scene-kind gallery (every kind appears exactly once). */
 export const KIND_GROUPS: { label: string; kinds: SceneKind[] }[] = [
-  { label: 'أساسية', kinds: ['hero', 'chapter', 'outro'] },
-  { label: 'نصوص وأفكار', kinds: ['summary', 'steps', 'checklist', 'tip', 'warning', 'definition', 'quote', 'beforeafter'] },
-  { label: 'أرقام وبيانات', kinds: ['stat', 'kpis', 'columns', 'linechart', 'donut', 'pictogram', 'ranking', 'comparison'] },
-  { label: 'مخططات وتفاعل', kinds: ['timeline', 'cycle', 'pyramid', 'proscons', 'quiz', 'truefalse'] },
+  { label: 'افتتاح وختام', kinds: ['hero', 'chapter', 'outro'] },
+  { label: 'نصوص وأفكار', kinds: ['summary', 'steps', 'checklist', 'tip', 'warning', 'definition', 'quote', 'profile'] },
+  { label: 'أرقام وإحصاءات', kinds: ['stat', 'kpis', 'gauges', 'pictogram', 'donut'] },
+  { label: 'رسوم بيانية', kinds: ['columns', 'linechart', 'ranking', 'table'] },
+  { label: 'مقارنات', kinds: ['comparison', 'beforeafter', 'proscons', 'venn'] },
+  { label: 'مخططات وعلاقات', kinds: ['timeline', 'cycle', 'pyramid', 'flowchart', 'mindmap'] },
+  { label: 'تفاعل واختبار', kinds: ['quiz', 'truefalse'] },
 ];
+
+/** One-line description shown under each card of the gallery. */
+export const KIND_BLURBS: Record<SceneKind, string> = {
+  hero: 'عنوان كبير يفتتح الفيديو',
+  chapter: 'فاصل بين أجزاء الفيديو',
+  outro: 'رسالة ختام وزر متابعة',
+  summary: 'بطاقات معلومات بأيقونات',
+  steps: 'خطوات مرقّمة بالتتابع',
+  checklist: 'بنود تُعلَّم بعلامة صح',
+  tip: 'نصيحة أو «هل تعلم؟»',
+  warning: 'تحذير بمثلث وشريط تنبيه',
+  definition: 'مصطلح وتعريفه وأمثلة',
+  quote: 'اقتباس واسم قائله',
+  profile: 'شخصية بصورة ومعلومات',
+  stat: 'رقم كبير بعدّاد متحرك',
+  kpis: 'عدة أرقام في بطاقات',
+  gauges: 'حلقات تمتلئ بالنسب',
+  pictogram: 'نسبة مرسومة بالأيقونات',
+  donut: 'دائرة نسب مع مفتاح',
+  columns: 'أعمدة تنمو من الأسفل',
+  linechart: 'خط يصعد نقطة بعد نقطة',
+  ranking: 'منصة تتويج وميداليات',
+  table: 'جدول بصفوف وأعمدة',
+  comparison: 'بطاقتان أو ثلاث متقابلة',
+  beforeafter: 'لوحتا «قبل» و«بعد»',
+  proscons: 'مزايا وعيوب في عمودين',
+  venn: 'دائرتان وما يشتركان فيه',
+  timeline: 'أحداث على خط الزمن',
+  cycle: 'مراحل في دائرة متصلة',
+  pyramid: 'مستويات من القاعدة للقمة',
+  flowchart: 'خطوات تربطها أسهم',
+  mindmap: 'فكرة مركزية وفروعها',
+  quiz: 'سؤال وعدّ تنازلي وإجابة',
+  truefalse: 'عبارة ثم ختم صح أو خطأ',
+};
 
 export const KIND_LABELS: Record<SceneKind, string> = {
   hero: 'افتتاحية',
@@ -33,6 +71,12 @@ export const KIND_LABELS: Record<SceneKind, string> = {
   linechart: 'رسم خطي',
   beforeafter: 'قبل وبعد',
   warning: 'تنبيه',
+  mindmap: 'خريطة ذهنية',
+  venn: 'تقاطع (فِن)',
+  table: 'جدول',
+  gauges: 'حلقات تقدّم',
+  flowchart: 'مخطط تدفق',
+  profile: 'بطاقة شخصية',
   tip: 'نصيحة',
 };
 
@@ -62,4 +106,10 @@ export const KIND_HINTS: Record<SceneKind, string> = {
   linechart: 'كل عنصر بصيغة «السنة أو الفترة: الرقم» (عنصران على الأقل). يُرسم خط يتصاعد نقطة بعد نقطة.',
   beforeafter: 'عنصران: «قبل: …» ثم «بعد: …». تظهر لوحة «قبل» ثم تنزلق لوحة «بعد» بجانبها.',
   warning: 'العنوان هو التحذير، والعنصر الأول نصه، والثاني ملاحظة (اختياري). مثلث تحذير يهتز مع شريط تنبيه.',
+  mindmap: 'العنوان هو الفكرة المركزية، وكل عنصر فرع حولها (حتى 6). اكتب «الفرع: تفصيل» لإضافة شرح صغير.',
+  venn: 'ثلاثة عناصر: الأول دائرة، والثاني دائرة، والثالث ما يشتركان فيه. اكتب «الاسم: صفاته» لكل دائرة.',
+  table: 'العنصر الأول صف العناوين، وكل عنصر صف؛ افصل الخانات بـ «|» أو «،» (حتى 4 أعمدة).',
+  gauges: 'كل عنصر بصيغة «الاسم: 75%». تمتلئ حلقة لكل عنصر مع عدّاد النسبة.',
+  flowchart: 'كل عنصر خطوة في المخطط؛ الأولى بداية والأخيرة نهاية، وتربطها أسهم بالترتيب.',
+  profile: 'العنوان اسم الشخص، والعنصر الأول دوره أو صفته، والباقي معلومات عنه. أضف صورة للمشهد لتظهر داخل الدائرة.',
 };

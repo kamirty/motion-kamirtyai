@@ -22,6 +22,7 @@ import { drawChapter } from './scenes/chapter';
 import { drawTip } from './scenes/tip';
 import { drawSteps } from './scenes/steps';
 import { drawBeforeAfter, drawLineChart, drawRanking, drawTrueFalse, drawWarning } from './scenes/extra';
+import { drawFlowchart, drawGauges, drawMindmap, drawProfile, drawTable, drawVenn } from './scenes/extra2';
 import { drawSummary } from './scenes/summary';
 import { effectiveItemIcons } from '../itemIcons';
 import { radarPulse, travellingSpark } from './ambient';
@@ -719,6 +720,12 @@ export const SCENE_DRAWERS: Record<Scene['kind'], SceneDrawer> = {
   linechart: drawLineChart,
   beforeafter: drawBeforeAfter,
   warning: drawWarning,
+  mindmap: drawMindmap,
+  venn: drawVenn,
+  table: drawTable,
+  gauges: drawGauges,
+  flowchart: drawFlowchart,
+  profile: drawProfile,
 };
 
 export const drawScene: SceneDrawer = (args) => (SCENE_DRAWERS[args.scene.kind] ?? drawHero)(args);

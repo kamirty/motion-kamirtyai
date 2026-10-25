@@ -3,6 +3,7 @@ import { fullTheme, PRESETS } from '../design/presets';
 import { ASPECTS, LOOKS, SCENE_KINDS, type AspectId, type Project, type Scene } from '../domain/types';
 import { renderFrame } from '../engine/renderer/renderFrame';
 import { sampleScene } from './fixtures/kindSamples';
+import { KIND_STARTERS } from '../engine/kindSamples';
 import { createFakeCtx } from './fakeCtx';
 
 const LONG = 'عنوان طويل جدًا جدًا عن الذكاء الاصطناعي AI في التعليم عام 2026 يشرح كل شيء بالتفصيل الممل حتى لا يبقى مكان للمحتوى في المشهد أبدًا';
@@ -12,6 +13,8 @@ const variants = (kind: Scene['kind'], d: number): Scene[] => [
   { ...sampleScene(kind, 1, d), title: LONG, items: sampleScene(kind, 1, d).items.map((it) => `${it} ${LONG}`) },
   { ...sampleScene(kind, 0, d), title: '', items: [] },
   { ...sampleScene(kind, 0, d), title: 'س', items: ['1'] },
+  // Neutral content a scene added from the gallery starts with.
+  { ...sampleScene(kind, 0, d), title: KIND_STARTERS[kind].title, items: [...KIND_STARTERS[kind].items] },
 ];
 
 describe('every scene renders without canvas errors (negative radii abort exports)', () => {

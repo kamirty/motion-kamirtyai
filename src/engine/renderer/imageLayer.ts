@@ -1,5 +1,5 @@
 import { alpha } from '../../design/presets';
-import type { SceneImage, Theme } from '../../domain/types';
+import type { Scene, SceneImage, Theme } from '../../domain/types';
 import { getBitmap } from '../../storage/assets';
 import { IMAGE, imageEnter } from '../timing';
 import { easeOutBack, easeOutCubic, progress } from './animation';
@@ -91,4 +91,22 @@ export function drawSceneImage(ctx: Ctx2D, img: SceneImage, k: number, theme: Re
     ctx.stroke();
   }
   ctx.restore();
+}
+
+/**
+ * Draws the scene's first picture as a round portrait (profile cards). Returns false when the
+ * scene has no picture or its pixels are not loaded yet, so the caller can draw an icon instead.
+ */
+export function drawSceneImageAvatar(ctx: Ctx2D, scene: Scene, cx: number, cy: number, r: number): boolean {
+  const img = scene.images?.[0];
+  const bmp = img ? getBitmap(img.assetId) : null;
+  if (!bmp || r <= 0) return false;
+  const k = Math.max((r * 2) / bmp.width, (r * 2) / bmp.height);
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.drawImage(bmp, cx - (bmp.width * k) / 2, cy - (bmp.height * k) / 2, bmp.width * k, bmp.height * k);
+  ctx.restore();
+  return true;
 }

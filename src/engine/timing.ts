@@ -88,6 +88,7 @@ export function autoReveal(scene: Scene & { pace?: Pace }, i: number, count: num
       return i === 0 ? DEFINITION.body : DEFINITION.body + 30 + (i - 1) * Math.max(20, Math.floor(span / 2));
     case 'steps': case 'cycle': case 'checklist': case 'timeline': case 'summary': case 'comparison':
     case 'kpis': case 'donut': case 'columns': case 'proscons': case 'quiz': case 'linechart':
+    case 'mindmap': case 'venn': case 'table': case 'gauges': case 'flowchart': case 'profile':
       return 20 + i * span;
     default:
       return 0;
