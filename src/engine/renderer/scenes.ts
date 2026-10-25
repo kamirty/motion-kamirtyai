@@ -22,7 +22,8 @@ import { drawChapter } from './scenes/chapter';
 import { drawTip } from './scenes/tip';
 import { drawSteps } from './scenes/steps';
 import { drawBeforeAfter, drawLineChart, drawRanking, drawTrueFalse, drawWarning } from './scenes/extra';
-import { drawSummary, itemIcons } from './scenes/summary';
+import { drawSummary } from './scenes/summary';
+import { effectiveItemIcons } from '../itemIcons';
 import { radarPulse, travellingSpark } from './ambient';
 
 export { layoutFor, type Layout, type SceneDrawArgs, type SceneDrawer } from './kit';
@@ -371,7 +372,7 @@ function drawComparison(a: SceneDrawArgs): void {
 function drawVersus(a: SceneDrawArgs, top: number, items: string[]): void {
   const { ctx, scene, theme, frame, layout: L, font: fs } = a;
   const n = items.length;
-  const icons = itemIcons(items.map((it) => splitHeading(it).head || it), scene.icon);
+  const icons = effectiveItemIcons(scene);
   const vertical = L.portrait;
   const gap = 18;
   const area = { x: L.M * 0.6, y: top - 6, w: L.W - L.M * 1.2, h: L.H - top - L.M * 0.6 };

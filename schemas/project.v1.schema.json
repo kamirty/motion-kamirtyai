@@ -284,6 +284,14 @@
           "items": {
             "$ref": "#/$defs/image"
           }
+        },
+        "itemIcons": {
+          "type": "array",
+          "maxItems": 6,
+          "items": {
+            "type": "string",
+            "maxLength": 60
+          }
         }
       }
     },

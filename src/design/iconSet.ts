@@ -103,7 +103,7 @@ export const ICONS: IconDef[] = [
   def('trophy', Trophy, 'فوز انجاز بطوله جائزه'),
   def('target', Target, 'هدف اهداف'),
   def('flag', Flag, 'بدايه انطلاق علم وطن'),
-  def('rocket', Rocket, 'اطلاق اطلق نمو سريع فضاء'),
+  def('rocket', Rocket, 'صاروخ اطلاق اطلق نمو سريع فضاء'),
   def('trending-up', TrendingUp, 'زياده ارتفاع نمو تحسن'),
   def('trending-down', TrendingDown, 'انخفاض تراجع نقص'),
   def('chart-column', ChartColumn, 'احصاء احصائيات نسبه ارقام'),

@@ -53,6 +53,8 @@ export interface Scene {
   icon: string;
   /** Pictures in drawing order (later ones on top within their layer), at most LIMITS.images. */
   images?: SceneImage[];
+  /** Icon chosen by the user per element ('' = automatic), for kinds that draw one per element. */
+  itemIcons?: string[];
   /** Custom reveal frame (from scene start) per item, set by tap-to-sync or the timing editor. */
   reveals?: number[];
   /** How the scene's content enters, on top of the project transition; absent = automatic. */

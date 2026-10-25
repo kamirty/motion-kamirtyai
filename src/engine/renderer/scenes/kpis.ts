@@ -1,4 +1,5 @@
 import { suggestIcon } from '../../../design/icons';
+import { effectiveItemIcons } from '../../itemIcons';
 import { alpha, contrast, mix, textAccent } from '../../../design/presets';
 import { kpiParts } from '../../sceneModel';
 import { KPIS, itemReveal, shownItems } from '../../timing';
@@ -524,7 +525,10 @@ export function drawKpis(a: SceneDrawArgs): void {
   const lightSurface = contrast(theme.surface, '#FFFFFF') < 1.6;
   const radius = plan.style === 'row' ? 20 : 24;
 
-  plan.tiles.forEach((t, i) => {
+  const icons = effectiveItemIcons(scene);
+  plan.tiles.forEach((tile, i) => {
+    // The user's icon choice (if any) replaces the automatic one.
+    const t = icons[i] && icons[i] !== tile.icon ? { ...tile, icon: icons[i] } : tile;
     const s = plan.slots[i];
     const rev = itemReveal(scene, i, n);
     const tp = progress(frame, rev, 24);
