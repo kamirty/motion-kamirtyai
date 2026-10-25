@@ -60,6 +60,15 @@ export interface Scene {
   reveals?: number[];
   /** How the scene's content enters, on top of the project transition; absent = automatic. */
   entrance?: EntranceId;
+  /** Narration recorded for this scene in the browser; plays from the scene's first frame. */
+  voice?: SceneVoice;
+}
+
+export interface SceneVoice {
+  /** Local asset (IndexedDB) holding the recording. */
+  assetId: string;
+  /** Length of the recording; the part past the scene's end is cut with a short fade. */
+  durationFrames: number;
 }
 
 export type EntranceId = 'none' | 'rise' | 'drop' | 'zoom' | 'side' | 'spin' | 'pop' | 'bounce' | 'flip' | 'wipe' | 'iris' | 'swing';

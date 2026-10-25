@@ -4,6 +4,7 @@ import { iconById } from '../design/icons';
 
 const COLOR = /^#[0-9A-Fa-f]{6}$/;
 const ID = /^[A-Za-z0-9_-]{1,40}$/;
+const ASSET_ID = /^[0-9a-f]{24}$/;
 
 const str = (v: unknown, max: number): string => (typeof v === 'string' ? v : '').replace(/[\u0000-\u0008\u000B-\u001F]/g, '').slice(0, max);
 const pick = <T extends string>(v: unknown, allowed: readonly T[], fallback: T): T => (allowed.includes(v as T) ? (v as T) : fallback);
@@ -17,7 +18,7 @@ const num = (v: unknown, min: number, max: number, fb: number): number => {
 export function parseImage(v: unknown): SceneImage | undefined {
   if (!v || typeof v !== 'object') return undefined;
   const o = v as Record<string, unknown>;
-  if (typeof o.assetId !== 'string' || !/^[0-9a-f]{24}$/.test(o.assetId)) return undefined;
+  if (typeof o.assetId !== 'string' || !ASSET_ID.test(o.assetId)) return undefined;
   const d = DEFAULT_IMAGE;
   return {
     assetId: o.assetId,
@@ -80,6 +81,7 @@ export function parseProject(input: unknown): Project {
       ...parseReveals(s.reveals),
       // Absent (or unknown) means automatic; 'none' is an explicit choice and is kept.
       ...((ENTRANCES as readonly unknown[]).includes(s.entrance) ? { entrance: s.entrance as Scene['entrance'] } : {}),
+      ...parseVoice(s.voice),
     };
   });
 
@@ -114,6 +116,15 @@ export function parseProject(input: unknown): Project {
   const errors = validateTimeline(project);
   if (errors.length) throw new Error(`تعذر إصلاح توقيت المشروع: ${errors.join('، ')}`);
   return project;
+}
+
+/** A recorded narration reference: a local asset id and a length up to the longest scene. */
+function parseVoice(v: unknown): { voice?: Scene['voice'] } {
+  if (!v || typeof v !== 'object') return {};
+  const { assetId, durationFrames } = v as Record<string, unknown>;
+  const d = Number(durationFrames);
+  if (typeof assetId !== 'string' || !ASSET_ID.test(assetId) || !Number.isFinite(d) || d < 1) return {};
+  return { voice: { assetId, durationFrames: Math.min(LIMITS.maxSceneFrames, Math.round(d)) } };
 }
 
 /** Keeps up to LIMITS.items whole, non-negative frame numbers; anything else drops the field. */

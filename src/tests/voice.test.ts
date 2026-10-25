@@ -1,0 +1,60 @@
+import Ajv2020 from 'ajv/dist/2020';
+import { describe, expect, it } from 'vitest';
+import schema from '../../schemas/project.v1.schema.json';
+import { sampleProject } from '../domain/sampleProject';
+import { parseProject } from '../domain/sanitize';
+import { setSceneDuration, withScenes } from '../domain/timeline';
+import { renderSoundtrack, voiceClips, voiceWindows } from '../engine/audio/sfx';
+import { projectToJson } from '../storage/projectJson';
+import { projectVoiceIds } from '../storage/voices';
+
+const validate = new Ajv2020({ allErrors: true }).compile(schema);
+const ID = 'a1b2c3d4e5f60718293a4b5c';
+
+/** Sample project with a recording on scene 1 (index 1) of `frames` frames. */
+const withVoice = (frames: number, index = 1) =>
+  withScenes(sampleProject, sampleProject.scenes.map((s, i) => (i === index ? { ...s, voice: { assetId: ID, durationFrames: frames } } : s)));
+
+describe('scene narration (recorded voice)', () => {
+  it('survives save/open and validates against the schema', () => {
+    const p = withVoice(150);
+    const round = JSON.parse(projectToJson(p));
+    expect(validate(round), JSON.stringify(validate.errors)).toBe(true);
+    expect(parseProject(round).scenes[1].voice).toEqual({ assetId: ID, durationFrames: 150 });
+    expect(projectVoiceIds(p)).toEqual([ID]);
+  });
+
+  it('drops malformed references and clamps the length', () => {
+    const bad = (voice: unknown) => parseProject({ ...sampleProject, scenes: [{ ...sampleProject.scenes[0], voice }] }).scenes[0].voice;
+    expect(bad({ assetId: '../../etc', durationFrames: 90 })).toBeUndefined();
+    expect(bad({ assetId: ID, durationFrames: -5 })).toBeUndefined();
+    expect(bad({ assetId: ID, durationFrames: 'x' })).toBeUndefined();
+    expect(bad('voice.webm')).toBeUndefined();
+    expect(bad({ assetId: ID, durationFrames: 99999 })).toEqual({ assetId: ID, durationFrames: 3600 });
+    expect(validate({ ...sampleProject, scenes: [{ ...sampleProject.scenes[0], voice: { assetId: ID, durationFrames: 90, url: 'https://x' } }] })).toBe(false);
+  });
+
+  it('plays from the first frame of its scene and is cut at the scene end', () => {
+    const p = withVoice(150);
+    const s = p.scenes[1];
+    expect(voiceClips(p)).toEqual([{ assetId: ID, start: s.startFrame / 30, length: Math.min(150, s.durationFrames) / 30, cut: 150 > s.durationFrames }]);
+    // Longer than the scene: cut, and it follows the scene when an earlier scene changes length.
+    const long = withVoice(s.durationFrames + 60);
+    expect(voiceClips(long)[0]).toMatchObject({ length: s.durationFrames / 30, cut: true });
+    const moved = withScenes(long, setSceneDuration(long.scenes, 0, long.scenes[0].durationFrames + 90));
+    expect(voiceClips(moved)[0].start).toBeCloseTo(s.startFrame / 30 + 3);
+  });
+
+  it('merges nearby narration windows so the music does not pump between them', () => {
+    expect(voiceWindows([
+      { assetId: ID, start: 10, length: 4, cut: false },
+      { assetId: ID, start: 0, length: 5, cut: false },
+      { assetId: ID, start: 5.5, length: 2, cut: false },
+    ])).toEqual([[0, 7.5], [10, 14]]);
+  });
+
+  it('leaves the soundtrack alone when no recording is available', async () => {
+    const p = withVoice(150);
+    expect(await renderSoundtrack(p, null, { sfx: false, sceneVoices: () => undefined })).toBeNull();
+  });
+});

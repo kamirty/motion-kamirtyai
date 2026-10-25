@@ -1,7 +1,8 @@
 /**
- * Local image store. Pictures the visitor adds are downscaled, re-encoded and kept in the
+ * Local asset store. Pictures the visitor adds are downscaled, re-encoded and kept in the
  * browser (IndexedDB) under a content hash; nothing is uploaded. Decoded bitmaps are cached in
- * memory for the renderer, which reads them synchronously through getBitmap().
+ * memory for the renderer, which reads them synchronously through getBitmap(). Recorded
+ * narrations share the same store (see voices.ts).
  */
 
 export const MAX_IMAGE_BYTES = 25 * 1024 * 1024; // accepted input file size
@@ -43,7 +44,7 @@ function openDb(): Promise<IDBDatabase | null> {
   });
 }
 
-async function idb<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T | undefined> {
+export async function idb<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T>): Promise<T | undefined> {
   const db = await openDb();
   if (!db) return undefined;
   return new Promise((resolve) => {
@@ -57,7 +58,7 @@ async function idb<T>(mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRe
   });
 }
 
-async function hashBlob(blob: Blob): Promise<string> {
+export async function hashBlob(blob: Blob): Promise<string> {
   const bytes = new Uint8Array(await blob.arrayBuffer());
   // crypto.subtle needs a secure context (HTTPS); fall back to three FNV-1a lanes otherwise.
   if (globalThis.crypto?.subtle) {
@@ -125,9 +126,10 @@ export const projectAssetIds = (project: { scenes: { images?: { assetId: string 
 ];
 
 const DATA_URL = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
+const AUDIO_URL = /^data:audio\/(webm|ogg|mp4|mpeg|wav)(;codecs=[a-z0-9.]+)?;base64,[A-Za-z0-9+/=]+$/;
 export const MAX_EMBEDDED_CHARS = 8 * 1024 * 1024;
 
-/** Embeds referenced pictures as data URLs so a saved project file is self-contained. */
+/** Embeds referenced pictures and recordings as data URLs so a saved project file is self-contained. */
 export async function exportAssets(ids: string[]): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
   for (const id of new Set(ids)) {
@@ -143,13 +145,15 @@ export async function exportAssets(ids: string[]): Promise<Record<string, string
   return out;
 }
 
-/** Imports embedded pictures from a project file (validated: image data URLs only). */
+/** Imports embedded pictures and recordings from a project file (validated: image/audio data URLs only). */
 export async function importAssets(assets: unknown): Promise<void> {
   if (!assets || typeof assets !== 'object') return;
   for (const [id, url] of Object.entries(assets as Record<string, unknown>)) {
-    if (!/^[0-9a-f]{24}$/.test(id) || typeof url !== 'string' || url.length > MAX_EMBEDDED_CHARS || !DATA_URL.test(url)) continue;
+    if (!/^[0-9a-f]{24}$/.test(id) || typeof url !== 'string' || url.length > MAX_EMBEDDED_CHARS) continue;
+    const image = DATA_URL.test(url);
+    if (!image && !AUDIO_URL.test(url)) continue;
     const blob = await (await fetch(url)).blob();
-    if (!bitmaps.has(id)) register(id, await createImageBitmap(blob));
+    if (image && !bitmaps.has(id)) register(id, await createImageBitmap(blob));
     await idb('readwrite', (s) => s.put(blob, id));
   }
 }

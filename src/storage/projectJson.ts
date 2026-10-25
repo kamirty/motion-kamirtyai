@@ -1,12 +1,13 @@
 import { parseProject } from '../domain/sanitize';
 import type { Project } from '../domain/types';
 import { exportAssets, importAssets, projectAssetIds } from './assets';
+import { projectVoiceIds } from './voices';
 
 export const projectToJson = (project: Project): string => JSON.stringify(project, null, 2);
 
-/** Project file with its pictures embedded, for "save". */
+/** Project file with its pictures and recordings embedded, for "save". */
 export async function projectFileBlob(project: Project): Promise<Blob> {
-  const assets = await exportAssets(projectAssetIds(project));
+  const assets = await exportAssets([...projectAssetIds(project), ...projectVoiceIds(project)]);
   const data = Object.keys(assets).length ? { ...project, assets } : project;
   return new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
 }

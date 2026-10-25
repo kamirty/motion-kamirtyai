@@ -163,13 +163,13 @@
     },
     "assets": {
       "type": "object",
-      "description": "Pictures embedded by 'save' so the file is self-contained: asset id → data URL.",
+      "description": "Pictures and recorded narrations embedded by 'save' so the file is self-contained: asset id → data URL.",
       "propertyNames": {
         "pattern": "^[0-9a-f]{24}$"
       },
       "additionalProperties": {
         "type": "string",
-        "pattern": "^data:image/(png|jpeg|webp);base64,",
+        "pattern": "^data:(image/(png|jpeg|webp)|audio/(webm|ogg|mp4|mpeg|wav)(;codecs=[a-z0-9.]+)?);base64,",
         "maxLength": 8388608
       },
       "maxProperties": 40
@@ -297,6 +297,16 @@
           "items": {
             "type": "string",
             "maxLength": 60
+          }
+        },
+        "voice": {
+          "type": "object",
+          "description": "Narration recorded in the browser for this scene; the audio stays in local storage (or embedded in a saved file under assets).",
+          "additionalProperties": false,
+          "required": ["assetId", "durationFrames"],
+          "properties": {
+            "assetId": { "type": "string", "pattern": "^[0-9a-f]{24}$" },
+            "durationFrames": { "type": "integer", "minimum": 1, "maximum": 3600 }
           }
         }
       }
