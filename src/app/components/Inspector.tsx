@@ -5,6 +5,7 @@ import { IconPicker } from './IconPicker';
 import { effectiveItemIcons, hasItemIcons } from '../../engine/itemIcons';
 import { ImageControls } from './ImageControls';
 import { TimingControls } from './TimingControls';
+import { VoiceControls } from './VoiceControls';
 import { KIND_BLURBS, KIND_HINTS, KIND_LABELS } from './kinds';
 import { Icon } from './Icon';
 import { KIND_ICONS } from '../../design/icons';
@@ -15,6 +16,11 @@ interface Props {
   onChange: (patch: Partial<Scene>) => void;
   /** Opens the scene-kind gallery. */
   onChangeKind: () => void;
+  canRecord: boolean;
+  voiceMissing: boolean;
+  onRecordVoice: () => void;
+  /** Sets the scene's length to its recording's. */
+  onFitVoice: () => void;
   onDuration: (seconds: number) => void;
   onMove: (delta: -1 | 1) => void;
   onDuplicate: () => void;
@@ -30,7 +36,7 @@ interface Props {
   onStopSync: () => void;
 }
 
-export function Inspector({ project, index, onChange, onChangeKind, onDuration, onMove, onDuplicate, onDelete, onImageFile, onImage, activeImage, onImagePick, onImageOrder, syncNext, onStartSync, onTap, onStopSync }: Props) {
+export function Inspector({ project, index, onChange, onChangeKind, canRecord, voiceMissing, onRecordVoice, onFitVoice, onDuration, onMove, onDuplicate, onDelete, onImageFile, onImage, activeImage, onImagePick, onImageOrder, syncNext, onStartSync, onTap, onStopSync }: Props) {
   const scene = project.scenes[index];
   if (!scene) return null;
   const digits = styleOf(project).digits;
@@ -112,6 +118,17 @@ export function Inspector({ project, index, onChange, onChangeKind, onDuration, 
 
       <label className="label">{itemIcons ? 'أيقونة المشهد (العنوان)' : 'الأيقونة'}</label>
       <IconPicker value={scene.icon} onChange={(icon) => onChange({ icon })} />
+
+      <VoiceControls
+        scene={scene}
+        fps={project.fps}
+        digits={digits}
+        canRecord={canRecord}
+        missing={voiceMissing}
+        onRecord={onRecordVoice}
+        onRemove={() => onChange({ voice: undefined })}
+        onFit={onFitVoice}
+      />
 
       <TimingControls
         scene={scene}

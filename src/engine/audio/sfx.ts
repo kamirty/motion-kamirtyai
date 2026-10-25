@@ -252,17 +252,60 @@ function schedule(ctx: BaseAudioContext, out: AudioNode, noise: AudioBuffer, cue
   }
 }
 
+/** A scene's recorded narration placed on the timeline (seconds). */
+export interface VoiceClip {
+  assetId: string;
+  start: number;
+  /** Seconds played: the recording, cut at the scene's end. */
+  length: number;
+  /** True when the recording is longer than its scene (it fades out at the cut). */
+  cut: boolean;
+}
+
+/** Fade applied where a recording is cut at its scene's end. */
+export const VOICE_CUT_FADE = 0.15;
+
+/** Where each scene's narration plays: from the scene's first frame, never past its last. */
+export function voiceClips(project: Project): VoiceClip[] {
+  return project.scenes.flatMap((s) => {
+    if (!s.voice) return [];
+    const frames = Math.min(s.voice.durationFrames, s.durationFrames);
+    return [{ assetId: s.voice.assetId, start: s.startFrame / project.fps, length: frames / project.fps, cut: s.voice.durationFrames > s.durationFrames }];
+  });
+}
+
+/** Time windows (seconds) where narration plays, merged when they touch, for ducking music. */
+export function voiceWindows(clips: VoiceClip[]): [number, number][] {
+  const out: [number, number][] = [];
+  for (const c of [...clips].sort((a, b) => a.start - b.start)) {
+    const last = out[out.length - 1];
+    // Gaps shorter than the duck release + attack (0.75 s) stay ducked instead of pumping.
+    if (last && c.start <= last[1] + 0.8) last[1] = Math.max(last[1], c.start + c.length);
+    else out.push([c.start, c.start + c.length]);
+  }
+  return out;
+}
+
 /**
- * Mixes the background track (music or the visitor's file, may be null) with sound effects into
- * one 120 s stereo buffer for preview and export.
+ * Mixes the background track (music or the visitor's file, may be null) with sound effects,
+ * the narration file and the scenes' recorded narrations into one stereo buffer for preview
+ * and export.
  */
 export async function renderSoundtrack(
   project: Project,
   background: AudioBuffer | null,
-  opts: { sfx: boolean; voice?: AudioBuffer | null; seconds?: number; sampleRate?: number },
+  opts: {
+    sfx: boolean;
+    voice?: AudioBuffer | null;
+    /** Decoded scene recordings by asset id; clips whose audio is missing are skipped. */
+    sceneVoices?: (assetId: string) => AudioBuffer | undefined;
+    seconds?: number;
+    sampleRate?: number;
+  },
 ): Promise<AudioBuffer | null> {
   const voice = opts.voice ?? null;
-  if (!opts.sfx && !voice) return background;
+  const clips = opts.sceneVoices ? voiceClips(project).filter((c) => opts.sceneVoices!(c.assetId)) : [];
+  if (!opts.sfx && !voice && !clips.length) return background;
   if (typeof OfflineAudioContext === 'undefined') return background;
   const seconds = opts.seconds ?? project.durationFrames / project.fps;
   const sampleRate = opts.sampleRate ?? 48000;
@@ -278,6 +321,18 @@ export async function renderSoundtrack(
     vg.gain.value = 1.15;
     v.connect(vg).connect(master);
     v.start(0);
+  }
+  for (const c of clips) {
+    const v = ctx.createBufferSource();
+    v.buffer = opts.sceneVoices!(c.assetId)!;
+    const vg = ctx.createGain();
+    vg.gain.setValueAtTime(1.15, c.start);
+    if (c.cut) {
+      vg.gain.setValueAtTime(1.15, Math.max(c.start, c.start + c.length - VOICE_CUT_FADE));
+      vg.gain.linearRampToValueAtTime(0, c.start + c.length);
+    }
+    v.connect(vg).connect(master);
+    v.start(c.start, 0, c.length);
   }
   if (background) {
     const src = ctx.createBufferSource();
@@ -304,7 +359,17 @@ export async function renderSoundtrack(
       g.gain.setValueAtTime(DUCK, b);
       g.gain.linearRampToValueAtTime(BED, b + RELEASE);
     }
-    src.connect(g).connect(master);
+    // Scene narrations: the bed dips under each recording and comes back between them.
+    const duck = ctx.createGain();
+    if (!voice) {
+      for (const [a, b] of voiceWindows(clips)) {
+        duck.gain.setValueAtTime(1, Math.max(0, a - 0.25));
+        duck.gain.linearRampToValueAtTime(0.42, a);
+        duck.gain.setValueAtTime(0.42, b);
+        duck.gain.linearRampToValueAtTime(1, b + 0.5);
+      }
+    }
+    src.connect(g).connect(duck).connect(master);
     src.start(0);
   }
   const sfxBus = ctx.createGain();

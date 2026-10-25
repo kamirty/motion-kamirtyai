@@ -2,11 +2,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ensureFontLoaded } from '../design/fonts';
 import { fullTheme, presetById } from '../design/presets';
 import { localizeDigits } from '../design/digits';
-import { rebalance, sceneIndexAt, setSceneDuration, totalFrames, withScenes } from '../domain/timeline';
+import { maxSceneFrames, rebalance, sceneIndexAt, setSceneDuration, totalFrames, withScenes } from '../domain/timeline';
 import { ASPECTS, DEFAULT_IMAGE, FPS, LIMITS, aspectOf as aspectOfSize, styleOf, type AspectId, type Project, type ProjectStyle, type Scene, type SceneImage, type SceneKind, type Theme } from '../domain/types';
 import { PreviewAudio } from '../engine/audio/player';
 import { decodeAudioFile, fitAudio, renderMusic } from '../engine/audio/music';
-import { cuesKey, renderSoundtrack } from '../engine/audio/sfx';
+import { cuesKey, renderSoundtrack, voiceClips } from '../engine/audio/sfx';
 import { revealSlots } from '../engine/timing';
 import { detectExportPlan } from '../engine/export/capabilities';
 import { generateProject, nextSceneId } from '../engine/planner';
@@ -15,11 +15,13 @@ import { KIND_ICONS } from '../design/icons';
 import type { AssistantAction, AssistantContext } from '../assistant/types';
 import { clearTextCache } from '../engine/renderer/textLayout';
 import { addImageFile, loadAssets, onAssetsChanged, projectAssetIds } from '../storage/assets';
+import { addVoiceBlob, canRecordVoice, getVoiceBuffer, loadVoices, projectVoiceIds } from '../storage/voices';
 import { downloadBlob, loadLocal, projectFileBlob, readProjectFile, saveLocal } from '../storage/projectJson';
 import { Assistant } from './components/Assistant';
 import { ExportDialog } from './components/ExportDialog';
 import { GuideWizard } from './components/GuideWizard';
 import { KindGallery } from './components/KindGallery';
+import { VoiceRecorder } from './components/VoiceRecorder';
 import { Inspector } from './components/Inspector';
 import { Preview } from './components/Preview';
 import { Sidebar } from './components/Sidebar';
@@ -85,6 +87,23 @@ export function App() {
     if (assetKey) void loadAssets(assetKey.split(','));
   }, [assetKey]);
 
+  // Scene recordings live in IndexedDB too; decode the ones this project uses.
+  const voiceKey = projectVoiceIds(project).join(',');
+  const [voicesLoaded, setVoicesLoaded] = useState(0);
+  const [missingVoices, setMissingVoices] = useState<string[]>([]);
+  useEffect(() => {
+    if (!voiceKey) return setMissingVoices([]);
+    let alive = true;
+    void loadVoices(voiceKey.split(',')).then((missing) => {
+      if (!alive) return;
+      setMissingVoices(missing);
+      setVoicesLoaded((n) => n + 1);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [voiceKey]);
+
   useEffect(() => {
     const id = setTimeout(() => saveLocal(project, description), 400);
     return () => clearTimeout(id);
@@ -121,17 +140,26 @@ export function App() {
   }, [sync ? 'syncing' : project, style.sfx]);
   const soundtrack = useRef<{ key: string; promise: Promise<AudioBuffer | null> } | null>(null);
 
+  // Scene recordings follow their scenes, so the mix depends on where each scene starts.
+  const clipsKey = useMemo(
+    () => voiceClips(project).filter((c) => getVoiceBuffer(c.assetId)).map((c) => `${c.assetId}@${c.start}+${c.length}`).join(','),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [project, voicesLoaded],
+  );
   const getAudio = useCallback(async (): Promise<AudioBuffer | null> => {
-    // Music (or none) + optional narration file + optional effects, mixed together.
+    // Music (or none) + optional narration file + scene recordings + optional effects, mixed together.
     const music = await musicFor(style.music);
     const voice = customAudio?.buffer ?? null;
-    if (!style.sfx && !voice) return music;
-    const key = `${sfxKey}|${style.music}|${customAudio ? `voice:${customAudio.name}:${customAudio.buffer.length}` : ''}`;
+    if (!style.sfx && !voice && !clipsKey) return music;
+    const key = `${sfxKey}|${style.music}|${customAudio ? `voice:${customAudio.name}:${customAudio.buffer.length}` : ''}|${clipsKey}`;
     if (soundtrack.current?.key !== key) {
-      soundtrack.current = { key, promise: renderSoundtrack(projectRef.current, music, { sfx: style.sfx, voice }).catch(() => voice ?? music) };
+      soundtrack.current = {
+        key,
+        promise: renderSoundtrack(projectRef.current, music, { sfx: style.sfx, voice, sceneVoices: getVoiceBuffer }).catch(() => voice ?? music),
+      };
     }
     return soundtrack.current.promise;
-  }, [customAudio, style.music, style.sfx, sfxKey, musicFor]);
+  }, [customAudio, style.music, style.sfx, sfxKey, clipsKey, musicFor]);
 
   // Render the soundtrack in the background after edits settle, so Play starts at once.
   const [preparing, setPreparing] = useState(false);
@@ -303,6 +331,29 @@ export function App() {
     const at = Math.min(selected + 1, project.scenes.length);
     const starter = KIND_STARTERS[kind];
     insertScene(at, { id: nextSceneId(project.scenes), kind, startFrame: 0, durationFrames: 300, title: starter.title, items: [...starter.items], icon: KIND_ICONS[kind] ?? 'sparkles' });
+  };
+
+  // «سجّل التعليق»: the recorder modal works on one scene at a time.
+  const [recordFor, setRecordFor] = useState<number | null>(null);
+  // A scene fitted to its recording lasts the recording plus a short pause, in whole seconds.
+  const voiceFit = (voiceFrames: number) => Math.ceil(voiceFrames / project.fps + 0.4) * project.fps;
+  const fitSceneToVoice = (index: number, voiceFrames: number) =>
+    setProject((p) => withScenes(p, setSceneDuration(p.scenes, index, voiceFit(voiceFrames))));
+  const saveRecording = async (index: number, blob: Blob, fit: boolean, next: boolean) => {
+    const { id, buffer } = await addVoiceBlob(blob);
+    const frames = Math.min(LIMITS.maxSceneFrames, Math.max(1, Math.round(buffer.duration * project.fps)));
+    setProject((p) => {
+      const scenes = p.scenes.map((s, i) => (i === index ? { ...s, voice: { assetId: id, durationFrames: frames } } : s));
+      return withScenes(p, fit ? setSceneDuration(scenes, index, voiceFit(frames)) : scenes);
+    });
+    setVoicesLoaded((n) => n + 1);
+    if (next && index + 1 < project.scenes.length) {
+      setSelected(index + 1);
+      setRecordFor(index + 1);
+    } else {
+      setRecordFor(null);
+      setNotice({ kind: 'info', text: 'حُفظ التعليق الصوتي للمشهد. اضغط ▶ في المعاينة لتسمعه مع الموسيقى.' });
+    }
   };
 
   /** Stretches or shrinks all scenes proportionally so the video ends with the narration. */
@@ -572,6 +623,16 @@ export function App() {
           index={selected}
           onChange={updateScene}
           onChangeKind={() => setGallery('change')}
+          canRecord={canRecordVoice()}
+          voiceMissing={!!project.scenes[selected]?.voice && missingVoices.includes(project.scenes[selected].voice!.assetId)}
+          onRecordVoice={() => {
+            setPlaying(false);
+            setRecordFor(selected);
+          }}
+          onFitVoice={() => {
+            const v = project.scenes[selected]?.voice;
+            if (v) fitSceneToVoice(selected, v.durationFrames);
+          }}
           onDuration={(sec) => setProject((p) => withScenes(p, setSceneDuration(p.scenes, selected, sec * p.fps)), `dur-${selected}`)}
           onMove={moveScene}
           onDuplicate={duplicateScene}
@@ -626,6 +687,19 @@ export function App() {
             setWizardOpen(false);
             setNotice({ kind: 'info', text: 'جاهز! هذا فيديوك. عدّل أي مشهد من لوحة المشهد، ثم صدّره.' });
           }}
+        />
+      )}
+      {recordFor !== null && project.scenes[recordFor] && (
+        <VoiceRecorder
+          key={recordFor}
+          scene={project.scenes[recordFor]}
+          index={recordFor}
+          total={project.scenes.length}
+          fps={project.fps}
+          digits={style.digits}
+          maxSeconds={Math.floor(maxSceneFrames(project.scenes, recordFor) / project.fps)}
+          onSave={(blob, fit, next) => saveRecording(recordFor, blob, fit, next)}
+          onClose={() => setRecordFor(null)}
         />
       )}
       {gallery && (

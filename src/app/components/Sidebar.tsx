@@ -215,6 +215,7 @@ export function Sidebar(p: Props) {
           ))}
         </div>
         <span className="label">التعليق الصوتي (اختياري)</span>
+        <p className="muted small">سجّل صوتك لكل مشهد من لوحة المشهد («🎙 سجّل تعليقًا صوتيًا»)، أو ارفع تسجيلًا واحدًا للفيديو كله:</p>
         <label className="upload">
           <input type="file" accept="audio/*" onChange={(e) => { p.onAudioFile(e.target.files?.[0] ?? null); e.target.value = ''; }} />
           🎙 {p.customAudioName ? `تعليقك: ${p.customAudioName}` : 'ارفع تسجيل صوتك للعرض (MP3 / M4A / WAV)'}
