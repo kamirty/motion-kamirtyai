@@ -60,6 +60,12 @@ export function planCues(project: Project): Cue[] {
         break;
       }
       case 'linechart':
+      case 'mindmap':
+      case 'venn':
+      case 'table':
+      case 'gauges':
+      case 'flowchart':
+      case 'profile':
       case 'ranking':
       case 'cycle':
       case 'pyramid':

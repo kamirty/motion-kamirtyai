@@ -3,13 +3,15 @@ import { ensureFontLoaded } from '../design/fonts';
 import { fullTheme, presetById } from '../design/presets';
 import { localizeDigits } from '../design/digits';
 import { rebalance, sceneIndexAt, setSceneDuration, totalFrames, withScenes } from '../domain/timeline';
-import { ASPECTS, DEFAULT_IMAGE, FPS, LIMITS, aspectOf as aspectOfSize, styleOf, type AspectId, type Project, type ProjectStyle, type Scene, type SceneImage, type Theme } from '../domain/types';
+import { ASPECTS, DEFAULT_IMAGE, FPS, LIMITS, aspectOf as aspectOfSize, styleOf, type AspectId, type Project, type ProjectStyle, type Scene, type SceneImage, type SceneKind, type Theme } from '../domain/types';
 import { PreviewAudio } from '../engine/audio/player';
 import { decodeAudioFile, fitAudio, renderMusic } from '../engine/audio/music';
 import { cuesKey, renderSoundtrack } from '../engine/audio/sfx';
 import { revealSlots } from '../engine/timing';
 import { detectExportPlan } from '../engine/export/capabilities';
 import { generateProject, nextSceneId } from '../engine/planner';
+import { KIND_STARTERS } from '../engine/kindSamples';
+import { KIND_ICONS } from '../design/icons';
 import type { AssistantAction, AssistantContext } from '../assistant/types';
 import { clearTextCache } from '../engine/renderer/textLayout';
 import { addImageFile, loadAssets, onAssetsChanged, projectAssetIds } from '../storage/assets';
@@ -17,6 +19,7 @@ import { downloadBlob, loadLocal, projectFileBlob, readProjectFile, saveLocal } 
 import { Assistant } from './components/Assistant';
 import { ExportDialog } from './components/ExportDialog';
 import { GuideWizard } from './components/GuideWizard';
+import { KindGallery } from './components/KindGallery';
 import { Inspector } from './components/Inspector';
 import { Preview } from './components/Preview';
 import { Sidebar } from './components/Sidebar';
@@ -279,6 +282,9 @@ export function App() {
     const fitted = { ...scene, durationFrames: Math.min(scene.durationFrames, room) };
     setProject((p) => withScenes(p, [...p.scenes.slice(0, at), fitted, ...p.scenes.slice(at)]));
     setSelected(at);
+    // Show the new scene in the preview.
+    setPlaying(false);
+    setFrame(totalFrames(project.scenes.slice(0, at)) + Math.floor(fitted.durationFrames * 0.6));
   };
 
   const duplicateScene = () => {
@@ -291,9 +297,12 @@ export function App() {
     setSelected(Math.max(0, selected - 1));
   };
 
-  const addScene = () => {
+  // «＋ مشهد» opens the scene-kind gallery; the new scene starts with neutral content in that kind's format.
+  const [gallery, setGallery] = useState<'change' | 'add' | null>(null);
+  const addScene = (kind: SceneKind) => {
     const at = Math.min(selected + 1, project.scenes.length);
-    insertScene(at, { id: nextSceneId(project.scenes), kind: 'summary', startFrame: 0, durationFrames: 300, title: 'عنوان المشهد', items: ['معلومة أولى', 'معلومة ثانية'], icon: 'lightbulb' });
+    const starter = KIND_STARTERS[kind];
+    insertScene(at, { id: nextSceneId(project.scenes), kind, startFrame: 0, durationFrames: 300, title: starter.title, items: [...starter.items], icon: KIND_ICONS[kind] ?? 'sparkles' });
   };
 
   /** Stretches or shrinks all scenes proportionally so the video ends with the narration. */
@@ -556,12 +565,13 @@ export function App() {
             onImagePick={setImageSel}
             onImageMove={(k, x, y) => updateImage({ x, y }, `image-drag-${selected}-${k}`, k)}
           />
-          <Timeline project={project} selected={selected} currentFrame={frame} onSelect={selectScene} onAdd={addScene} renderKey={renderKey} />
+          <Timeline project={project} selected={selected} currentFrame={frame} onSelect={selectScene} onAdd={() => setGallery('add')} renderKey={renderKey} />
         </div>
         <Inspector
           project={project}
           index={selected}
           onChange={updateScene}
+          onChangeKind={() => setGallery('change')}
           onDuration={(sec) => setProject((p) => withScenes(p, setSceneDuration(p.scenes, selected, sec * p.fps)), `dur-${selected}`)}
           onMove={moveScene}
           onDuplicate={duplicateScene}
@@ -615,6 +625,22 @@ export function App() {
             setFrame(0);
             setWizardOpen(false);
             setNotice({ kind: 'info', text: 'جاهز! هذا فيديوك. عدّل أي مشهد من لوحة المشهد، ثم صدّره.' });
+          }}
+        />
+      )}
+      {gallery && (
+        <KindGallery
+          project={project}
+          scene={gallery === 'change' ? project.scenes[selected] : undefined}
+          renderKey={renderKey}
+          onClose={() => setGallery(null)}
+          onPick={(kind) => {
+            if (gallery === 'add') addScene(kind);
+            else if (kind !== project.scenes[selected]?.kind) {
+              updateScene({ kind });
+              selectScene(selected);
+            }
+            setGallery(null);
           }}
         />
       )}

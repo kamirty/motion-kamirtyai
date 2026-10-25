@@ -35,6 +35,12 @@ export const KIND_ICONS: Record<string, string> = {
   linechart: 'chart-line',
   beforeafter: 'arrow-left-right',
   warning: 'triangle-alert',
+  mindmap: 'brain',
+  venn: 'layers',
+  table: 'list-checks',
+  gauges: 'gauge',
+  flowchart: 'route',
+  profile: 'user',
 };
 
 const shortKeyword = new Map<string, RegExp>();

@@ -223,7 +223,13 @@
             "ranking",
             "linechart",
             "beforeafter",
-            "warning"
+            "warning",
+            "mindmap",
+            "venn",
+            "table",
+            "gauges",
+            "flowchart",
+            "profile"
           ]
         },
         "startFrame": {

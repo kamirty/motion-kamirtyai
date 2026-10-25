@@ -6,6 +6,7 @@ export const SCENE_KINDS = [
   'hero', 'steps', 'comparison', 'stat', 'timeline', 'quote', 'summary', 'outro',
   'kpis', 'donut', 'columns', 'pictogram', 'cycle', 'pyramid', 'proscons', 'checklist', 'quiz', 'definition', 'chapter', 'tip',
   'truefalse', 'ranking', 'linechart', 'beforeafter', 'warning',
+  'mindmap', 'venn', 'table', 'gauges', 'flowchart', 'profile',
 ] as const;
 export type SceneKind = (typeof SCENE_KINDS)[number];
 

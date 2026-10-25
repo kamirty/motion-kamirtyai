@@ -5,12 +5,16 @@ import { IconPicker } from './IconPicker';
 import { effectiveItemIcons, hasItemIcons } from '../../engine/itemIcons';
 import { ImageControls } from './ImageControls';
 import { TimingControls } from './TimingControls';
-import { KIND_GROUPS, KIND_HINTS, KIND_LABELS } from './kinds';
+import { KIND_BLURBS, KIND_HINTS, KIND_LABELS } from './kinds';
+import { Icon } from './Icon';
+import { KIND_ICONS } from '../../design/icons';
 
 interface Props {
   project: Project;
   index: number;
   onChange: (patch: Partial<Scene>) => void;
+  /** Opens the scene-kind gallery. */
+  onChangeKind: () => void;
   onDuration: (seconds: number) => void;
   onMove: (delta: -1 | 1) => void;
   onDuplicate: () => void;
@@ -26,7 +30,7 @@ interface Props {
   onStopSync: () => void;
 }
 
-export function Inspector({ project, index, onChange, onDuration, onMove, onDuplicate, onDelete, onImageFile, onImage, activeImage, onImagePick, onImageOrder, syncNext, onStartSync, onTap, onStopSync }: Props) {
+export function Inspector({ project, index, onChange, onChangeKind, onDuration, onMove, onDuplicate, onDelete, onImageFile, onImage, activeImage, onImagePick, onImageOrder, syncNext, onStartSync, onTap, onStopSync }: Props) {
   const scene = project.scenes[index];
   if (!scene) return null;
   const digits = styleOf(project).digits;
@@ -57,20 +61,14 @@ export function Inspector({ project, index, onChange, onDuration, onMove, onDupl
       </div>
 
       <label className="label">نوع المشهد</label>
-      <div className="kind-groups">
-        {KIND_GROUPS.map((g) => (
-          <div key={g.label} className="kind-group">
-            <span className="kind-group-label">{g.label}</span>
-            <div className="kinds">
-              {g.kinds.map((k) => (
-                <button type="button" key={k} className={k === scene.kind ? 'active' : ''} onClick={() => onChange({ kind: k })} aria-pressed={k === scene.kind}>
-                  {KIND_LABELS[k]}
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
+      <button type="button" className="kind-current" onClick={onChangeKind} aria-haspopup="dialog">
+        <span className="kind-current-icon"><Icon id={KIND_ICONS[scene.kind] ?? 'sparkles'} size={22} /></span>
+        <span className="kind-current-text">
+          <b>{KIND_LABELS[scene.kind]}</b>
+          <small>{KIND_BLURBS[scene.kind]}</small>
+        </span>
+        <span className="kind-current-cta">تغيير التصميم</span>
+      </button>
       <p className="muted small">{KIND_HINTS[scene.kind]}</p>
 
       <label className="label" htmlFor="scene-title">
