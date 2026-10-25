@@ -4,6 +4,7 @@ import { clamp, easeOutBack, easeOutCubic, progress } from '../animation';
 import { font } from '../context';
 import { drawIcon } from '../icons';
 import { confetti } from '../ambient';
+import { effectiveItemIcons } from '../../itemIcons';
 import { appear, drawHeader, itemEnter, roundRect, withAlpha, type SceneDrawArgs } from '../kit';
 import { drawLines, fitText } from '../textLayout';
 import { beforeAfterParts, chartRows, shownItems, trueFalseParts } from '../../sceneModel';
@@ -351,8 +352,9 @@ export function drawBeforeAfter(a: SceneDrawArgs): void {
   const ax = vertical ? area.x : area.x + pw + gap;
   const ay = vertical ? area.y + ph + gap + 30 : area.y + 30;
   // RTL: «قبل» on the right / top, «بعد» on the left / bottom.
-  panel('قبل', before, vertical ? bx : ax, by, mix(theme.foreground, theme.surface, 0.45), 'circle-x', progress(frame, BEFORE_AFTER.before, 26));
-  panel('بعد', after, vertical ? ax : bx, ay, theme.accent, 'sparkles', progress(frame, afterAt, 30));
+  const icons = effectiveItemIcons(scene);
+  panel('قبل', before, vertical ? bx : ax, by, mix(theme.foreground, theme.surface, 0.45), icons[0] ?? 'circle-x', progress(frame, BEFORE_AFTER.before, 26));
+  panel('بعد', after, vertical ? ax : bx, ay, theme.accent, icons[1] ?? 'sparkles', progress(frame, afterAt, 30));
   // Arrow between them.
   const at = easeOutBack(progress(frame, afterAt - 12, 20));
   if (at > 0) {

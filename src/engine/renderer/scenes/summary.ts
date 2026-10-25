@@ -1,4 +1,4 @@
-import { iconById, suggestIcon } from '../../../design/icons';
+import { autoIcons, effectiveItemIcons } from '../../itemIcons';
 import { alpha, mix, readableOn } from '../../../design/presets';
 import { clamp, easeOutBack, progress } from '../animation';
 import { drawIcon } from '../icons';
@@ -7,16 +7,7 @@ import { drawLines, fitText, type FittedText } from '../textLayout';
 import { itemReveal, shownItems } from '../../timing';
 
 /** Distinct icon per item, matched from its words (falls back to the scene icon). */
-export function itemIcons(items: string[], fallback: string): string[] {
-  const used = new Set<string>();
-  const spare = [fallback, 'star', 'circle-check', 'target', 'award', 'sparkles', 'zap', 'heart'].filter((id) => iconById(id));
-  return items.map((it) => {
-    let id = suggestIcon(it, '', used);
-    if (!id) id = spare.find((s) => !used.has(s)) ?? fallback;
-    used.add(id);
-    return id;
-  });
-}
+export const itemIcons = (items: string[], fallback: string): string[] => autoIcons(items, fallback);
 
 /**
  * بطاقات — icon tiles. Each fact gets its own matched icon in a large coloured medallion that
@@ -28,7 +19,7 @@ export function drawSummary(a: SceneDrawArgs): void {
   const items = shownItems(scene);
   const n = items.length;
   if (!n) return;
-  const icons = itemIcons(items, scene.icon);
+  const icons = effectiveItemIcons(scene);
   const cols = L.portrait ? (n <= 3 ? 1 : 2) : n <= 4 ? n : 3;
   const rows = Math.ceil(n / cols);
   const gapX = 26;

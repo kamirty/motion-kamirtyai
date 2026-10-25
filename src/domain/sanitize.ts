@@ -1,5 +1,6 @@
 import { ASPECTS, DEFAULT_IMAGE, ENTRANCES, LOOKS, DEFAULT_STYLE, FPS, LIMITS, SCENE_KINDS, type Project, type ProjectStyle, type Scene, type SceneImage } from './types';
 import { rebalance, validateTimeline, withScenes } from './timeline';
+import { iconById } from '../design/icons';
 
 const COLOR = /^#[0-9A-Fa-f]{6}$/;
 const ID = /^[A-Za-z0-9_-]{1,40}$/;
@@ -75,6 +76,7 @@ export function parseProject(input: unknown): Project {
       items: (Array.isArray(s.items) ? s.items : []).slice(0, LIMITS.items).map((it) => str(it, LIMITS.itemChars)),
       icon: str(s.icon, 60) || 'sparkles',
       ...parseImages(s),
+      ...parseItemIcons(s.itemIcons),
       ...parseReveals(s.reveals),
       // Absent (or unknown) means automatic; 'none' is an explicit choice and is kept.
       ...((ENTRANCES as readonly unknown[]).includes(s.entrance) ? { entrance: s.entrance as Scene['entrance'] } : {}),
@@ -127,4 +129,11 @@ function parseImages(s: Record<string, unknown>): { images?: SceneImage[] } {
   const raw = Array.isArray(s.images) ? s.images : s.image ? [s.image] : [];
   const images = raw.slice(0, LIMITS.images).map(parseImage).filter((x): x is SceneImage => !!x);
   return images.length ? { images } : {};
+}
+
+/** Per-element icon choices: known icon ids or '' (automatic); dropped when none is set. */
+function parseItemIcons(v: unknown): { itemIcons?: string[] } {
+  if (!Array.isArray(v)) return {};
+  const out = v.slice(0, LIMITS.items).map((x) => (typeof x === 'string' && iconById(x) ? x : ''));
+  return out.some(Boolean) ? { itemIcons: out } : {};
 }

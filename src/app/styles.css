@@ -388,3 +388,11 @@ pre { overflow-x: auto; font-size: 0.75rem; background: var(--panel-2); padding:
 .guide-cards button.active { background: #FFEB3B; color: #111; border-color: #111; }
 .guide-cards .guide-emoji { font-size: 1.6rem; }
 .guide-cards small { font-weight: 400; opacity: 0.85; line-height: 1.5; }
+
+/* Per-element icon buttons */
+.icon-picker.compact { position: relative; flex: 0 0 auto; }
+.icon-picker.compact .icon-current { padding: 4px; width: 36px; height: 36px; justify-content: center; }
+.icon-picker.compact .icon-current.auto { opacity: 0.75; border-style: dashed; }
+.icon-picker.compact .icon-pop { position: absolute; z-index: 30; inset-inline-start: 0; top: 40px; width: min(300px, 80vw); }
+.icon-auto { width: 100%; margin: 6px 0; }
+.icon-auto.active { font-weight: 700; }

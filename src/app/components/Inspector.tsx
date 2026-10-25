@@ -2,6 +2,7 @@ import { localizeDigits } from '../../design/digits';
 import { LIMITS, styleOf, type Project, type Scene, type SceneImage } from '../../domain/types';
 import { maxSceneFrames } from '../../domain/timeline';
 import { IconPicker } from './IconPicker';
+import { effectiveItemIcons, hasItemIcons } from '../../engine/itemIcons';
 import { ImageControls } from './ImageControls';
 import { TimingControls } from './TimingControls';
 import { KIND_GROUPS, KIND_HINTS, KIND_LABELS } from './kinds';
@@ -33,6 +34,15 @@ export function Inspector({ project, index, onChange, onDuration, onMove, onDupl
   const maxSeconds = Math.floor(maxSceneFrames(project.scenes, index) / project.fps);
   const totalSeconds = Math.round(project.durationFrames / project.fps);
   const setItem = (k: number, v: string) => onChange({ items: scene.items.map((it, j) => (j === k ? v : it)) });
+  // Per-element icons (cards, comparisons, KPI tiles, before/after): what the video draws now.
+  const itemIcons = hasItemIcons(scene) ? effectiveItemIcons(scene) : null;
+  const setItemIcon = (k: number, id: string) => {
+    const next = scene.items.map((_, j) => (j === k ? id : scene.itemIcons?.[j] ?? ''));
+    onChange({ itemIcons: next.some(Boolean) ? next : undefined });
+  };
+  // Removing an element also removes its icon choice, so the others keep theirs.
+  const removeItem = (k: number) =>
+    onChange({ items: scene.items.filter((_, j) => j !== k), itemIcons: scene.itemIcons?.filter((_, j) => j !== k) });
 
   return (
     <aside className="inspector">
@@ -79,8 +89,18 @@ export function Inspector({ project, index, onChange, onDuration, onMove, onDupl
         {scene.items.map((it, k) => (
           <div className="item-row" key={k}>
             <span className="item-n">{localizeDigits(String(k + 1), digits)}</span>
+            {itemIcons && k < itemIcons.length && (
+              <IconPicker
+                compact
+                value={itemIcons[k]}
+                isAuto={!scene.itemIcons?.[k]}
+                label={localizeDigits(`أيقونة العنصر ${k + 1}`, digits)}
+                onChange={(id) => setItemIcon(k, id)}
+                onAuto={() => setItemIcon(k, '')}
+              />
+            )}
             <input value={it} maxLength={LIMITS.itemChars} onChange={(e) => setItem(k, e.target.value)} />
-            <button type="button" className="ghost" onClick={() => onChange({ items: scene.items.filter((_, j) => j !== k) })} title="حذف العنصر">
+            <button type="button" className="ghost" onClick={() => removeItem(k)} title="حذف العنصر">
               ✕
             </button>
           </div>
@@ -92,7 +112,7 @@ export function Inspector({ project, index, onChange, onDuration, onMove, onDupl
         )}
       </div>
 
-      <label className="label">الأيقونة</label>
+      <label className="label">{itemIcons ? 'أيقونة المشهد (العنوان)' : 'الأيقونة'}</label>
       <IconPicker value={scene.icon} onChange={(icon) => onChange({ icon })} />
 
       <TimingControls
