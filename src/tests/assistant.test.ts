@@ -9,7 +9,7 @@ const answerOf = (id: string) => {
   const e = KNOWLEDGE.find((k) => k.id === id)!;
   return typeof e.answer === 'function' ? e.answer(ctx) : e.answer;
 };
-const DECLINE = /مخصص لمولّد الإنفوجرافيك فقط/;
+const DECLINE = /مخصص لمولّد موشن إنفوجرافيك فقط/;
 
 /**
  * What visitors really type, per knowledge entry: MSA, Gulf, Egyptian and Levantine phrasings,
