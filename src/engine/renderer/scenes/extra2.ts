@@ -12,11 +12,11 @@ import { drawSceneImageAvatar } from '../imageLayer';
 import { radarPulse } from '../ambient';
 
 /** "label: detail" → parts (detail optional). */
-const parts = (s: string) => {
+export const parts = (s: string) => {
   const m = /^(.{1,40}?)\s*[:：]\s*(.+)$/u.exec(s);
   return m ? { head: m[1].trim(), body: m[2].trim() } : { head: s.trim(), body: '' };
 };
-const palette = (theme: SceneDrawArgs['theme']) => [theme.accent, theme.accent2, mix(theme.accent, '#4ECDC4', 0.55), mix(theme.accent2, '#FF6B6B', 0.5), mix(theme.accent, '#6C63FF', 0.5), mix(theme.foreground, theme.accent, 0.35)];
+export const palette = (theme: SceneDrawArgs['theme']) => [theme.accent, theme.accent2, mix(theme.accent, '#4ECDC4', 0.55), mix(theme.accent2, '#FF6B6B', 0.5), mix(theme.accent, '#6C63FF', 0.5), mix(theme.foreground, theme.accent, 0.35)];
 
 /** خريطة ذهنية — the title in a central bubble, branches curving out to each idea. */
 export function drawMindmap(a: SceneDrawArgs): void {
