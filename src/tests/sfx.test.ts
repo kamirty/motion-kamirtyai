@@ -5,6 +5,8 @@ import { planCues, cuesKey } from '../engine/audio/sfx';
 import { renderFrame } from '../engine/renderer/renderFrame';
 import { itemReveal, shownItems } from '../engine/timing';
 import type { Project } from '../domain/types';
+import { withScenes } from '../domain/timeline';
+import { sampleScene } from './fixtures/kindSamples';
 import { createFakeCtx, drawnText } from './fakeCtx';
 
 const projects = EXAMPLES.map((e) => generateProject(e.text, { aspect: 'landscape', style: { digits: 'latin' } }).project);
@@ -81,5 +83,31 @@ describe('video carries no site mark', () => {
       const text = drawnAt(projects[0], f);
       expect(text).not.toMatch(/kamirtyai|motion\./i);
     }
+  });
+});
+
+describe('motion-specific sounds and exits', () => {
+  const one = (kind: Project['scenes'][number]['kind']): Project =>
+    withScenes({ ...projects[0], style: { ...projects[0].style, sfx: true } }, [sampleScene(kind, 0, 300), sampleScene('summary', 0, 300)]);
+  it('gives the newer motions their own sound', () => {
+    const expected: [Project['scenes'][number]['kind'], string][] = [
+      ['domino', 'clack'], ['gears', 'cog'], ['liquid', 'pour'], ['balance', 'thud'], ['spotlight', 'switch'],
+      ['conveyor', 'belt'], ['folded', 'paper'], ['magnet', 'clack'], ['capsule', 'rattle'], ['capsule', 'burst'],
+    ];
+    for (const [kind, sound] of expected) {
+      const p = one(kind);
+      const inScene = planCues(p).filter((c) => c.frame < p.scenes[0].durationFrames);
+      expect(inScene.map((c) => c.kind), kind).toContain(sound);
+    }
+  });
+
+  it('plays one leaving sound per scene, before the next whoosh', () => {
+    const p = one('domino');
+    const cues = planCues(p);
+    const exits = cues.filter((c) => c.kind === 'exit');
+    expect(exits).toHaveLength(2);
+    const whoosh = cues.find((c) => c.kind === 'whoosh')!;
+    expect(exits[0].frame).toBeLessThan(whoosh.frame);
+    expect(exits[1].frame).toBeLessThan(p.durationFrames);
   });
 });

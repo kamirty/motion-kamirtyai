@@ -1,6 +1,6 @@
 import { styleOf, type Project } from '../../domain/types';
 import { hash01 } from '../renderer/animation';
-import { CHAPTER, DEFINITION, HEADER, HERO, KPIS, OUTRO, PICTOGRAM, QUIZ_COUNTDOWN, QUOTE, STAT, TIP, imageEnter, itemReveal, quizCountdown, shownItems, TRUEFALSE, WARNING, trueFalseCountdown, BEFORE_AFTER, beforeAfterAt } from '../timing';
+import { CAPSULE, CHAPTER, DEFINITION, HEADER, HERO, KPIS, OUTRO, PICTOGRAM, QUIZ_COUNTDOWN, QUOTE, STAT, TIP, imageEnter, itemReveal, quizCountdown, shownItems, TRUEFALSE, WARNING, trueFalseCountdown, BEFORE_AFTER, beforeAfterAt } from '../timing';
 import { trueFalseParts, quizParts } from '../sceneModel';
 
 /**
@@ -8,7 +8,12 @@ import { trueFalseParts, quizParts } from '../sceneModel';
  * synthesised in the browser (no samples, no downloads, no rights to clear).
  */
 
-export type CueKind = 'whoosh' | 'pop' | 'tick' | 'ding' | 'rise';
+export type CueKind =
+  | 'whoosh' | 'pop' | 'tick' | 'ding' | 'rise'
+  /** Elements leaving at the end of a scene. */
+  | 'exit'
+  /** Motion-specific sounds of the newer kinds. */
+  | 'clack' | 'cog' | 'pour' | 'thud' | 'rattle' | 'burst' | 'switch' | 'belt' | 'paper';
 
 export interface Cue {
   /** Absolute frame in the 3600-frame timeline. */
@@ -34,6 +39,9 @@ export function planCues(project: Project): Cue[] {
     };
     // The whoosh starts just before the cut so its peak lands on it.
     if (si > 0) cues.push({ frame: Math.max(0, s0 - 8), kind: 'whoosh', step: 0 });
+    // The scene's elements leave with a soft falling sweep just before the cut (and at the very end).
+    const last = si === project.scenes.length - 1;
+    if (scene.durationFrames > 40) cues.push({ frame: s0 + scene.durationFrames - (last ? 26 : 18), kind: 'exit', step: 0 });
     (scene.images ?? []).forEach((img, k) => {
       if (img.entrance !== 'none') add(imageEnter(k), 'pop', 5 + k);
     });
@@ -66,18 +74,9 @@ export function planCues(project: Project): Cue[] {
       case 'gauges':
       case 'flowchart':
       case 'profile':
-      case 'spotlight':
       case 'magnifier':
-      case 'magnet':
-      case 'mosaic':
-      case 'liquid':
-      case 'domino':
       case 'network':
-      case 'balance':
-      case 'gears':
-      case 'conveyor':
       case 'decision':
-      case 'folded':
       case 'ranking':
       case 'cycle':
       case 'pyramid':
@@ -90,6 +89,47 @@ export function planCues(project: Project): Cue[] {
         for (let i = 0; i < n; i++) add(itemReveal(scene, i, n), 'pop', scene.kind === 'pyramid' ? n - 1 - i : i);
         break;
       }
+      case 'spotlight':
+      case 'magnet':
+      case 'mosaic':
+      case 'liquid':
+      case 'domino':
+      case 'balance':
+      case 'gears':
+      case 'conveyor':
+      case 'folded': {
+        // Each motion has its own sound, landing where the drawer shows the action.
+        add(HEADER.title, 'tick');
+        const n = shownItems(scene).length;
+        if (scene.kind === 'mosaic') add(6, 'rise');
+        for (let i = 0; i < n; i++) {
+          const r = itemReveal(scene, i, n);
+          switch (scene.kind) {
+            case 'spotlight': add(r, 'switch', i); break;
+            case 'magnet': add(r + 22, 'clack', i); break;
+            case 'mosaic': add(r, 'pop', i); break;
+            case 'liquid': add(r + 8, 'pour', i); break;
+            case 'domino': add(r + 10, 'clack', i); break;
+            case 'balance': if (i < 2) add(r + 10, 'thud', i); else add(r, 'pop', i); break;
+            case 'gears': add(r, 'cog', i); break;
+            case 'conveyor': {
+              const travel = Math.min(30, Math.max(12, r - (i ? itemReveal(scene, i - 1, n) : 0) - 6));
+              add(r - travel, 'belt', i);
+              add(r, 'pop', i);
+              break;
+            }
+            case 'folded': add(r, 'paper', i); break;
+          }
+        }
+        break;
+      }
+      case 'capsule':
+        add(CAPSULE.drop, 'pop', 1);
+        add(CAPSULE.shake, 'rattle');
+        add(CAPSULE.open, 'burst');
+        if (shownItems(scene).length) add(CAPSULE.fact, 'ding');
+        if (shownItems(scene).length > 1) add(CAPSULE.note, 'tick', 2);
+        break;
       case 'kpis': {
         add(HEADER.title, 'tick');
         const n = shownItems(scene).length;
@@ -261,6 +301,239 @@ function schedule(ctx: BaseAudioContext, out: AudioNode, noise: AudioBuffer, cue
       o.stop(t + 0.65);
       break;
     }
+    case 'exit': {
+      // Soft falling sweep, panned left (where RTL content leaves to).
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(880, t);
+      o.frequency.exponentialRampToValueAtTime(260, t + 0.32);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.1, t + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.36);
+      const n = ctx.createBufferSource();
+      n.buffer = noise;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.setValueAtTime(2400, t);
+      lp.frequency.exponentialRampToValueAtTime(300, t + 0.3);
+      const ng = ctx.createGain();
+      env(ng, 0.16, 0.03, 0.28);
+      const pan = ctx.createStereoPanner();
+      pan.pan.setValueAtTime(0, t);
+      pan.pan.linearRampToValueAtTime(-0.7, t + 0.35);
+      o.connect(g).connect(pan);
+      n.connect(lp).connect(ng).connect(pan);
+      pan.connect(out);
+      o.start(t);
+      o.stop(t + 0.4);
+      n.start(t, 0.3);
+      n.stop(t + 0.4);
+      break;
+    }
+    case 'clack': {
+      // Wooden knock: a short resonant noise burst over a low thump.
+      const n = ctx.createBufferSource();
+      n.buffer = noise;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 1500 + (cue.step % 4) * 120;
+      bp.Q.value = 6;
+      const g = ctx.createGain();
+      env(g, 0.5, 0.002, 0.06);
+      n.connect(bp).connect(g).connect(out);
+      n.start(t, (cue.step * 0.07) % 0.9);
+      n.stop(t + 0.08);
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(220, t);
+      o.frequency.exponentialRampToValueAtTime(110, t + 0.06);
+      const og = ctx.createGain();
+      env(og, 0.14, 0.002, 0.07);
+      o.connect(og).connect(out);
+      o.start(t);
+      o.stop(t + 0.1);
+      break;
+    }
+    case 'cog': {
+      // A gear catching: three quick metallic ticks.
+      for (let k = 0; k < 3; k++) {
+        const tt = t + k * 0.07;
+        const o = ctx.createOscillator();
+        o.type = 'square';
+        o.frequency.value = 2600 - k * 200;
+        const hp = ctx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = 1800;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, tt);
+        g.gain.exponentialRampToValueAtTime(0.05, tt + 0.002);
+        g.gain.exponentialRampToValueAtTime(0.0001, tt + 0.03);
+        o.connect(hp).connect(g).connect(out);
+        o.start(tt);
+        o.stop(tt + 0.04);
+      }
+      break;
+    }
+    case 'pour': {
+      // Liquid: filtered noise rising like a filling glass, then a few bubbles.
+      const n = ctx.createBufferSource();
+      n.buffer = noise;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.Q.value = 2;
+      bp.frequency.setValueAtTime(500, t);
+      bp.frequency.exponentialRampToValueAtTime(1600, t + 1.1);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.12, t + 0.15);
+      g.gain.setValueAtTime(0.12, t + 0.9);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2);
+      n.connect(bp).connect(g).connect(out);
+      n.start(t, 0.1);
+      n.stop(t + 1.25);
+      for (let k = 0; k < 4; k++) {
+        const tt = t + 0.2 + k * 0.22 + hash01(k, cue.step) * 0.08;
+        const o = ctx.createOscillator();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(350 + hash01(k, cue.step + 3) * 250, tt);
+        o.frequency.exponentialRampToValueAtTime(1100, tt + 0.06);
+        const og = ctx.createGain();
+        og.gain.setValueAtTime(0.0001, tt);
+        og.gain.exponentialRampToValueAtTime(0.07, tt + 0.01);
+        og.gain.exponentialRampToValueAtTime(0.0001, tt + 0.07);
+        o.connect(og).connect(out);
+        o.start(tt);
+        o.stop(tt + 0.08);
+      }
+      break;
+    }
+    case 'thud': {
+      // A weight landing: low body plus a dull knock.
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(150, t);
+      o.frequency.exponentialRampToValueAtTime(55, t + 0.18);
+      const g = ctx.createGain();
+      env(g, 0.22, 0.004, 0.22);
+      o.connect(g).connect(out);
+      o.start(t);
+      o.stop(t + 0.26);
+      const n = ctx.createBufferSource();
+      n.buffer = noise;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 700;
+      const ng = ctx.createGain();
+      env(ng, 0.2, 0.002, 0.08);
+      n.connect(lp).connect(ng).connect(out);
+      n.start(t, 0.5);
+      n.stop(t + 0.1);
+      break;
+    }
+    case 'rattle': {
+      // Capsule shaking: a quickening series of small knocks over ~0.8 s.
+      for (let k = 0; k < 9; k++) {
+        const tt = t + 0.85 * (1 - Math.pow(1 - k / 9, 1.4));
+        const n = ctx.createBufferSource();
+        n.buffer = noise;
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = 2200 + (k % 3) * 400;
+        bp.Q.value = 4;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, tt);
+        g.gain.exponentialRampToValueAtTime(0.2 + k * 0.03, tt + 0.002);
+        g.gain.exponentialRampToValueAtTime(0.0001, tt + 0.035);
+        n.connect(bp).connect(g).connect(out);
+        n.start(tt, (k * 0.09) % 0.9);
+        n.stop(tt + 0.04);
+      }
+      break;
+    }
+    case 'burst': {
+      // Capsule snapping open: a bright pop with an airy spray.
+      const o = ctx.createOscillator();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(1400, t);
+      o.frequency.exponentialRampToValueAtTime(400, t + 0.08);
+      const g = ctx.createGain();
+      env(g, 0.25, 0.002, 0.1);
+      o.connect(g).connect(out);
+      o.start(t);
+      o.stop(t + 0.14);
+      const n = ctx.createBufferSource();
+      n.buffer = noise;
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 3000;
+      const ng = ctx.createGain();
+      env(ng, 0.18, 0.005, 0.5);
+      n.connect(hp).connect(ng).connect(out);
+      n.start(t, 0.2);
+      n.stop(t + 0.55);
+      break;
+    }
+    case 'switch': {
+      // A light switching on: a crisp click and a short warm hum.
+      const n = ctx.createBufferSource();
+      n.buffer = noise;
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 4000;
+      const ng = ctx.createGain();
+      env(ng, 0.18, 0.001, 0.015);
+      n.connect(hp).connect(ng).connect(out);
+      n.start(t, (cue.step * 0.11) % 0.9);
+      n.stop(t + 0.02);
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.value = 196 * Math.pow(2, PENTATONIC[cue.step % PENTATONIC.length] / 12);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.06, t + 0.06);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+      o.connect(g).connect(out);
+      o.start(t);
+      o.stop(t + 0.55);
+      break;
+    }
+    case 'belt': {
+      // Conveyor motor: a low buzzing hum for the length of the ride.
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.value = 85;
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 420;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.07, t + 0.1);
+      g.gain.setValueAtTime(0.07, t + 0.7);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+      o.connect(lp).connect(g).connect(out);
+      o.start(t);
+      o.stop(t + 0.95);
+      break;
+    }
+    case 'paper': {
+      // A panel unfolding: a short papery rustle.
+      const n = ctx.createBufferSource();
+      n.buffer = noise;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.Q.value = 0.7;
+      bp.frequency.setValueAtTime(5000, t);
+      bp.frequency.exponentialRampToValueAtTime(2200, t + 0.25);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.18, t + 0.04);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+      n.connect(bp).connect(g).connect(out);
+      n.start(t, (cue.step * 0.13) % 0.9);
+      n.stop(t + 0.32);
+      break;
+    }
   }
 }
 
@@ -393,4 +666,4 @@ export async function renderSoundtrack(
 }
 
 /** Stable identity of the cue list, for caching rendered soundtracks. */
-export const cuesKey = (project: Project): string => planCues(project).map((c) => `${c.frame}${c.kind[0]}${c.step}`).join(',');
+export const cuesKey = (project: Project): string => planCues(project).map((c) => `${c.frame}${c.kind}${c.step}`).join(',');
