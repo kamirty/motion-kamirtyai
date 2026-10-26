@@ -66,6 +66,18 @@ export function planCues(project: Project): Cue[] {
       case 'gauges':
       case 'flowchart':
       case 'profile':
+      case 'spotlight':
+      case 'magnifier':
+      case 'magnet':
+      case 'mosaic':
+      case 'liquid':
+      case 'domino':
+      case 'network':
+      case 'balance':
+      case 'gears':
+      case 'conveyor':
+      case 'decision':
+      case 'folded':
       case 'ranking':
       case 'cycle':
       case 'pyramid':

@@ -4,10 +4,12 @@ import type { SceneKind } from '../../domain/types';
 export const KIND_GROUPS: { label: string; kinds: SceneKind[] }[] = [
   { label: 'افتتاح وختام', kinds: ['hero', 'chapter', 'outro'] },
   { label: 'نصوص وأفكار', kinds: ['summary', 'steps', 'checklist', 'tip', 'warning', 'definition', 'quote', 'profile'] },
-  { label: 'أرقام وإحصاءات', kinds: ['stat', 'kpis', 'gauges', 'pictogram', 'donut'] },
+  { label: 'كشف ومفاجأة', kinds: ['spotlight', 'magnifier', 'capsule', 'folded', 'mosaic'] },
+  { label: 'أرقام وإحصاءات', kinds: ['stat', 'kpis', 'gauges', 'liquid', 'pictogram', 'donut'] },
   { label: 'رسوم بيانية', kinds: ['columns', 'linechart', 'ranking', 'table'] },
-  { label: 'مقارنات', kinds: ['comparison', 'beforeafter', 'proscons', 'venn'] },
-  { label: 'مخططات وعلاقات', kinds: ['timeline', 'cycle', 'pyramid', 'flowchart', 'mindmap'] },
+  { label: 'مقارنات', kinds: ['comparison', 'beforeafter', 'proscons', 'venn', 'balance'] },
+  { label: 'مخططات وعلاقات', kinds: ['timeline', 'cycle', 'pyramid', 'flowchart', 'mindmap', 'network', 'decision'] },
+  { label: 'سلاسل وآليات', kinds: ['domino', 'gears', 'conveyor', 'magnet'] },
   { label: 'تفاعل واختبار', kinds: ['quiz', 'truefalse'] },
 ];
 
@@ -44,6 +46,19 @@ export const KIND_BLURBS: Record<SceneKind, string> = {
   mindmap: 'فكرة مركزية وفروعها',
   quiz: 'سؤال وعدّ تنازلي وإجابة',
   truefalse: 'عبارة ثم ختم صح أو خطأ',
+  spotlight: 'ضوء يكشف المعلومات المخفية',
+  magnifier: 'عدسة تكبّر كل تفصيلة',
+  magnet: 'أجزاء تنجذب وتتجمع',
+  mosaic: 'مربعات تتجمع في رمز',
+  liquid: 'أوعية تمتلئ بالنسب',
+  domino: 'أسباب تُسقط نتائجها',
+  network: 'عقد تسري بينها نبضات',
+  balance: 'كفّتان ترجّحان الأثقل',
+  gears: 'تروس تدور بالتتابع',
+  conveyor: 'مراحل على سير متحرك',
+  decision: 'طريق يتفرع لخيارات',
+  folded: 'لوحات تنفتح كالمطوية',
+  capsule: 'كبسولة تنفتح عن معلومة',
 };
 
 export const KIND_LABELS: Record<SceneKind, string> = {
@@ -78,6 +93,19 @@ export const KIND_LABELS: Record<SceneKind, string> = {
   flowchart: 'مخطط تدفق',
   profile: 'بطاقة شخصية',
   tip: 'نصيحة',
+  spotlight: 'الكشاف الذكي',
+  magnifier: 'العدسة المكبرة',
+  magnet: 'التجميع المغناطيسي',
+  mosaic: 'الفسيفساء',
+  liquid: 'الامتلاء السائل',
+  domino: 'الدومينو السببي',
+  network: 'الشبكة العصبية',
+  balance: 'الميزان الذكي',
+  gears: 'سلسلة التروس',
+  conveyor: 'السير الناقل',
+  decision: 'مفترق القرارات',
+  folded: 'الأوراق المطوية',
+  capsule: 'الكبسولة المعرفية',
 };
 
 export const KIND_HINTS: Record<SceneKind, string> = {
@@ -112,4 +140,17 @@ export const KIND_HINTS: Record<SceneKind, string> = {
   gauges: 'كل عنصر بصيغة «الاسم: 75%». تمتلئ حلقة لكل عنصر مع عدّاد النسبة.',
   flowchart: 'كل عنصر خطوة في المخطط؛ الأولى بداية والأخيرة نهاية، وتربطها أسهم بالترتيب.',
   profile: 'العنوان اسم الشخص، والعنصر الأول دوره أو صفته، والباقي معلومات عنه. أضف صورة للمشهد لتظهر داخل الدائرة.',
+  spotlight: 'كل عنصر معلومة مخفية (حتى 6)؛ يمر الضوء عليها واحدة بعد أخرى فيكشفها. اكتب «العنوان: الشرح» لإضافة شرح.',
+  magnifier: 'كل عنصر سطر صغير تمر عليه العدسة، ويظهر مكبّرًا في اللوحة. اكتب «التفصيلة: شرحها».',
+  magnet: 'كل عنصر جزء من الفكرة؛ تنجذب الأجزاء إلى المركز وتتجمع في كتلة واحدة، والعنوان هو الفكرة الكاملة.',
+  mosaic: 'تتجمع مربعات صغيرة لتكوّن أيقونة المشهد (غيّر الأيقونة لتغيير الشكل)، ثم تظهر العناصر بجانبها.',
+  liquid: 'كل عنصر بصيغة «الاسم: 70%»؛ يمتلئ وعاء لكل عنصر حتى نسبته (أو بالنسبة لأكبر رقم إن لم تكن نسبًا).',
+  domino: 'رتّب العناصر سببًا بعد سبب؛ تسقط قطعة الدومينو لكل عنصر فتظهر نتيجته، والأخيرة هي النتيجة النهائية.',
+  network: 'كل عنصر عقدة في الشبكة (حتى 6)؛ تتصل العقد بطبقات وتسري بينها نبضات ضوء.',
+  balance: 'عنصران بصيغة «الخيار: الوزن» (مثل «الدراسة: 70»)؛ الأول على الكفة اليمنى. العنصر الثالث (اختياري) خلاصة تظهر تحت الميزان.',
+  gears: 'كل عنصر ترس في السلسلة (حتى 6)؛ يبدأ كل ترس بالدوران عند ظهوره وينقل الحركة للتالي.',
+  conveyor: 'كل عنصر محطة على السير بالترتيب؛ يتحرك صندوق ويتوقف عند كل محطة فتضيء.',
+  decision: 'العنوان هو القرار أو السؤال، وكل عنصر خيار بصيغة «الخيار: نتيجته»؛ يتفرع الطريق وتضيء الخيارات بالتتابع.',
+  folded: 'كل عنصر لوحة في المطوية (حتى 6)؛ تنفتح اللوحات واحدة بعد أخرى. اكتب «العنوان: الشرح».',
+  capsule: 'العنوان مثل «هل تعلم؟»، والعنصر الأول المعلومة المفاجئة، والثاني ملاحظة أو مصدر (اختياري). تهتز الكبسولة ثم تنفتح.',
 };

@@ -229,7 +229,20 @@
             "table",
             "gauges",
             "flowchart",
-            "profile"
+            "profile",
+            "spotlight",
+            "magnifier",
+            "magnet",
+            "mosaic",
+            "liquid",
+            "domino",
+            "network",
+            "balance",
+            "gears",
+            "conveyor",
+            "decision",
+            "folded",
+            "capsule"
           ]
         },
         "startFrame": {

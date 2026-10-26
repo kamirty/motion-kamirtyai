@@ -1,3 +1,4 @@
+import { drawBalance, drawCapsule, drawConveyor, drawDecision, drawDomino, drawFolded, drawGears, drawLiquid, drawMagnet, drawMagnifier, drawMosaic, drawNetwork, drawSpotlight } from './scenes/extra3';
 import { alpha, mix, readableOn, textAccent } from '../../design/presets';
 import type { Scene } from '../../domain/types';
 import { easeOutBack, easeOutCubic, hash01, progress, seedOf } from './animation';
@@ -726,6 +727,19 @@ export const SCENE_DRAWERS: Record<Scene['kind'], SceneDrawer> = {
   gauges: drawGauges,
   flowchart: drawFlowchart,
   profile: drawProfile,
+  spotlight: drawSpotlight,
+  magnifier: drawMagnifier,
+  magnet: drawMagnet,
+  mosaic: drawMosaic,
+  liquid: drawLiquid,
+  domino: drawDomino,
+  network: drawNetwork,
+  balance: drawBalance,
+  gears: drawGears,
+  conveyor: drawConveyor,
+  decision: drawDecision,
+  folded: drawFolded,
+  capsule: drawCapsule,
 };
 
 export const drawScene: SceneDrawer = (args) => (SCENE_DRAWERS[args.scene.kind] ?? drawHero)(args);

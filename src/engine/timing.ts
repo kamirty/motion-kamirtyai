@@ -30,6 +30,8 @@ export const TRUEFALSE = { statement: 10, choices: 40, note: 24 };
 /** Warning: triangle, headline, text, note. */
 export const WARNING = { badge: 4, title: 14, text: 34, note: 70 };
 /** Before/after: the 'after' panel sweeps in at this share of the scene. */
+/** Capsule: drops in, shakes, snaps open, then releases its fact and note. */
+export const CAPSULE = { drop: 4, shake: 22, open: 48, fact: 60, note: 96 };
 export const BEFORE_AFTER = { before: 20, afterShare: 0.42 };
 
 /** Frame at which the 'after' panel of a before/after scene sweeps in. */
@@ -89,6 +91,8 @@ export function autoReveal(scene: Scene & { pace?: Pace }, i: number, count: num
     case 'steps': case 'cycle': case 'checklist': case 'timeline': case 'summary': case 'comparison':
     case 'kpis': case 'donut': case 'columns': case 'proscons': case 'quiz': case 'linechart':
     case 'mindmap': case 'venn': case 'table': case 'gauges': case 'flowchart': case 'profile':
+    case 'spotlight': case 'magnifier': case 'magnet': case 'mosaic': case 'liquid': case 'domino': case 'network':
+    case 'balance': case 'gears': case 'conveyor': case 'decision': case 'folded':
       return 20 + i * span;
     default:
       return 0;

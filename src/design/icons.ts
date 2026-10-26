@@ -41,6 +41,19 @@ export const KIND_ICONS: Record<string, string> = {
   gauges: 'gauge',
   flowchart: 'route',
   profile: 'user',
+  spotlight: 'eye',
+  magnifier: 'search',
+  magnet: 'puzzle',
+  mosaic: 'palette',
+  liquid: 'droplets',
+  domino: 'zap',
+  network: 'brain-circuit',
+  balance: 'scale',
+  gears: 'settings',
+  conveyor: 'factory',
+  decision: 'milestone',
+  folded: 'scroll',
+  capsule: 'pill',
 };
 
 const shortKeyword = new Map<string, RegExp>();
