@@ -542,10 +542,10 @@ export function App() {
         <ThemeToggle theme={uiTheme} onToggle={() => setUiTheme((t) => (t === 'dark' ? 'light' : 'dark'))} />
       </div>
       <header className="topbar">
-        <a className="brand" href="./" aria-label="مولّد الإنفوجرافيك من KamirtyAI">
+        <a className="brand" href="./" aria-label="مولّد موشن إنفوجرافيك من KamirtyAI">
           <img className="brand-logo" src="/brand/kamirty-logo.png" alt="Kamirty.AI" width={198} height={122} />
           <span className="brand-name">
-            <b>مولّد الإنفوجرافيك</b>
+            <b>مولّد موشن إنفوجرافيك</b>
             <small>Kamirty Motion</small>
           </span>
         </a>

@@ -188,7 +188,7 @@ export function respond(input: string, ctx: AssistantContext, state: AssistantSt
 
   if (smallTalk && GREETING.test(text.trim()) && words <= 6) {
     return {
-      reply: { text: 'أهلًا بك! أنا مساعد مولّد الإنفوجرافيك. اسألني عن أي شيء في الأداة، أو اطلب أفكارًا لفيديوك.', suggestions: STARTER_SUGGESTIONS },
+      reply: { text: 'أهلًا بك! أنا مساعد مولّد موشن إنفوجرافيك. اسألني عن أي شيء في الأداة، أو اطلب أفكارًا لفيديوك.', suggestions: STARTER_SUGGESTIONS },
       state,
     };
   }
@@ -238,7 +238,7 @@ export function respond(input: string, ctx: AssistantContext, state: AssistantSt
 
 function decline(): AssistantReply {
   return {
-    text: 'أنا مساعد مخصص لمولّد الإنفوجرافيك فقط، فلا أستطيع الإجابة عن هذا السؤال. يسعدني مساعدتك في صنع فيديو: اسألني عن الأداة أو اطلب أفكارًا لموضوعك.',
+    text: 'أنا مساعد مخصص لمولّد موشن إنفوجرافيك فقط، فلا أستطيع الإجابة عن هذا السؤال. يسعدني مساعدتك في صنع فيديو: اسألني عن الأداة أو اطلب أفكارًا لموضوعك.',
     suggestions: STARTER_SUGGESTIONS,
   };
 }

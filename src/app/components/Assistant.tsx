@@ -10,7 +10,7 @@ interface Props {
 }
 
 const WELCOME: AssistantReply = {
-  text: 'أهلًا! أنا مساعد مولّد الإنفوجرافيك. اسألني عن أي شيء في الأداة، أو اكتب موضوعك وسأقترح عليك أفكارًا لفيديو جاهزة للتعبئة.',
+  text: 'أهلًا! أنا مساعد مولّد موشن إنفوجرافيك. اسألني عن أي شيء في الأداة، أو اكتب موضوعك وسأقترح عليك أفكارًا لفيديو جاهزة للتعبئة.',
   suggestions: STARTER_SUGGESTIONS,
 };
 
@@ -79,7 +79,7 @@ export function Assistant({ context, onAction }: Props) {
         {open ? '✕' : '🤖'}
       </button>
       {open && (
-        <section id="assistant-panel" className="assistant" role="dialog" aria-label="مساعد مولّد الإنفوجرافيك">
+        <section id="assistant-panel" className="assistant" role="dialog" aria-label="مساعد مولّد موشن إنفوجرافيك">
           <header className="assistant-head">
             <b>مساعد المولّد</b>
             <small>يعمل داخل متصفحك · لأسئلة الأداة وأفكار الفيديو</small>
