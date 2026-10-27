@@ -640,6 +640,7 @@ export function App() {
           onImageFile={(f, mode) => void onImageFile(f, mode)}
           onImage={(patch) => updateImage(patch)}
           activeImage={activeImage}
+          previewFrame={frame}
           onImagePick={setImageSel}
           onImageOrder={reorderImage}
           syncNext={sync && sync.scene === selected ? sync.next : null}

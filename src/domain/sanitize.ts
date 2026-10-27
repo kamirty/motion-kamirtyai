@@ -32,6 +32,9 @@ export function parseImage(v: unknown): SceneImage | undefined {
     opacity: num(o.opacity, 0.1, 1, d.opacity),
     entrance: pick(o.entrance, ['fade', 'zoom', 'slide', 'none'] as const, d.entrance),
     layer: pick(o.layer, ['front', 'back'] as const, d.layer),
+    ...(Number.isFinite(Number(o.enterAt)) && o.enterAt !== null && o.enterAt !== '' && Number(o.enterAt) >= 0
+      ? { enterAt: Math.min(LIMITS.maxSceneFrames, Math.round(Number(o.enterAt))) }
+      : {}),
   };
 }
 

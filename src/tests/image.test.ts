@@ -6,7 +6,7 @@ import { parseImage, parseProject } from '../domain/sanitize';
 import { DEFAULT_IMAGE, type Project } from '../domain/types';
 import { planCues } from '../engine/audio/sfx';
 import { renderFrame } from '../engine/renderer/renderFrame';
-import { IMAGE, imageEnter } from '../engine/timing';
+import { IMAGE, imageEnter, imageEnterAt } from '../engine/timing';
 import { projectAssetIds } from '../storage/assets';
 import { projectToJson } from '../storage/projectJson';
 import { createFakeCtx } from './fakeCtx';
@@ -84,5 +84,37 @@ describe('scene pictures', () => {
     const { ctx, ops } = createFakeCtx();
     renderFrame(p, 1200 + imageEnter(2) + 30, ctx);
     expect(ops.filter((o) => o.startsWith('clip(')).length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('picture appearance time', () => {
+  it('uses the chosen frame instead of the automatic stagger, in drawing and sound alike', () => {
+    const p = withImage({ enterAt: 120, entrance: 'fade' });
+    const s = p.scenes[1];
+    expect(imageEnterAt(s.images![0], 0, s.durationFrames)).toBe(120);
+    expect(imageEnterAt({}, 1, s.durationFrames)).toBe(imageEnter(1));
+    const pops = planCues(p).filter((c) => c.kind === 'pop' && c.step === 5);
+    expect(pops.map((c) => c.frame)).toContain(s.startFrame + 120);
+    // Not drawn before its time (fewer clips than the same frame with an automatic picture), drawn after.
+    const clips = (q: Project, f: number) => {
+      const { ctx, ops } = createFakeCtx();
+      renderFrame(q, s.startFrame + f, ctx);
+      return ops.filter((o) => o.startsWith('clip(')).length;
+    };
+    const auto = withImage({ entrance: 'fade' });
+    expect(clips(p, 100)).toBeLessThan(clips(auto, 100));
+    expect(clips(p, 160)).toBe(clips(auto, 160));
+  });
+
+  it('is clamped inside the scene and survives save/open', () => {
+    const p = withImage({ enterAt: 99999 });
+    const s = p.scenes[1];
+    expect(imageEnterAt(s.images![0], 0, s.durationFrames)).toBe(s.durationFrames - IMAGE.length);
+    const json = JSON.parse(projectToJson(withImage({ enterAt: 90 })));
+    expect(validate(json), JSON.stringify(validate.errors)).toBe(true);
+    expect(parseProject(json).scenes[1].images![0].enterAt).toBe(90);
+    expect(parseImage({ ...DEFAULT_IMAGE, assetId, enterAt: -4 })!.enterAt).toBeUndefined();
+    expect(parseImage({ ...DEFAULT_IMAGE, assetId, enterAt: 'soon' })!.enterAt).toBeUndefined();
+    expect(parseImage({ ...DEFAULT_IMAGE, assetId })!.enterAt).toBeUndefined();
   });
 });

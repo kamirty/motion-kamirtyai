@@ -391,6 +391,12 @@
             "none"
           ]
         },
+        "enterAt": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3600,
+          "description": "Frame from the scene start at which the picture appears; absent = automatic."
+        },
         "layer": {
           "enum": [
             "front",

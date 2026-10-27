@@ -43,6 +43,8 @@ export interface SceneImage {
   entrance: ImageEntrance;
   /** Draw over the scene content, or behind it (as a backdrop). */
   layer: 'front' | 'back';
+  /** Frame (from the scene start) at which the picture appears; absent = automatic, one after another. */
+  enterAt?: number;
 }
 
 export interface Scene {
