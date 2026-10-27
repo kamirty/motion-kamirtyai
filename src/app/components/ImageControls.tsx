@@ -1,5 +1,6 @@
 import { localizeDigits } from '../../design/digits';
 import { LIMITS, type DigitSystem, type SceneImage } from '../../domain/types';
+import { IMAGE, imageEnterAt, imageExitAt } from '../../engine/timing';
 
 interface Props {
   images: SceneImage[];
@@ -11,6 +12,11 @@ interface Props {
   onChange: (patch: Partial<SceneImage> | null) => void;
   onPick: (k: number) => void;
   onOrder: (delta: -1 | 1) => void;
+  fps: number;
+  /** Length of the scene, for the appearance-time slider. */
+  sceneFrames: number;
+  /** Preview position inside this scene (frames from its start), or null when it is elsewhere. */
+  localFrame: number | null;
 }
 
 const pct = (v: number, digits: DigitSystem) => localizeDigits(`${Math.round(v * 100)}%`, digits);
@@ -23,7 +29,7 @@ const PLACEMENTS = (portrait: boolean): { label: string; patch: Partial<SceneIma
   { label: 'خلفية', patch: { x: 0.5, y: 0.5, scale: portrait ? 1.5 : 1.02, rotation: 0, shape: 'rect', border: false, shadow: false, opacity: 0.3, layer: 'back' } },
 ];
 
-export function ImageControls({ images, active, portrait, digits, onFile, onChange, onPick, onOrder }: Props) {
+export function ImageControls({ images, active, portrait, digits, onFile, onChange, onPick, onOrder, fps, sceneFrames, localFrame }: Props) {
   const image = images[active];
   const full = images.length >= LIMITS.images;
   const upload = (mode: 'add' | 'replace', label: string) => (
@@ -104,7 +110,93 @@ export function ImageControls({ images, active, portrait, digits, onFile, onChan
         <button type="button" className={image.layer === 'front' ? 'active' : ''} onClick={() => onChange({ layer: 'front' })}>أمام المحتوى</button>
         <button type="button" className={image.layer === 'back' ? 'active' : ''} onClick={() => onChange({ layer: 'back' })}>خلف المحتوى</button>
       </div>
-      <span className="label">حركة الظهور</span>
+      <span className="label">وقت الظهور</span>
+      {(() => {
+        const at = imageEnterAt(image, active, sceneFrames);
+        const sec = (f: number) => localizeDigits(`${(Math.round((f / fps) * 10) / 10).toString()} ث`, digits);
+        const maxTenths = Math.max(0, Math.floor(((sceneFrames - IMAGE.length) / fps) * 10));
+        return (
+          <>
+            <div className="seg">
+              <button type="button" className={image.enterAt === undefined ? 'active' : ''} aria-pressed={image.enterAt === undefined} onClick={() => onChange({ enterAt: undefined })}>
+                تلقائي
+              </button>
+              <button type="button" className={image.enterAt !== undefined ? 'active' : ''} aria-pressed={image.enterAt !== undefined} onClick={() => onChange({ enterAt: at })}>
+                وقت أختاره
+              </button>
+            </div>
+            <label className="slider">
+              <span>
+                بعد بداية المشهد بـ <b>{sec(at)}</b>
+              </span>
+              <input
+                type="range"
+                min={0}
+                max={maxTenths}
+                value={Math.min(maxTenths, Math.round((at / fps) * 10))}
+                onChange={(e) => onChange({ enterAt: Math.round((Number(e.target.value) / 10) * fps) })}
+                aria-label="وقت ظهور الصورة بالثواني"
+              />
+            </label>
+            <button type="button" disabled={localFrame === null} onClick={() => localFrame !== null && onChange({ enterAt: Math.max(0, localFrame) })}>
+              ⏱ تظهر عند لحظة المعاينة الحالية{localFrame !== null ? ` (${sec(localFrame)})` : ''}
+            </button>
+            {localFrame === null && <p className="muted small">شغّل المعاينة أو حرّك شريطها داخل هذا المشهد لتختار اللحظة.</p>}
+          </>
+        );
+      })()}
+      <span className="label">وقت الاختفاء</span>
+      {(() => {
+        const enter = imageEnterAt(image, active, sceneFrames);
+        const exit = imageExitAt(image, active, sceneFrames);
+        const sec = (f: number) => localizeDigits(`${(Math.round((f / fps) * 10) / 10).toString()} ث`, digits);
+        // The picture can leave once it has fully appeared, and must start leaving before the scene ends.
+        const minTenths = Math.ceil(((enter + IMAGE.length) / fps) * 10);
+        const maxTenths = Math.max(minTenths, Math.floor(((sceneFrames - IMAGE.length) / fps) * 10));
+        const canLeave = maxTenths > minTenths;
+        const nowOk = localFrame !== null && localFrame >= enter + IMAGE.length && localFrame < sceneFrames - 1;
+        return (
+          <>
+            <div className="seg">
+              <button type="button" className={exit === null ? 'active' : ''} aria-pressed={exit === null} onClick={() => onChange({ exitAt: undefined })}>
+                تبقى حتى نهاية المشهد
+              </button>
+              <button
+                type="button"
+                className={exit !== null ? 'active' : ''}
+                aria-pressed={exit !== null}
+                disabled={!canLeave}
+                title={canLeave ? undefined : 'المشهد قصير جدًا بعد ظهور الصورة'}
+                onClick={() => onChange({ exitAt: Math.round((((minTenths + maxTenths) / 2) / 10) * fps) })}
+              >
+                تختفي في وقت أختاره
+              </button>
+            </div>
+            {exit !== null && (
+              <>
+                <label className="slider">
+                  <span>
+                    بعد بداية المشهد بـ <b>{sec(exit)}</b>
+                  </span>
+                  <input
+                    type="range"
+                    min={minTenths}
+                    max={maxTenths}
+                    value={Math.max(minTenths, Math.min(maxTenths, Math.round((exit / fps) * 10)))}
+                    onChange={(e) => onChange({ exitAt: Math.round((Number(e.target.value) / 10) * fps) })}
+                    aria-label="وقت اختفاء الصورة بالثواني"
+                  />
+                </label>
+              </>
+            )}
+            <button type="button" disabled={!nowOk} onClick={() => nowOk && onChange({ exitAt: localFrame! })}>
+              ⏱ تختفي عند لحظة المعاينة الحالية{localFrame !== null ? ` (${sec(localFrame)})` : ''}
+            </button>
+            {localFrame !== null && !nowOk && <p className="muted small">حرّك المعاينة إلى لحظة بعد ظهور الصورة لتختار وقت اختفائها.</p>}
+          </>
+        );
+      })()}
+      <span className="label">حركة الظهور والاختفاء</span>
       <div className="seg">
         {([['zoom', 'تكبير'], ['fade', 'تلاشي'], ['slide', 'انزلاق'], ['none', 'بدون']] as const).map(([v, l]) => (
           <button type="button" key={v} className={image.entrance === v ? 'active' : ''} onClick={() => onChange({ entrance: v })}>
@@ -120,7 +212,7 @@ export function ImageControls({ images, active, portrait, digits, onFile, onChan
         <input type="checkbox" checked={image.shadow} onChange={(e) => onChange({ shadow: e.target.checked })} />
         ظل
       </label>
-      <p className="muted small">اسحب أي صورة داخل المعاينة لتحريكها واختيارها. تظهر الصور بالتتابع حسب ترتيبها.</p>
+      <p className="muted small">اسحب أي صورة داخل المعاينة لتحريكها واختيارها. تظهر الصور بالتتابع حسب ترتيبها، إلا إذا اخترت لها وقتًا.</p>
       <div className="row">
         {upload('replace', 'استبدال هذه الصورة')}
         <button type="button" className="danger" onClick={() => onChange(null)}>{localizeDigits(`حذف الصورة ${active + 1}`, digits)}</button>

@@ -1,7 +1,7 @@
 import { alpha } from '../../design/presets';
 import type { Scene, SceneImage, Theme } from '../../domain/types';
 import { getBitmap } from '../../storage/assets';
-import { IMAGE, imageEnter } from '../timing';
+import { IMAGE, imageEnterAt, imageExitAt } from '../timing';
 import { easeOutBack, easeOutCubic, progress } from './animation';
 import type { Ctx2D } from './context';
 import type { Layout } from './kit';
@@ -33,7 +33,11 @@ export function drawSceneImage(ctx: Ctx2D, img: SceneImage, k: number, theme: Re
   const bmp = getBitmap(img.assetId);
   const natural = bmp ? { width: bmp.width, height: bmp.height } : { width: 4, height: 3 };
   const box = imageBox(img, L, natural);
-  const t = progress(frame, imageEnter(k), IMAGE.length);
+  // Entering, then (when it has an exit time) leaving the same way it came in.
+  const exit = imageExitAt(img, k, durationFrames);
+  const out = exit === null ? 0 : progress(frame, exit, IMAGE.length);
+  if (out >= 1 || (img.entrance === 'none' && out > 0)) return;
+  const t = Math.min(progress(frame, imageEnterAt(img, k, durationFrames), IMAGE.length), 1 - out);
   let a = img.opacity;
   let s = 1;
   let dx = 0;

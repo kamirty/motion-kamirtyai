@@ -45,6 +45,15 @@ export function trueFalseCountdown(scene: Scene): number {
 export const IMAGE = { enter: 6, length: 22, stagger: 14 };
 /** Entrance frame of a scene's k-th picture (pictures arrive one after another). */
 export const imageEnter = (k: number) => IMAGE.enter + k * IMAGE.stagger;
+/** When a picture appears: its chosen time, or the automatic one; always before the scene ends. */
+export const imageEnterAt = (img: { enterAt?: number }, k: number, durationFrames: number): number =>
+  Math.max(0, Math.min(img.enterAt ?? imageEnter(k), durationFrames - IMAGE.length));
+/** When a picture starts leaving (null = it stays to the end); never before it has fully entered. */
+export function imageExitAt(img: { enterAt?: number; exitAt?: number }, k: number, durationFrames: number): number | null {
+  if (img.exitAt === undefined) return null;
+  const at = Math.max(imageEnterAt(img, k, durationFrames) + IMAGE.length, img.exitAt);
+  return at >= durationFrames ? null : at;
+}
 
 export type Pace = 'calm' | 'balanced' | 'fast';
 
