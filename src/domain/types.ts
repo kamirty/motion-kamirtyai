@@ -45,6 +45,8 @@ export interface SceneImage {
   layer: 'front' | 'back';
   /** Frame (from the scene start) at which the picture appears; absent = automatic, one after another. */
   enterAt?: number;
+  /** Frame (from the scene start) at which the picture leaves; absent = it stays to the end of the scene. */
+  exitAt?: number;
 }
 
 export interface Scene {

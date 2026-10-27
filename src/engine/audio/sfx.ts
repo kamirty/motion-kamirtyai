@@ -1,6 +1,6 @@
 import { styleOf, type Project } from '../../domain/types';
 import { hash01 } from '../renderer/animation';
-import { CAPSULE, CHAPTER, DEFINITION, HEADER, HERO, KPIS, OUTRO, PICTOGRAM, QUIZ_COUNTDOWN, QUOTE, STAT, TIP, imageEnterAt, itemReveal, quizCountdown, shownItems, TRUEFALSE, WARNING, trueFalseCountdown, BEFORE_AFTER, beforeAfterAt } from '../timing';
+import { CAPSULE, CHAPTER, DEFINITION, HEADER, HERO, KPIS, OUTRO, PICTOGRAM, QUIZ_COUNTDOWN, QUOTE, STAT, TIP, imageEnterAt, imageExitAt, itemReveal, quizCountdown, shownItems, TRUEFALSE, WARNING, trueFalseCountdown, BEFORE_AFTER, beforeAfterAt } from '../timing';
 import { trueFalseParts, quizParts } from '../sceneModel';
 
 /**
@@ -44,6 +44,8 @@ export function planCues(project: Project): Cue[] {
     if (scene.durationFrames > 40) cues.push({ frame: s0 + scene.durationFrames - (last ? 26 : 18), kind: 'exit', step: 0 });
     (scene.images ?? []).forEach((img, k) => {
       if (img.entrance !== 'none') add(imageEnterAt(img, k, scene.durationFrames), 'pop', 5 + k);
+      const exit = imageExitAt(img, k, scene.durationFrames);
+      if (exit !== null) add(exit, 'exit', 5 + k);
     });
 
     switch (scene.kind) {

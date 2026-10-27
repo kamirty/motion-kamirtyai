@@ -14,6 +14,12 @@ const num = (v: unknown, min: number, max: number, fb: number): number => {
   return Math.min(max, Math.max(min, n));
 };
 
+/** An optional frame count inside a scene; anything else drops the field. */
+function frameField<K extends string>(key: K, v: unknown): Partial<Record<K, number>> {
+  if (v === null || v === '' || typeof v === 'boolean' || !Number.isFinite(Number(v)) || Number(v) < 0) return {};
+  return { [key]: Math.min(LIMITS.maxSceneFrames, Math.round(Number(v))) } as Partial<Record<K, number>>;
+}
+
 /** Validates a scene picture; returns undefined for anything malformed. */
 export function parseImage(v: unknown): SceneImage | undefined {
   if (!v || typeof v !== 'object') return undefined;
@@ -32,9 +38,8 @@ export function parseImage(v: unknown): SceneImage | undefined {
     opacity: num(o.opacity, 0.1, 1, d.opacity),
     entrance: pick(o.entrance, ['fade', 'zoom', 'slide', 'none'] as const, d.entrance),
     layer: pick(o.layer, ['front', 'back'] as const, d.layer),
-    ...(Number.isFinite(Number(o.enterAt)) && o.enterAt !== null && o.enterAt !== '' && Number(o.enterAt) >= 0
-      ? { enterAt: Math.min(LIMITS.maxSceneFrames, Math.round(Number(o.enterAt))) }
-      : {}),
+    ...frameField('enterAt', o.enterAt),
+    ...frameField('exitAt', o.exitAt),
   };
 }
 
