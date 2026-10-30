@@ -1,3 +1,4 @@
+import { drawTapSteps } from './scenes/tapsteps';
 import { drawBalance, drawCapsule, drawConveyor, drawDecision, drawDomino, drawFolded, drawGears, drawLiquid, drawMagnet, drawMagnifier, drawMosaic, drawNetwork, drawSpotlight } from './scenes/extra3';
 import { alpha, mix, readableOn, textAccent } from '../../design/presets';
 import type { Scene } from '../../domain/types';
@@ -740,6 +741,7 @@ export const SCENE_DRAWERS: Record<Scene['kind'], SceneDrawer> = {
   decision: drawDecision,
   folded: drawFolded,
   capsule: drawCapsule,
+  tapsteps: drawTapSteps,
 };
 
 export const drawScene: SceneDrawer = (args) => (SCENE_DRAWERS[args.scene.kind] ?? drawHero)(args);

@@ -8,6 +8,7 @@ export const SCENE_KINDS = [
   'truefalse', 'ranking', 'linechart', 'beforeafter', 'warning',
   'mindmap', 'venn', 'table', 'gauges', 'flowchart', 'profile',
   'spotlight', 'magnifier', 'magnet', 'mosaic', 'liquid', 'domino', 'network', 'balance', 'gears', 'conveyor', 'decision', 'folded', 'capsule',
+  'tapsteps',
 ] as const;
 export type SceneKind = (typeof SCENE_KINDS)[number];
 
@@ -84,7 +85,8 @@ export const LOOKS: readonly LookId[] = ['modern', 'minimal', 'cartoon'];
 
 export type DigitSystem = 'arabic' | 'latin';
 export type TransitionId = 'fade' | 'slide' | 'zoom' | 'wipe';
-export type MusicId = 'none' | 'calm' | 'bright' | 'epic';
+/** 'custom' = the visitor's own music file (style.musicAsset). */
+export type MusicId = 'none' | 'calm' | 'bright' | 'epic' | 'custom';
 export type BackgroundId = 'gradient' | 'dots' | 'waves' | 'plain' | 'bubbles' | 'aurora';
 
 export interface ProjectStyle {
@@ -94,6 +96,12 @@ export interface ProjectStyle {
   transition: TransitionId;
   background: BackgroundId;
   music: MusicId;
+  /** Local asset holding the visitor's own music (when music is 'custom'). */
+  musicAsset?: string;
+  /** File name of that music, shown in the editor. */
+  musicName?: string;
+  /** Music level: 0 (silent) to 1.5 (louder than standard); 1 = standard. */
+  musicVolume: number;
   /** Automatic sound effects when elements appear. */
   sfx: boolean;
   /** Motion speed: how spread out element reveals are. */
@@ -124,6 +132,7 @@ export const DEFAULT_STYLE: ProjectStyle = {
   transition: 'wipe',
   background: 'dots',
   music: 'calm',
+  musicVolume: 1,
   sfx: true,
   pace: 'balanced',
   look: 'modern',

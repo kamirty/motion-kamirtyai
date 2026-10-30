@@ -17,7 +17,7 @@ interface Recipe {
   cutoff: number;
 }
 
-const RECIPES: Record<Exclude<MusicId, 'none'>, Recipe> = {
+const RECIPES: Record<Exclude<MusicId, 'none' | 'custom'>, Recipe> = {
   // Am – F – C – G, slow and airy.
   calm: { bpm: 72, chords: [[57, 'min'], [53, 'maj'], [48, 'maj'], [55, 'maj']], pad: 'triangle', arp: true, kick: false, padGain: 0.09, cutoff: 1400 },
   // C – G – Am – F, light and positive.
@@ -48,7 +48,8 @@ function impulse(ctx: BaseAudioContext, seconds: number): AudioBuffer {
 }
 
 export async function renderMusic(id: MusicId, seconds = 120, sampleRate = 48000): Promise<AudioBuffer | null> {
-  if (id === 'none' || typeof OfflineAudioContext === 'undefined') return null;
+  // 'custom' is the visitor's own file, prepared by the editor (see fitAudio).
+  if (id === 'none' || id === 'custom' || typeof OfflineAudioContext === 'undefined') return null;
   const r = RECIPES[id];
   const ctx = new OfflineAudioContext(2, Math.ceil(seconds * sampleRate), sampleRate);
 
@@ -171,6 +172,18 @@ export async function fitAudio(source: AudioBuffer, seconds = 120, sampleRate = 
   node.connect(g).connect(ctx.destination);
   node.start(0);
   return ctx.startRendering();
+}
+
+/** The music at another level (a copy; 1 returns the same buffer). */
+export function withVolume(buffer: AudioBuffer | null, volume: number): AudioBuffer | null {
+  if (!buffer || volume === 1) return buffer;
+  const out = new AudioBuffer({ length: buffer.length, numberOfChannels: buffer.numberOfChannels, sampleRate: buffer.sampleRate });
+  for (let c = 0; c < buffer.numberOfChannels; c++) {
+    const src = buffer.getChannelData(c);
+    const dst = out.getChannelData(c);
+    for (let i = 0; i < src.length; i++) dst[i] = src[i] * volume;
+  }
+  return out;
 }
 
 /** Decodes a user-selected audio file locally (nothing is uploaded). */

@@ -125,6 +125,16 @@ export function planCues(project: Project): Cue[] {
         }
         break;
       }
+      case 'tapsteps': {
+        // A click as the pointer taps each card, then its pop.
+        add(HEADER.title, 'tick');
+        const n = shownItems(scene).length;
+        for (let i = 0; i < n; i++) {
+          add(itemReveal(scene, i, n), 'switch', i);
+          add(itemReveal(scene, i, n) + 6, 'pop', i);
+        }
+        break;
+      }
       case 'capsule':
         add(CAPSULE.drop, 'pop', 1);
         add(CAPSULE.shake, 'rattle');

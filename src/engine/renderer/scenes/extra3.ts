@@ -22,7 +22,7 @@ const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const easeInCubic = (t: number) => clamp(t) ** 3;
 
 /** Boxes for n cards in reading order (first at the top right), centred in the free area. */
-function gridBoxes(L: Layout, top: number, n: number, maxH = 230, gap = 22): Box[] {
+export function gridBoxes(L: Layout, top: number, n: number, maxH = 230, gap = 22): Box[] {
   const cols = L.portrait ? (n <= 3 ? 1 : 2) : n <= 3 ? n : Math.ceil(n / 2);
   const rows = Math.ceil(n / cols);
   const availH = L.H - top - L.M * 0.6;
@@ -40,7 +40,7 @@ function gridBoxes(L: Layout, top: number, n: number, maxH = 230, gap = 22): Box
 }
 
 /** Head (bold) and optional body of an item fitted to a width. */
-function fitItem(a: SceneDrawArgs, item: string, maxWidth: number, headSize = 28, bodySize = 21, headLines = 2, bodyLines = 3) {
+export function fitItem(a: SceneDrawArgs, item: string, maxWidth: number, headSize = 28, bodySize = 21, headLines = 2, bodyLines = 3) {
   const { ctx, font: fs } = a;
   const { head, body } = parts(item);
   const hf = fitText(ctx, fs, head || ' ', { maxWidth, maxLines: headLines, maxSize: headSize, minSize: 13, weight: 'bold', lineHeight: 1.3 });
@@ -49,7 +49,7 @@ function fitItem(a: SceneDrawArgs, item: string, maxWidth: number, headSize = 28
 }
 
 /** Draws a fitted head/body pair centred on x from `top`; returns the bottom. */
-function drawItem(a: SceneDrawArgs, f: { hf: FittedText; bf: FittedText | null }, x: number, top: number, headColor = a.theme.foreground): number {
+export function drawItem(a: SceneDrawArgs, f: { hf: FittedText; bf: FittedText | null }, x: number, top: number, headColor = a.theme.foreground): number {
   const { ctx, font: fs, theme } = a;
   ctx.textAlign = 'center';
   ctx.fillStyle = headColor;
@@ -62,7 +62,7 @@ function drawItem(a: SceneDrawArgs, f: { hf: FittedText; bf: FittedText | null }
 }
 
 /** Small numbered disc. */
-function numberDisc(a: SceneDrawArgs, n: number, cx: number, cy: number, r: number, color: string): void {
+export function numberDisc(a: SceneDrawArgs, n: number, cx: number, cy: number, r: number, color: string): void {
   const { ctx, font: fs, digits } = a;
   ctx.fillStyle = color;
   ctx.beginPath();
@@ -77,7 +77,7 @@ function numberDisc(a: SceneDrawArgs, n: number, cx: number, cy: number, r: numb
 }
 
 /** Index of the last revealed item (−1 before the first). */
-function lastRevealed(a: SceneDrawArgs, n: number): number {
+export function lastRevealed(a: SceneDrawArgs, n: number): number {
   let k = -1;
   for (let i = 0; i < n; i++) if (a.frame >= itemReveal(a.scene, i, n)) k = i;
   return k;

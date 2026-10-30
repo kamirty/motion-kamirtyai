@@ -45,9 +45,12 @@ export async function loadVoices(ids: string[]): Promise<string[]> {
   return missing;
 }
 
-/** Recording ids referenced by a project. */
-export const projectVoiceIds = (project: { scenes: { voice?: { assetId: string } }[] }): string[] => [
-  ...new Set(project.scenes.flatMap((s) => (s.voice ? [s.voice.assetId] : []))),
+/** Audio asset ids referenced by a project: scene recordings and the visitor's own music. */
+export const projectVoiceIds = (project: { scenes: { voice?: { assetId: string } }[]; style?: { music?: string; musicAsset?: string } }): string[] => [
+  ...new Set([
+    ...project.scenes.flatMap((s) => (s.voice ? [s.voice.assetId] : [])),
+    ...(project.style?.music === 'custom' && project.style.musicAsset ? [project.style.musicAsset] : []),
+  ]),
 ];
 
 /** Whether this browser can record from the microphone (secure context + MediaRecorder). */

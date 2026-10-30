@@ -101,7 +101,7 @@ export function autoReveal(scene: Scene & { pace?: Pace }, i: number, count: num
     case 'kpis': case 'donut': case 'columns': case 'proscons': case 'quiz': case 'linechart':
     case 'mindmap': case 'venn': case 'table': case 'gauges': case 'flowchart': case 'profile':
     case 'spotlight': case 'magnifier': case 'magnet': case 'mosaic': case 'liquid': case 'domino': case 'network':
-    case 'balance': case 'gears': case 'conveyor': case 'decision': case 'folded':
+    case 'balance': case 'gears': case 'conveyor': case 'decision': case 'folded': case 'tapsteps':
       return 20 + i * span;
     default:
       return 0;
