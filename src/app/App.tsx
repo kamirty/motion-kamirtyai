@@ -5,7 +5,7 @@ import { localizeDigits } from '../design/digits';
 import { maxSceneFrames, rebalance, sceneIndexAt, setSceneDuration, totalFrames, withScenes } from '../domain/timeline';
 import { ASPECTS, DEFAULT_IMAGE, DEFAULT_STYLE, FPS, LIMITS, aspectOf as aspectOfSize, styleOf, type AspectId, type Project, type ProjectStyle, type Scene, type SceneImage, type SceneKind, type Theme } from '../domain/types';
 import { PreviewAudio } from '../engine/audio/player';
-import { decodeAudioFile, fitAudio, renderMusic } from '../engine/audio/music';
+import { decodeAudioFile, fitAudio, renderMusic, withVolume } from '../engine/audio/music';
 import { cuesKey, renderSoundtrack, voiceClips } from '../engine/audio/sfx';
 import { revealSlots } from '../engine/timing';
 import { detectExportPlan } from '../engine/export/capabilities';
@@ -154,13 +154,19 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [project, voicesLoaded],
   );
+  // The chosen music level, applied to a copy that is kept while the level does not change.
+  const levelled = useRef<{ src: AudioBuffer | null; volume: number; out: AudioBuffer | null } | null>(null);
   const getAudio = useCallback(async (): Promise<AudioBuffer | null> => {
     // Music (or none) + optional narration file + scene recordings + optional effects, mixed together.
-    const music = await musicFor(style.music);
+    const base = await musicFor(style.music);
+    if (levelled.current?.src !== base || levelled.current.volume !== style.musicVolume) {
+      levelled.current = { src: base, volume: style.musicVolume, out: withVolume(base, style.musicVolume) };
+    }
+    const music = levelled.current.out;
     const voice = customAudio?.buffer ?? null;
     if (!style.sfx && !voice && !clipsKey) return music;
     const own = style.music === 'custom' ? `:${style.musicAsset}:${getVoiceBuffer(style.musicAsset ?? '') ? 1 : 0}` : '';
-    const key = `${sfxKey}|${style.music}${own}|${customAudio ? `voice:${customAudio.name}:${customAudio.buffer.length}` : ''}|${clipsKey}`;
+    const key = `${sfxKey}|${style.music}${own}@${style.musicVolume}|${customAudio ? `voice:${customAudio.name}:${customAudio.buffer.length}` : ''}|${clipsKey}`;
     if (soundtrack.current?.key !== key) {
       soundtrack.current = {
         key,
@@ -169,7 +175,7 @@ export function App() {
     }
     return soundtrack.current.promise;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [customAudio, style.music, style.musicAsset, style.sfx, sfxKey, clipsKey, musicFor, voicesLoaded]);
+  }, [customAudio, style.music, style.musicAsset, style.musicVolume, style.sfx, sfxKey, clipsKey, musicFor, voicesLoaded]);
 
   // Render the soundtrack in the background after edits settle, so Play starts at once.
   const [preparing, setPreparing] = useState(false);
@@ -468,8 +474,8 @@ export function App() {
 
   const setAspect = (a: AspectId) => setProject((p) => ({ ...p, size: { width: ASPECTS[a].width, height: ASPECTS[a].height } }));
 
-  const setStyle = (patch: Partial<ProjectStyle>, theme?: Theme) =>
-    setProject((p) => ({ ...p, style: { ...styleOf(p), ...patch }, theme: theme ? fullTheme(theme) : p.theme }));
+  const setStyle = (patch: Partial<ProjectStyle>, theme?: Theme, coalesce?: string) =>
+    setProject((p) => ({ ...p, style: { ...styleOf(p), ...patch }, theme: theme ? fullTheme(theme) : p.theme }), coalesce);
 
   const setTheme = (patch: Partial<Theme>) =>
     setProject((p) => ({ ...p, theme: { ...fullTheme(p.theme), ...patch } }), `theme-${Object.keys(patch).join()}`);

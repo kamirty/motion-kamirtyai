@@ -101,6 +101,7 @@ export function parseProject(input: unknown): Project {
     transition: pick(st.transition, ['fade', 'slide', 'zoom', 'wipe'] as const, DEFAULT_STYLE.transition),
     background: pick(st.background, ['gradient', 'dots', 'waves', 'plain', 'bubbles', 'aurora'] as const, DEFAULT_STYLE.background),
     music: pick(st.music, ['none', 'calm', 'bright', 'epic', 'custom'] as const, DEFAULT_STYLE.music),
+    musicVolume: num(st.musicVolume, 0, 1.5, DEFAULT_STYLE.musicVolume),
     ...(typeof st.musicAsset === 'string' && ASSET_ID.test(st.musicAsset) ? { musicAsset: st.musicAsset, musicName: str(st.musicName, 120) || 'موسيقاي' } : {}),
     sfx: typeof st.sfx === 'boolean' ? st.sfx : DEFAULT_STYLE.sfx,
     pace: pick(st.pace, ['calm', 'balanced', 'fast'] as const, DEFAULT_STYLE.pace),

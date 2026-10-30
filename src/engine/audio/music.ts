@@ -174,6 +174,18 @@ export async function fitAudio(source: AudioBuffer, seconds = 120, sampleRate = 
   return ctx.startRendering();
 }
 
+/** The music at another level (a copy; 1 returns the same buffer). */
+export function withVolume(buffer: AudioBuffer | null, volume: number): AudioBuffer | null {
+  if (!buffer || volume === 1) return buffer;
+  const out = new AudioBuffer({ length: buffer.length, numberOfChannels: buffer.numberOfChannels, sampleRate: buffer.sampleRate });
+  for (let c = 0; c < buffer.numberOfChannels; c++) {
+    const src = buffer.getChannelData(c);
+    const dst = out.getChannelData(c);
+    for (let i = 0; i < src.length; i++) dst[i] = src[i] * volume;
+  }
+  return out;
+}
+
 /** Decodes a user-selected audio file locally (nothing is uploaded). */
 export async function decodeAudioFile(file: File): Promise<AudioBuffer> {
   const ctx = new OfflineAudioContext(2, 48000, 48000);

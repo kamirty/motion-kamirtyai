@@ -28,7 +28,7 @@ interface Props {
   onTeacher: () => void;
   project: Project;
   onAspect: (a: AspectId) => void;
-  onStyle: (patch: Partial<ProjectStyle>, theme?: Theme) => void;
+  onStyle: (patch: Partial<ProjectStyle>, theme?: Theme, coalesce?: string) => void;
   onTheme: (patch: Partial<Theme>) => void;
   customAudioName: string | null;
   onAudioFile: (file: File | null) => void;
@@ -221,6 +221,21 @@ export function Sidebar(p: Props) {
             </button>
           )}
         </div>
+        <label className="slider">
+          <span>
+            مستوى صوت الموسيقى <b>{localizeDigits(`${Math.round(style.musicVolume * 100)}%`, style.digits)}</b>
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={150}
+            step={5}
+            value={Math.round(style.musicVolume * 100)}
+            disabled={style.music === 'none'}
+            aria-label="مستوى صوت الموسيقى"
+            onChange={(e) => p.onStyle({ musicVolume: Number(e.target.value) / 100 }, undefined, 'music-volume')}
+          />
+        </label>
         <label className="upload">
           <input type="file" accept="audio/*" onChange={(e) => { p.onMusicFile(e.target.files?.[0] ?? null); e.target.value = ''; }} />
           🎵 {style.musicAsset ? `موسيقاك: ${style.musicName ?? ''} (تغيير)` : 'لم تعجبك؟ أضف موسيقى من جهازك (MP3 / M4A / WAV)'}

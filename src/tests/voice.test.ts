@@ -84,3 +84,16 @@ describe('own background music', () => {
     expect(validate({ ...JSON.parse(projectToJson(p)), assets: { [ID]: 'data:audio/x-evil;base64,AAAA' } })).toBe(false);
   });
 });
+
+describe('music level', () => {
+  it('defaults to the standard level, keeps a chosen one, and clamps hostile values', () => {
+    expect(parseProject(sampleProject).style?.musicVolume).toBe(1);
+    const p = { ...sampleProject, style: { ...sampleProject.style, musicVolume: 0.35 } };
+    const round = JSON.parse(projectToJson(p));
+    expect(validate(round), JSON.stringify(validate.errors)).toBe(true);
+    expect(parseProject(round).style?.musicVolume).toBe(0.35);
+    expect(parseProject({ ...sampleProject, style: { ...sampleProject.style, musicVolume: 99 } }).style?.musicVolume).toBe(1.5);
+    expect(parseProject({ ...sampleProject, style: { ...sampleProject.style, musicVolume: 'loud' } }).style?.musicVolume).toBe(1);
+    expect(validate({ ...sampleProject, style: { ...sampleProject.style, musicVolume: 3 } })).toBe(false);
+  });
+});

@@ -100,6 +100,8 @@ export interface ProjectStyle {
   musicAsset?: string;
   /** File name of that music, shown in the editor. */
   musicName?: string;
+  /** Music level: 0 (silent) to 1.5 (louder than standard); 1 = standard. */
+  musicVolume: number;
   /** Automatic sound effects when elements appear. */
   sfx: boolean;
   /** Motion speed: how spread out element reveals are. */
@@ -130,6 +132,7 @@ export const DEFAULT_STYLE: ProjectStyle = {
   transition: 'wipe',
   background: 'dots',
   music: 'calm',
+  musicVolume: 1,
   sfx: true,
   pace: 'balanced',
   look: 'modern',

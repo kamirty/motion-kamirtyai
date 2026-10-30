@@ -144,6 +144,12 @@
           "type": "string",
           "maxLength": 120
         },
+        "musicVolume": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1.5,
+          "description": "Music level: 0 silent, 1 standard, up to 1.5."
+        },
         "watermark": {
           "type": "boolean",
           "description": "Deprecated and ignored: videos never carry a site mark."
