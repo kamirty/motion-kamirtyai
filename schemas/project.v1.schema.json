@@ -252,7 +252,8 @@
             "conveyor",
             "decision",
             "folded",
-            "capsule"
+            "capsule",
+            "tapsteps"
           ]
         },
         "startFrame": {
