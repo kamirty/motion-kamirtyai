@@ -346,11 +346,9 @@ export function renderFrame(project: Project, frameIndex: number, ctx: Ctx2D, ou
     if (opacity > 0.001) {
       const images = scene.images ?? [];
       // A profile card shows its first picture as the portrait, not as a free picture.
-      const free = (k: number) => !((scene.kind === 'profile' || scene.kind === 'walkthrough') && k === 0);
+      const free = (k: number) => !(scene.kind === 'profile' && k === 0);
       images.forEach((img, k) => free(k) && img.layer === 'back' && drawSceneImage(ctx, img, k, theme, L, local, scene.durationFrames));
-      const walk = scene.kind === 'walkthrough' ? project.scenes.filter((s) => s.kind === 'walkthrough') : null;
-      const step = walk ? { index: Math.max(0, walk.findIndex((s) => s.id === scene.id)), count: walk.length } : undefined;
-      drawScene({ ctx, scene, theme, frame: local, layout: L, font: fs, digits: style.digits, motion, step });
+      drawScene({ ctx, scene, theme, frame: local, layout: L, font: fs, digits: style.digits, motion });
       images.forEach((img, k) => free(k) && img.layer !== 'back' && drawSceneImage(ctx, img, k, theme, L, local, scene.durationFrames));
     }
     ctx.restore();

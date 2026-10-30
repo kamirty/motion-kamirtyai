@@ -8,7 +8,6 @@ export const SCENE_KINDS = [
   'truefalse', 'ranking', 'linechart', 'beforeafter', 'warning',
   'mindmap', 'venn', 'table', 'gauges', 'flowchart', 'profile',
   'spotlight', 'magnifier', 'magnet', 'mosaic', 'liquid', 'domino', 'network', 'balance', 'gears', 'conveyor', 'decision', 'folded', 'capsule',
-  'walkthrough',
 ] as const;
 export type SceneKind = (typeof SCENE_KINDS)[number];
 
@@ -68,8 +67,6 @@ export interface Scene {
   entrance?: EntranceId;
   /** Narration recorded for this scene in the browser; plays from the scene's first frame. */
   voice?: SceneVoice;
-  /** Walkthrough step: where the pointer taps on the screenshot (fractions of its width/height). */
-  tap?: { x: number; y: number };
 }
 
 export interface SceneVoice {

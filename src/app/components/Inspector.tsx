@@ -78,23 +78,6 @@ export function Inspector({ project, index, onChange, onChangeKind, canRecord, v
         <span className="kind-current-cta">تغيير التصميم</span>
       </button>
       <p className="muted small">{KIND_HINTS[scene.kind]}</p>
-      {scene.kind === 'walkthrough' && (
-        <div className="tap-box">
-          <span className="label">موضع النقرة على لقطة الشاشة</span>
-          {!scene.images?.length && <p className="muted small">أضف لقطة الشاشة من قسم «الصور» أدناه؛ أول صورة تظهر داخل إطار الجوال أو المتصفح.</p>}
-          {(['x', 'y'] as const).map((axis) => {
-            const tap = scene.tap ?? { x: 0.5, y: 0.45 };
-            return (
-              <label className="slider" key={axis}>
-                <span>
-                  {axis === 'x' ? 'أفقيًا (من اليسار)' : 'رأسيًا (من الأعلى)'} <b>{localizeDigits(`${Math.round(tap[axis] * 100)}%`, digits)}</b>
-                </span>
-                <input type="range" min={0} max={100} value={Math.round(tap[axis] * 100)} onChange={(e) => onChange({ tap: { ...tap, [axis]: Number(e.target.value) / 100 } })} />
-              </label>
-            );
-          })}
-        </div>
-      )}
 
       <label className="label" htmlFor="scene-title">
         {scene.kind === 'quote' ? 'نص الاقتباس' : 'العنوان'}

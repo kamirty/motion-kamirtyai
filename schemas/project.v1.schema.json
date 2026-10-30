@@ -252,8 +252,7 @@
             "conveyor",
             "decision",
             "folded",
-            "capsule",
-            "walkthrough"
+            "capsule"
           ]
         },
         "startFrame": {
@@ -322,13 +321,6 @@
             "type": "string",
             "maxLength": 60
           }
-        },
-        "tap": {
-          "type": "object",
-          "description": "Walkthrough step: where the pointer taps on the screenshot, as fractions of its width and height.",
-          "additionalProperties": false,
-          "required": ["x", "y"],
-          "properties": { "x": { "type": "number", "minimum": 0, "maximum": 1 }, "y": { "type": "number", "minimum": 0, "maximum": 1 } }
         },
         "voice": {
           "type": "object",

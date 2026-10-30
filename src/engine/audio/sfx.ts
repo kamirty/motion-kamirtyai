@@ -1,6 +1,6 @@
 import { styleOf, type Project } from '../../domain/types';
 import { hash01 } from '../renderer/animation';
-import { CAPSULE, walkBeats, CHAPTER, DEFINITION, HEADER, HERO, KPIS, OUTRO, PICTOGRAM, QUIZ_COUNTDOWN, QUOTE, STAT, TIP, imageEnterAt, imageExitAt, itemReveal, quizCountdown, shownItems, TRUEFALSE, WARNING, trueFalseCountdown, BEFORE_AFTER, beforeAfterAt } from '../timing';
+import { CAPSULE, CHAPTER, DEFINITION, HEADER, HERO, KPIS, OUTRO, PICTOGRAM, QUIZ_COUNTDOWN, QUOTE, STAT, TIP, imageEnterAt, imageExitAt, itemReveal, quizCountdown, shownItems, TRUEFALSE, WARNING, trueFalseCountdown, BEFORE_AFTER, beforeAfterAt } from '../timing';
 import { trueFalseParts, quizParts } from '../sceneModel';
 
 /**
@@ -123,14 +123,6 @@ export function planCues(project: Project): Cue[] {
             case 'folded': add(r, 'paper', i); break;
           }
         }
-        break;
-      }
-      case 'walkthrough': {
-        const b = walkBeats(scene);
-        add(2, 'pop', 0);
-        add(b.device, 'rise');
-        add(b.tap, 'switch', 2);
-        if (shownItems(scene)[1]) add(b.callout, 'pop', 4);
         break;
       }
       case 'capsule':

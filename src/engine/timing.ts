@@ -30,12 +30,6 @@ export const TRUEFALSE = { statement: 10, choices: 40, note: 24 };
 /** Warning: triangle, headline, text, note. */
 export const WARNING = { badge: 4, title: 14, text: 34, note: 70 };
 /** Before/after: the 'after' panel sweeps in at this share of the scene. */
-/** Walkthrough beats (frames), compressed for short scenes so every beat still plays. */
-export function walkBeats(scene: Scene): { device: number; pointer: number; tap: number; zoom: number; callout: number } {
-  const k = Math.min(1, Math.max(0.45, scene.durationFrames / 210));
-  const at = (f: number) => Math.round(f * k);
-  return { device: at(10), pointer: at(46), tap: at(80), zoom: at(92), callout: at(116) };
-}
 /** Capsule: drops in, shakes, snaps open, then releases its fact and note. */
 export const CAPSULE = { drop: 4, shake: 22, open: 48, fact: 60, note: 96 };
 export const BEFORE_AFTER = { before: 20, afterShare: 0.42 };

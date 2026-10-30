@@ -667,7 +667,7 @@ function weightOf(s: DraftScene): number {
     kpis: 9, donut: 9, columns: 9, pictogram: 9, cycle: 9, pyramid: 9, proscons: 9, checklist: 8, quiz: 12, definition: 8, chapter: 5, tip: 8,
     truefalse: 11, ranking: 10, linechart: 9, beforeafter: 9, warning: 7,
     mindmap: 10, venn: 9, table: 10, gauges: 9, flowchart: 10, profile: 9,
-    spotlight: 10, magnifier: 10, magnet: 10, mosaic: 9, liquid: 9, domino: 10, network: 10, balance: 10, gears: 10, conveyor: 10, decision: 10, folded: 10, capsule: 8, walkthrough: 9,
+    spotlight: 10, magnifier: 10, magnet: 10, mosaic: 9, liquid: 9, domino: 10, network: 10, balance: 10, gears: 10, conveyor: 10, decision: 10, folded: 10, capsule: 8,
   };
   return base[s.kind] + Math.min(10, chars / 18) + s.items.length * 0.8;
 }

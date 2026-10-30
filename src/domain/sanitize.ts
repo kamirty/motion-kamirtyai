@@ -90,7 +90,6 @@ export function parseProject(input: unknown): Project {
       // Absent (or unknown) means automatic; 'none' is an explicit choice and is kept.
       ...((ENTRANCES as readonly unknown[]).includes(s.entrance) ? { entrance: s.entrance as Scene['entrance'] } : {}),
       ...parseVoice(s.voice),
-      ...parseTap(s.tap),
     };
   });
 
@@ -127,15 +126,6 @@ export function parseProject(input: unknown): Project {
   const errors = validateTimeline(project);
   if (errors.length) throw new Error(`تعذر إصلاح توقيت المشروع: ${errors.join('، ')}`);
   return project;
-}
-
-/** Walkthrough tap point: two fractions 0–1, or nothing. */
-function parseTap(v: unknown): { tap?: { x: number; y: number } } {
-  if (!v || typeof v !== 'object') return {};
-  const { x, y } = v as Record<string, unknown>;
-  const nx = Number(x), ny = Number(y);
-  if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(nx) || !Number.isFinite(ny)) return {};
-  return { tap: { x: Math.min(1, Math.max(0, nx)), y: Math.min(1, Math.max(0, ny)) } };
 }
 
 /** A recorded narration reference: a local asset id and a length up to the longest scene. */
