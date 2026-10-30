@@ -17,7 +17,7 @@ interface Recipe {
   cutoff: number;
 }
 
-const RECIPES: Record<Exclude<MusicId, 'none'>, Recipe> = {
+const RECIPES: Record<Exclude<MusicId, 'none' | 'custom'>, Recipe> = {
   // Am – F – C – G, slow and airy.
   calm: { bpm: 72, chords: [[57, 'min'], [53, 'maj'], [48, 'maj'], [55, 'maj']], pad: 'triangle', arp: true, kick: false, padGain: 0.09, cutoff: 1400 },
   // C – G – Am – F, light and positive.
@@ -48,7 +48,8 @@ function impulse(ctx: BaseAudioContext, seconds: number): AudioBuffer {
 }
 
 export async function renderMusic(id: MusicId, seconds = 120, sampleRate = 48000): Promise<AudioBuffer | null> {
-  if (id === 'none' || typeof OfflineAudioContext === 'undefined') return null;
+  // 'custom' is the visitor's own file, prepared by the editor (see fitAudio).
+  if (id === 'none' || id === 'custom' || typeof OfflineAudioContext === 'undefined') return null;
   const r = RECIPES[id];
   const ctx = new OfflineAudioContext(2, Math.ceil(seconds * sampleRate), sampleRate);
 

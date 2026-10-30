@@ -54,6 +54,7 @@ export const KIND_ICONS: Record<string, string> = {
   decision: 'milestone',
   folded: 'scroll',
   capsule: 'pill',
+  walkthrough: 'smartphone',
 };
 
 const shortKeyword = new Map<string, RegExp>();

@@ -126,7 +126,9 @@ export const projectAssetIds = (project: { scenes: { images?: { assetId: string 
 ];
 
 const DATA_URL = /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/;
-const AUDIO_URL = /^data:audio\/(webm|ogg|mp4|mpeg|wav)(;codecs=[a-z0-9.]+)?;base64,[A-Za-z0-9+/=]+$/;
+const AUDIO_URL = /^data:audio\/(webm|ogg|mp4|mpeg|mp3|wav|wave|x-wav|x-m4a|aac|flac)(;codecs=[a-z0-9.]+)?;base64,[A-Za-z0-9+/=]+$/;
+/** Music files are larger than pictures and recordings. */
+const MAX_EMBEDDED_AUDIO_CHARS = 30 * 1024 * 1024;
 export const MAX_EMBEDDED_CHARS = 8 * 1024 * 1024;
 
 /** Embeds referenced pictures and recordings as data URLs so a saved project file is self-contained. */
@@ -149,9 +151,9 @@ export async function exportAssets(ids: string[]): Promise<Record<string, string
 export async function importAssets(assets: unknown): Promise<void> {
   if (!assets || typeof assets !== 'object') return;
   for (const [id, url] of Object.entries(assets as Record<string, unknown>)) {
-    if (!/^[0-9a-f]{24}$/.test(id) || typeof url !== 'string' || url.length > MAX_EMBEDDED_CHARS) continue;
-    const image = DATA_URL.test(url);
-    if (!image && !AUDIO_URL.test(url)) continue;
+    if (!/^[0-9a-f]{24}$/.test(id) || typeof url !== 'string') continue;
+    const image = url.length <= MAX_EMBEDDED_CHARS && DATA_URL.test(url);
+    if (!image && !(url.length <= MAX_EMBEDDED_AUDIO_CHARS && AUDIO_URL.test(url))) continue;
     const blob = await (await fetch(url)).blob();
     if (image && !bitmaps.has(id)) register(id, await createImageBitmap(blob));
     await idb('readwrite', (s) => s.put(blob, id));

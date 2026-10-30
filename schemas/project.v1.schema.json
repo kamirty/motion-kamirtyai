@@ -131,8 +131,18 @@
             "none",
             "calm",
             "bright",
-            "epic"
+            "epic",
+            "custom"
           ]
+        },
+        "musicAsset": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{24}$",
+          "description": "Local asset of the visitor's own music (music = custom); embedded under assets by save."
+        },
+        "musicName": {
+          "type": "string",
+          "maxLength": 120
         },
         "watermark": {
           "type": "boolean",
@@ -169,7 +179,7 @@
       },
       "additionalProperties": {
         "type": "string",
-        "pattern": "^data:(image/(png|jpeg|webp)|audio/(webm|ogg|mp4|mpeg|wav)(;codecs=[a-z0-9.]+)?);base64,",
+        "pattern": "^data:(image/(png|jpeg|webp)|audio/(webm|ogg|mp4|mpeg|mp3|wav|wave|x-wav|x-m4a|aac|flac)(;codecs=[a-z0-9.]+)?);base64,",
         "maxLength": 8388608
       },
       "maxProperties": 40
@@ -242,7 +252,8 @@
             "conveyor",
             "decision",
             "folded",
-            "capsule"
+            "capsule",
+            "walkthrough"
           ]
         },
         "startFrame": {
@@ -311,6 +322,13 @@
             "type": "string",
             "maxLength": 60
           }
+        },
+        "tap": {
+          "type": "object",
+          "description": "Walkthrough step: where the pointer taps on the screenshot, as fractions of its width and height.",
+          "additionalProperties": false,
+          "required": ["x", "y"],
+          "properties": { "x": { "type": "number", "minimum": 0, "maximum": 1 }, "y": { "type": "number", "minimum": 0, "maximum": 1 } }
         },
         "voice": {
           "type": "object",

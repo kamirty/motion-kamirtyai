@@ -3,7 +3,7 @@ import type { SceneKind } from '../../domain/types';
 /** Scene kinds grouped for the scene-kind gallery (every kind appears exactly once). */
 export const KIND_GROUPS: { label: string; kinds: SceneKind[] }[] = [
   { label: 'افتتاح وختام', kinds: ['hero', 'chapter', 'outro'] },
-  { label: 'نصوص وأفكار', kinds: ['summary', 'steps', 'checklist', 'tip', 'warning', 'definition', 'quote', 'profile'] },
+  { label: 'نصوص وأفكار', kinds: ['summary', 'steps', 'walkthrough', 'checklist', 'tip', 'warning', 'definition', 'quote', 'profile'] },
   { label: 'كشف ومفاجأة', kinds: ['spotlight', 'magnifier', 'capsule', 'folded', 'mosaic'] },
   { label: 'أرقام وإحصاءات', kinds: ['stat', 'kpis', 'gauges', 'liquid', 'pictogram', 'donut'] },
   { label: 'رسوم بيانية', kinds: ['columns', 'linechart', 'ranking', 'table'] },
@@ -59,6 +59,7 @@ export const KIND_BLURBS: Record<SceneKind, string> = {
   decision: 'طريق يتفرع لخيارات',
   folded: 'لوحات تنفتح كالمطوية',
   capsule: 'كبسولة تنفتح عن معلومة',
+  walkthrough: 'شرح تطبيق أو موقع بالنقر',
 };
 
 export const KIND_LABELS: Record<SceneKind, string> = {
@@ -106,6 +107,7 @@ export const KIND_LABELS: Record<SceneKind, string> = {
   decision: 'مفترق القرارات',
   folded: 'الأوراق المطوية',
   capsule: 'الكبسولة المعرفية',
+  walkthrough: 'خطوة شرح',
 };
 
 export const KIND_HINTS: Record<SceneKind, string> = {
@@ -153,4 +155,5 @@ export const KIND_HINTS: Record<SceneKind, string> = {
   decision: 'العنوان هو القرار أو السؤال، وكل عنصر خيار بصيغة «الخيار: نتيجته»؛ يتفرع الطريق وتضيء الخيارات بالتتابع.',
   folded: 'كل عنصر لوحة في المطوية (حتى 6)؛ تنفتح اللوحات واحدة بعد أخرى. اكتب «العنوان: الشرح».',
   capsule: 'العنوان مثل «هل تعلم؟»، والعنصر الأول المعلومة المفاجئة، والثاني ملاحظة أو مصدر (اختياري). تهتز الكبسولة ثم تنفتح.',
+  walkthrough: 'لشرح تطبيق أو موقع خطوة بخطوة: العنوان هو الخطوة (مثل: افتح قائمة «الحصص»)، والعنصر الأول شرح قصير، والثاني نتيجة الخطوة بصيغة «العنوان: الشرح» (اختياري). أضف لقطة شاشة كأول صورة في المشهد، وحدّد موضع النقرة عليها. المشاهد المتتالية من هذا النوع تُرقَّم تلقائيًا ويظهر شريط تقدّم الخطوات.',
 };

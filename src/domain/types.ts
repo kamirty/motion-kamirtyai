@@ -8,6 +8,7 @@ export const SCENE_KINDS = [
   'truefalse', 'ranking', 'linechart', 'beforeafter', 'warning',
   'mindmap', 'venn', 'table', 'gauges', 'flowchart', 'profile',
   'spotlight', 'magnifier', 'magnet', 'mosaic', 'liquid', 'domino', 'network', 'balance', 'gears', 'conveyor', 'decision', 'folded', 'capsule',
+  'walkthrough',
 ] as const;
 export type SceneKind = (typeof SCENE_KINDS)[number];
 
@@ -67,6 +68,8 @@ export interface Scene {
   entrance?: EntranceId;
   /** Narration recorded for this scene in the browser; plays from the scene's first frame. */
   voice?: SceneVoice;
+  /** Walkthrough step: where the pointer taps on the screenshot (fractions of its width/height). */
+  tap?: { x: number; y: number };
 }
 
 export interface SceneVoice {
@@ -84,7 +87,8 @@ export const LOOKS: readonly LookId[] = ['modern', 'minimal', 'cartoon'];
 
 export type DigitSystem = 'arabic' | 'latin';
 export type TransitionId = 'fade' | 'slide' | 'zoom' | 'wipe';
-export type MusicId = 'none' | 'calm' | 'bright' | 'epic';
+/** 'custom' = the visitor's own music file (style.musicAsset). */
+export type MusicId = 'none' | 'calm' | 'bright' | 'epic' | 'custom';
 export type BackgroundId = 'gradient' | 'dots' | 'waves' | 'plain' | 'bubbles' | 'aurora';
 
 export interface ProjectStyle {
@@ -94,6 +98,10 @@ export interface ProjectStyle {
   transition: TransitionId;
   background: BackgroundId;
   music: MusicId;
+  /** Local asset holding the visitor's own music (when music is 'custom'). */
+  musicAsset?: string;
+  /** File name of that music, shown in the editor. */
+  musicName?: string;
   /** Automatic sound effects when elements appear. */
   sfx: boolean;
   /** Motion speed: how spread out element reveals are. */

@@ -40,6 +40,8 @@ export interface SceneDrawArgs {
   digits: DigitSystem;
   /** Entrance motion of this scene, also applied to each element as it appears. */
   motion?: EntranceId;
+  /** Walkthrough steps: this scene's position among the project's walkthrough scenes. */
+  step?: { index: number; count: number };
 }
 
 export type SceneDrawer = (args: SceneDrawArgs) => void;

@@ -90,6 +90,7 @@ export function parseProject(input: unknown): Project {
       // Absent (or unknown) means automatic; 'none' is an explicit choice and is kept.
       ...((ENTRANCES as readonly unknown[]).includes(s.entrance) ? { entrance: s.entrance as Scene['entrance'] } : {}),
       ...parseVoice(s.voice),
+      ...parseTap(s.tap),
     };
   });
 
@@ -100,13 +101,15 @@ export function parseProject(input: unknown): Project {
     digits: pick(st.digits, ['arabic', 'latin'] as const, DEFAULT_STYLE.digits),
     transition: pick(st.transition, ['fade', 'slide', 'zoom', 'wipe'] as const, DEFAULT_STYLE.transition),
     background: pick(st.background, ['gradient', 'dots', 'waves', 'plain', 'bubbles', 'aurora'] as const, DEFAULT_STYLE.background),
-    music: pick(st.music, ['none', 'calm', 'bright', 'epic'] as const, DEFAULT_STYLE.music),
+    music: pick(st.music, ['none', 'calm', 'bright', 'epic', 'custom'] as const, DEFAULT_STYLE.music),
+    ...(typeof st.musicAsset === 'string' && ASSET_ID.test(st.musicAsset) ? { musicAsset: st.musicAsset, musicName: str(st.musicName, 120) || 'موسيقاي' } : {}),
     sfx: typeof st.sfx === 'boolean' ? st.sfx : DEFAULT_STYLE.sfx,
     pace: pick(st.pace, ['calm', 'balanced', 'fast'] as const, DEFAULT_STYLE.pace),
     look: pick(st.look, LOOKS, DEFAULT_STYLE.look),
     variety: typeof st.variety === 'boolean' ? st.variety : DEFAULT_STYLE.variety,
   };
 
+  if (style.music === 'custom' && !style.musicAsset) style.music = DEFAULT_STYLE.music;
   const project: Project = {
     version: 1,
     title: str(o.title, 140) || 'مشروع بدون عنوان',
@@ -124,6 +127,15 @@ export function parseProject(input: unknown): Project {
   const errors = validateTimeline(project);
   if (errors.length) throw new Error(`تعذر إصلاح توقيت المشروع: ${errors.join('، ')}`);
   return project;
+}
+
+/** Walkthrough tap point: two fractions 0–1, or nothing. */
+function parseTap(v: unknown): { tap?: { x: number; y: number } } {
+  if (!v || typeof v !== 'object') return {};
+  const { x, y } = v as Record<string, unknown>;
+  const nx = Number(x), ny = Number(y);
+  if (typeof x !== 'number' || typeof y !== 'number' || !Number.isFinite(nx) || !Number.isFinite(ny)) return {};
+  return { tap: { x: Math.min(1, Math.max(0, nx)), y: Math.min(1, Math.max(0, ny)) } };
 }
 
 /** A recorded narration reference: a local asset id and a length up to the longest scene. */
