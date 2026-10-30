@@ -58,3 +58,29 @@ describe('scene narration (recorded voice)', () => {
     expect(await renderSoundtrack(p, null, { sfx: false, sceneVoices: () => undefined })).toBeNull();
   });
 });
+
+describe('own background music', () => {
+  it('keeps a custom music reference through save/open and the schema', () => {
+    const p = { ...sampleProject, style: { ...sampleProject.style, music: 'custom' as const, musicAsset: ID, musicName: 'نشيد.mp3' } };
+    const round = JSON.parse(projectToJson(p));
+    expect(validate(round), JSON.stringify(validate.errors)).toBe(true);
+    const back = parseProject(round);
+    expect(back.style).toMatchObject({ music: 'custom', musicAsset: ID, musicName: 'نشيد.mp3' });
+    expect(projectVoiceIds(back)).toContain(ID);
+  });
+
+  it('falls back to generated music when the file reference is missing or malformed', () => {
+    expect(parseProject({ ...sampleProject, style: { ...sampleProject.style, music: 'custom' } }).style?.music).toBe('calm');
+    expect(parseProject({ ...sampleProject, style: { ...sampleProject.style, music: 'custom', musicAsset: '../x' } }).style?.music).toBe('calm');
+    // A stored file that is not currently chosen is not embedded or loaded.
+    expect(projectVoiceIds({ ...sampleProject, style: { music: 'calm', musicAsset: ID } })).not.toContain(ID);
+  });
+
+  it('accepts embedded music files (mp3, m4a) in a saved project', () => {
+    const p = { ...sampleProject, style: { ...sampleProject.style, music: 'custom' as const, musicAsset: ID } };
+    for (const type of ['audio/mpeg', 'audio/x-m4a', 'audio/wav']) {
+      expect(validate({ ...JSON.parse(projectToJson(p)), assets: { [ID]: `data:${type};base64,AAAA` } }), type).toBe(true);
+    }
+    expect(validate({ ...JSON.parse(projectToJson(p)), assets: { [ID]: 'data:audio/x-evil;base64,AAAA' } })).toBe(false);
+  });
+});

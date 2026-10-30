@@ -32,6 +32,8 @@ interface Props {
   onTheme: (patch: Partial<Theme>) => void;
   customAudioName: string | null;
   onAudioFile: (file: File | null) => void;
+  /** The visitor's own background music (null removes it). */
+  onMusicFile: (file: File | null) => void;
   /** Narration length in seconds, when a narration is loaded. */
   voiceSeconds: number | null;
   onFitToVoice: () => void;
@@ -213,7 +215,22 @@ export function Sidebar(p: Props) {
               {m.label}
             </button>
           ))}
+          {style.musicAsset && (
+            <button type="button" className={style.music === 'custom' ? 'active' : ''} aria-pressed={style.music === 'custom'} onClick={() => p.onStyle({ music: 'custom' })}>
+              🎵 موسيقاي
+            </button>
+          )}
         </div>
+        <label className="upload">
+          <input type="file" accept="audio/*" onChange={(e) => { p.onMusicFile(e.target.files?.[0] ?? null); e.target.value = ''; }} />
+          🎵 {style.musicAsset ? `موسيقاك: ${style.musicName ?? ''} (تغيير)` : 'لم تعجبك؟ أضف موسيقى من جهازك (MP3 / M4A / WAV)'}
+        </label>
+        {style.musicAsset && (
+          <button type="button" className="ghost danger" onClick={() => p.onMusicFile(null)}>
+            إزالة موسيقاي
+          </button>
+        )}
+        <p className="muted small">موسيقاك تتكرر حتى نهاية الفيديو وتخفت في آخره، وتبقى على جهازك فقط. استخدم موسيقى تملك حق استخدامها حتى لا يُحذف فيديوك من يوتيوب أو غيره.</p>
         <span className="label">التعليق الصوتي (اختياري)</span>
         <p className="muted small">سجّل صوتك لكل مشهد من لوحة المشهد («🎙 سجّل تعليقًا صوتيًا»)، أو ارفع تسجيلًا واحدًا للفيديو كله:</p>
         <label className="upload">

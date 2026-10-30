@@ -3,7 +3,7 @@ import { ensureFontLoaded } from '../design/fonts';
 import { fullTheme, presetById } from '../design/presets';
 import { localizeDigits } from '../design/digits';
 import { maxSceneFrames, rebalance, sceneIndexAt, setSceneDuration, totalFrames, withScenes } from '../domain/timeline';
-import { ASPECTS, DEFAULT_IMAGE, FPS, LIMITS, aspectOf as aspectOfSize, styleOf, type AspectId, type Project, type ProjectStyle, type Scene, type SceneImage, type SceneKind, type Theme } from '../domain/types';
+import { ASPECTS, DEFAULT_IMAGE, DEFAULT_STYLE, FPS, LIMITS, aspectOf as aspectOfSize, styleOf, type AspectId, type Project, type ProjectStyle, type Scene, type SceneImage, type SceneKind, type Theme } from '../domain/types';
 import { PreviewAudio } from '../engine/audio/player';
 import { decodeAudioFile, fitAudio, renderMusic } from '../engine/audio/music';
 import { cuesKey, renderSoundtrack, voiceClips } from '../engine/audio/sfx';
@@ -98,6 +98,10 @@ export function App() {
       if (!alive) return;
       setMissingVoices(missing);
       setVoicesLoaded((n) => n + 1);
+      const own = styleOf(projectRef.current).musicAsset;
+      if (styleOf(projectRef.current).music === 'custom' && own && missing.includes(own)) {
+        setNotice({ kind: 'error', text: 'لم يُعثر على موسيقاك في هذا المتصفح (ربما مُسحت بيانات الموقع). أضفها من جديد من قسم «الصوت».' });
+      }
     });
     return () => {
       alive = false;
@@ -115,16 +119,20 @@ export function App() {
 
   // Music is rendered to the video length (whole seconds), so its fade-out lands on the last scene.
   const videoSeconds = Math.ceil(project.durationFrames / project.fps);
+  // The visitor's own music loops to the video length and fades out at the end like ours.
+  const musicAsset = style.musicAsset;
   const musicFor = useCallback((id: ProjectStyle['music']) => {
-    const key = `${id}|${videoSeconds}`;
+    const own = id === 'custom' && musicAsset ? getVoiceBuffer(musicAsset) : undefined;
+    const key = `${id}|${id === 'custom' ? `${musicAsset}:${own ? 1 : 0}` : ''}|${videoSeconds}`;
     let p = musicCache.current.get(key);
     if (!p) {
-      p = renderMusic(id, videoSeconds).catch(() => null);
+      p = (id === 'custom' ? (own ? fitAudio(own, videoSeconds, 48000, true) : Promise.resolve(null)) : renderMusic(id, videoSeconds)).catch(() => null);
       if (musicCache.current.size >= 6) musicCache.current.clear(); // each buffer is tens of MB
       musicCache.current.set(key, p);
     }
     return p;
-  }, [videoSeconds]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoSeconds, musicAsset, voicesLoaded]);
 
   // Sound effects depend only on scene timing and item counts, not on wording, so typing
   // does not re-render the soundtrack.
@@ -151,7 +159,8 @@ export function App() {
     const music = await musicFor(style.music);
     const voice = customAudio?.buffer ?? null;
     if (!style.sfx && !voice && !clipsKey) return music;
-    const key = `${sfxKey}|${style.music}|${customAudio ? `voice:${customAudio.name}:${customAudio.buffer.length}` : ''}|${clipsKey}`;
+    const own = style.music === 'custom' ? `:${style.musicAsset}:${getVoiceBuffer(style.musicAsset ?? '') ? 1 : 0}` : '';
+    const key = `${sfxKey}|${style.music}${own}|${customAudio ? `voice:${customAudio.name}:${customAudio.buffer.length}` : ''}|${clipsKey}`;
     if (soundtrack.current?.key !== key) {
       soundtrack.current = {
         key,
@@ -159,7 +168,8 @@ export function App() {
       };
     }
     return soundtrack.current.promise;
-  }, [customAudio, style.music, style.sfx, sfxKey, clipsKey, musicFor]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customAudio, style.music, style.musicAsset, style.sfx, sfxKey, clipsKey, musicFor, voicesLoaded]);
 
   // Render the soundtrack in the background after edits settle, so Play starts at once.
   const [preparing, setPreparing] = useState(false);
@@ -483,6 +493,26 @@ export function App() {
     }
   };
 
+  // «أضف موسيقى من جهازك»: replaces the generated music; stored locally like recordings.
+  const onMusicFile = async (file: File | null) => {
+    if (!file) {
+      setStyle({ music: DEFAULT_STYLE.music, musicAsset: undefined, musicName: undefined });
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      setNotice({ kind: 'error', text: 'ملف الموسيقى أكبر من 25 ميجابايت. اختر ملفًا أصغر.' });
+      return;
+    }
+    try {
+      const { id } = await addVoiceBlob(file);
+      setStyle({ music: 'custom', musicAsset: id, musicName: file.name.slice(0, 120) });
+      setVoicesLoaded((n) => n + 1);
+      setNotice({ kind: 'info', text: 'أُضيفت موسيقاك: تتكرر حتى نهاية الفيديو وتخفت في آخره. اضغط ▶ لتسمعها.' });
+    } catch {
+      setNotice({ kind: 'error', text: 'تعذّر قراءة ملف الموسيقى. جرّب MP3 أو M4A أو WAV.' });
+    }
+  };
+
   const importProject = async (file: File) => {
     try {
       const p = await readProjectFile(file);
@@ -597,6 +627,7 @@ export function App() {
           onStyle={setStyle}
           onTheme={setTheme}
           customAudioName={customAudio?.name ?? null}
+          onMusicFile={(f) => void onMusicFile(f)}
           onAudioFile={(f) => void onAudioFile(f)}
           voiceSeconds={customAudio ? customAudio.buffer.duration : null}
           onFitToVoice={fitToVoice}
