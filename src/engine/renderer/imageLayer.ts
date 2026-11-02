@@ -90,7 +90,7 @@ export function drawSceneImage(ctx: Ctx2D, img: SceneImage, k: number, theme: Re
   ctx.restore();
   if (img.border) {
     ctx.lineWidth = Math.max(4, Math.min(w, h) * 0.025);
-    ctx.strokeStyle = theme.accent;
+    ctx.strokeStyle = img.borderColor ?? theme.accent;
     shapePath(ctx, img, w, h);
     ctx.stroke();
   }

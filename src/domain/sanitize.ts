@@ -34,6 +34,7 @@ export function parseImage(v: unknown): SceneImage | undefined {
     rotation: num(o.rotation, -180, 180, d.rotation),
     shape: pick(o.shape, ['rect', 'rounded', 'circle'] as const, d.shape),
     border: typeof o.border === 'boolean' ? o.border : d.border,
+    ...(typeof o.borderColor === 'string' && COLOR.test(o.borderColor) ? { borderColor: o.borderColor } : {}),
     shadow: typeof o.shadow === 'boolean' ? o.shadow : d.shadow,
     opacity: num(o.opacity, 0.1, 1, d.opacity),
     entrance: pick(o.entrance, ['fade', 'zoom', 'slide', 'none'] as const, d.entrance),
