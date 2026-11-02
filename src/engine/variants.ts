@@ -11,8 +11,17 @@ export const KIND_VARIANTS: Partial<Record<SceneKind, number>> = {
   kpis: 2,
   checklist: 1,
   comparison: 1,
-  timeline: 1,
+  timeline: 2,
   quote: 1,
+  stat: 2,
+  donut: 2,
+  columns: 2,
+  definition: 1,
+  tip: 1,
+  warning: 1,
+  cycle: 1,
+  pyramid: 1,
+  proscons: 1,
 };
 
 /** Number of layouts of a kind, the main one included. */
