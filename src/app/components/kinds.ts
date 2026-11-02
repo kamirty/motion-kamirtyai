@@ -174,8 +174,29 @@ export const KIND_VARIANT_LABELS: Partial<Record<SceneKind, { label: string; blu
   ],
   checklist: [{ label: 'قائمة تحقق — بلاطات', blurb: 'بلاطات تنقلب وتُعلَّم' }],
   comparison: [{ label: 'مقارنة — شاشة مقسومة', blurb: 'لوحات كاملة بينها VS' }],
-  timeline: [{ label: 'خط زمني — بطاقات السنوات', blurb: 'بطاقة لكل حدث بسنته' }],
+  timeline: [
+    { label: 'خط زمني — بطاقات السنوات', blurb: 'بطاقة لكل حدث بسنته' },
+    { label: 'خط زمني — أوراق التقويم', blurb: 'ورقة تقويم لكل حدث تُقلب' },
+  ],
   quote: [{ label: 'اقتباس — في المنتصف', blurb: 'اقتباس في إطار بين علامتين' }],
+  stat: [
+    { label: 'رقم — رقم عملاق', blurb: 'رقم ضخم يملأ الشاشة وشريط' },
+    { label: 'رقم — لوحة جانبية', blurb: 'لوحة ملوّنة بالرقم وشرح بجانبها' },
+  ],
+  donut: [
+    { label: 'نسب — نصف دائرة', blurb: 'مؤشر نصف دائري للنسب' },
+    { label: 'نسب — شريط مكدّس', blurb: 'شريط واحد يُبنى من النسب' },
+  ],
+  columns: [
+    { label: 'أعمدة — أشرطة أفقية', blurb: 'أشرطة تمتد من اليمين' },
+    { label: 'أعمدة — مصاصات', blurb: 'عصي ترتفع وفوقها الأرقام' },
+  ],
+  definition: [{ label: 'تعريف — مدخل قاموس', blurb: 'مصطلح وتعريف وأمثلة كرقاقات' }],
+  tip: [{ label: 'نصيحة — ورقة لاصقة', blurb: 'ورقة ملاحظات مثبّتة بدبوس' }],
+  warning: [{ label: 'تنبيه — لافتة طريق', blurb: 'لافتة تحذير تتأرجح' }],
+  cycle: [{ label: 'دورة — مدار', blurb: 'مراحل تدور حول الفكرة' }],
+  pyramid: [{ label: 'هرم — قمع', blurb: 'هرم مقلوب يضيق نحو النتيجة' }],
+  proscons: [{ label: 'مزايا وعيوب — ميزان القوى', blurb: 'شريط يميل نحو الأكثر' }],
 };
 
 /** Name of a scene's design: the kind, or the kind's alternative layout. */

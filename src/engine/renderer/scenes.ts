@@ -1,3 +1,4 @@
+import { drawColumnsHorizontal, drawColumnsLollipop, drawCycleOrbit, drawDefinitionDictionary, drawDonutHalf, drawDonutStacked, drawProsConsTug, drawPyramidFunnel, drawStatGiant, drawStatPanel, drawTimelineCalendar, drawTipSticky, drawWarningSign } from './scenes/variants2';
 import { variantOf } from '../variants';
 import { comparisonSplitApplies, drawChecklistTiles, drawComparisonSplit, drawKpisBubbles, drawKpisSpotlight, drawQuoteCentered, drawStepsBigNumbers, drawStepsChevrons, drawSummaryCarousel, drawSummaryList, drawTimelineCards } from './scenes/variants1';
 import { drawTapSteps } from './scenes/tapsteps';
@@ -753,8 +754,17 @@ const VARIANT_DRAWERS: Partial<Record<Scene['kind'], { draw: SceneDrawer; applie
   kpis: [{ draw: drawKpisSpotlight }, { draw: drawKpisBubbles }],
   checklist: [{ draw: drawChecklistTiles }],
   comparison: [{ draw: drawComparisonSplit, applies: comparisonSplitApplies }],
-  timeline: [{ draw: drawTimelineCards }],
+  timeline: [{ draw: drawTimelineCards }, { draw: drawTimelineCalendar }],
   quote: [{ draw: drawQuoteCentered }],
+  stat: [{ draw: drawStatGiant }, { draw: drawStatPanel }],
+  donut: [{ draw: drawDonutHalf }, { draw: drawDonutStacked }],
+  columns: [{ draw: drawColumnsHorizontal }, { draw: drawColumnsLollipop }],
+  definition: [{ draw: drawDefinitionDictionary }],
+  tip: [{ draw: drawTipSticky }],
+  warning: [{ draw: drawWarningSign }],
+  cycle: [{ draw: drawCycleOrbit }],
+  pyramid: [{ draw: drawPyramidFunnel }],
+  proscons: [{ draw: drawProsConsTug }],
 };
 export const variantDrawerCount = (kind: Scene['kind']): number => VARIANT_DRAWERS[kind]?.length ?? 0;
 

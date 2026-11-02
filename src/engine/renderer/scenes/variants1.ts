@@ -258,7 +258,7 @@ export function drawStepsBigNumbers(a: SceneDrawArgs): void {
 }
 
 /** The value with its number counted up to `p` (keeps the unit and the digits' style). */
-function counted(value: string, p: number): string {
+export function counted(value: string, p: number): string {
   const n = toNumber(value);
   if (n === null) return value;
   const m = /[0-9٠-٩]+(?:[.,٫][0-9٠-٩]+)?/u.exec(value);
