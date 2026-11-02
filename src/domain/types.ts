@@ -108,6 +108,8 @@ export interface ProjectStyle {
   pace: 'calm' | 'balanced' | 'fast';
   /** Scenes without their own entrance get a varied one automatically. */
   variety: boolean;
+  /** Lively motion: varied scene headers, a slowly moving camera, floating elements and soft light orbs. */
+  lively: boolean;
   /** Visual look applied to every scene. */
   look: LookId;
 }
@@ -137,6 +139,7 @@ export const DEFAULT_STYLE: ProjectStyle = {
   pace: 'balanced',
   look: 'modern',
   variety: true,
+  lively: true,
 };
 
 export const styleOf = (project: Project): ProjectStyle => ({ ...DEFAULT_STYLE, ...project.style });

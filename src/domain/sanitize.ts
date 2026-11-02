@@ -107,6 +107,7 @@ export function parseProject(input: unknown): Project {
     pace: pick(st.pace, ['calm', 'balanced', 'fast'] as const, DEFAULT_STYLE.pace),
     look: pick(st.look, LOOKS, DEFAULT_STYLE.look),
     variety: typeof st.variety === 'boolean' ? st.variety : DEFAULT_STYLE.variety,
+    lively: typeof st.lively === 'boolean' ? st.lively : DEFAULT_STYLE.lively,
   };
 
   if (style.music === 'custom' && !style.musicAsset) style.music = DEFAULT_STYLE.music;

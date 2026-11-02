@@ -10,6 +10,7 @@ import { bounceOut, clamp, easeOutBack, easeOutCubic, progress } from './animati
 import { font, type Ctx2D, type FontSpec } from './context';
 import { drawIcon } from './icons';
 import { orbitRing, typewriter, waveLine } from './ambient';
+import { floatY, headerStyleOf, wordTokens } from './lively';
 import { activeLook } from './look';
 import { drawLines, fitText, type FittedText } from './textLayout';
 
@@ -40,6 +41,10 @@ export interface SceneDrawArgs {
   digits: DigitSystem;
   /** Entrance motion of this scene, also applied to each element as it appears. */
   motion?: EntranceId;
+  /** Lively motion (style.lively): varied headers and gently floating elements. */
+  lively?: boolean;
+  /** Position of the scene in the video (picks its header style when lively). */
+  index?: number;
 }
 
 export type SceneDrawer = (args: SceneDrawArgs) => void;
@@ -97,42 +102,140 @@ export function iconBadge(ctx: Ctx2D, theme: Required<Theme>, icon: string, cx: 
   if (icon) drawIcon(ctx, icon, cx, cy, r * 1.05, readableOn(color), 2, drawn);
 }
 
-/** Scene title with icon badge; returns the y where content can start. */
+/**
+ * Title drawn word by word: each word pops up in reading order (Arabic words are never split, so
+ * letters keep their joined forms), then a marker sweeps behind the longest word.
+ */
+function kineticTitle(a: SceneDrawArgs, fitted: FittedText, anchorX: number, align: 'right' | 'center', textTop: number, color: string): void {
+  const { ctx, theme, frame, font: fs } = a;
+  ctx.font = font(fs, fitted.weight, fitted.fontSize);
+  const space = ctx.measureText(' ').width;
+  const tokens: { text: string; cx: number; cy: number; w: number }[] = [];
+  fitted.lines.forEach((line, li) => {
+    const words = wordTokens(line);
+    const widths = words.map((w) => ctx.measureText(w).width);
+    const lineW = widths.reduce((s, w) => s + w, 0) + space * Math.max(0, words.length - 1);
+    let x = align === 'right' ? anchorX : anchorX + lineW / 2;
+    words.forEach((w, k) => {
+      tokens.push({ text: w, cx: x - widths[k] / 2, cy: textTop + fitted.lineHeight * (li + 0.5), w: widths[k] });
+      x -= widths[k] + space;
+    });
+  });
+  const START = HEADER.title;
+  const STEP = 4;
+  let key = -1;
+  tokens.forEach((t, k) => {
+    if (/[\u0600-\u06FF]/.test(t.text) && t.text.length >= 3 && (key < 0 || t.w > tokens[key].w)) key = k;
+  });
+  if (key >= 0) {
+    const m = easeOutCubic(progress(frame, START + tokens.length * STEP + 10, 16));
+    if (m > 0) {
+      const t = tokens[key];
+      const w = (t.w + 14) * m;
+      ctx.fillStyle = alpha(theme.accent, 0.42);
+      roundRect(ctx, t.cx + t.w / 2 + 7 - w, t.cy - fitted.fontSize * 0.08, w, fitted.fontSize * 0.5, 6);
+      ctx.fill();
+    }
+  }
+  ctx.font = font(fs, fitted.weight, fitted.fontSize);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = color;
+  tokens.forEach((t, k) => {
+    const p = progress(frame, START + k * STEP, 14);
+    if (p <= 0) return;
+    const s = 0.6 + 0.4 * easeOutBack(p);
+    ctx.save();
+    ctx.globalAlpha *= Math.min(1, p * 2);
+    ctx.translate(t.cx, t.cy + (1 - easeOutCubic(p)) * 18);
+    ctx.scale(s, s);
+    ctx.fillText(t.text, 0, 0);
+    ctx.restore();
+  });
+  ctx.textBaseline = 'alphabetic';
+}
+
+/**
+ * Scene title with icon badge; returns the y where content can start. With lively motion the
+ * header style changes from scene to scene (classic typewriter, word-by-word with a marker,
+ * colour band, centred with brackets) while the layout (and so the content below) stays put.
+ */
 export function drawHeader(a: SceneDrawArgs): number {
   const { ctx, scene, theme, frame, layout: L, font: fs } = a;
+  const variant = headerStyleOf(a.lively, a.index);
   const t = appear(frame, HEADER.icon, 24);
   // The icon traces itself in, then a dashed ring keeps turning around it.
   const drawn = easeOutCubic(progress(frame, HEADER.icon + 6, 34));
   const typed = progress(frame, HEADER.title, 30);
   const top = L.portrait ? L.M * 2.2 : L.M * 0.9;
-  const typeLines = (fitted: FittedText, right: (w: number) => number, textTop: number) => {
+  const typeLines = (fitted: FittedText, right: (w: number) => number, textTop: number, color = theme.foreground) => {
     ctx.font = font(fs, fitted.weight, fitted.fontSize);
     const widths = fitted.lines.map((l) => ctx.measureText(l).width);
     typewriter(ctx, typed, fitted.lines.length, fitted.lineHeight, textTop, (i) => right(widths[i]), (i) => widths[i], theme.accent, frame, () => {
-      ctx.fillStyle = theme.foreground;
+      ctx.fillStyle = color;
       drawLines(ctx, fs, fitted, ctx.textAlign === 'center' ? L.W / 2 : right(0), textTop);
     });
   };
+  // Colour band growing from the right edge behind the title.
+  const band = (y: number, h: number) => {
+    const g = easeOutCubic(progress(frame, 0, 22));
+    if (g <= 0) return;
+    const w = (L.W - L.M * 0.5) * g;
+    ctx.fillStyle = theme.accent;
+    ctx.beginPath();
+    ctx.moveTo(L.W, y);
+    ctx.lineTo(L.W - w, y);
+    ctx.lineTo(L.W - w + 18, y + h);
+    ctx.lineTo(L.W, y + h);
+    ctx.closePath();
+    ctx.fill();
+  };
+  const onBand = readableOn(theme.accent);
   if (L.portrait) {
     const r = 46;
+    const fitted = fitText(ctx, fs, scene.title, { maxWidth: L.W - L.M * 2, maxLines: 3, maxSize: 52, minSize: 30, weight: 'bold', lineHeight: 1.45 });
+    const textTop = top + r * 2 + 24;
+    if (variant === 'band') band(textTop - 14, fitted.height + 28);
     orbitRing(ctx, L.W / 2, top + r, r, theme.accent, frame, t);
     withAlpha(ctx, t, () => iconBadge(ctx, theme, scene.icon, L.W / 2, top + r, r * easeOutBack(t), theme.accent, drawn));
-    const fitted = fitText(ctx, fs, scene.title, { maxWidth: L.W - L.M * 2, maxLines: 3, maxSize: 52, minSize: 30, weight: 'bold', lineHeight: 1.45 });
     ctx.textAlign = 'center';
-    typeLines(fitted, (w) => L.W / 2 + w / 2, top + r * 2 + 24);
+    if (variant === 'kinetic') kineticTitle(a, fitted, L.W / 2, 'center', textTop, theme.foreground);
+    else typeLines(fitted, (w) => L.W / 2 + w / 2, textTop, variant === 'band' ? onBand : theme.foreground);
     return top + r * 2 + 24 + fitted.height + 40;
   }
   const r = 36;
   const badgeX = L.W - L.M - r;
-  orbitRing(ctx, badgeX, top + r, r, theme.accent, frame, t);
-  withAlpha(ctx, t, () => iconBadge(ctx, theme, scene.icon, badgeX, top + r, r * easeOutBack(t), theme.accent, drawn));
-  const fitted = fitText(ctx, fs, scene.title, { maxWidth: L.W - L.M * 2 - r * 2 - 40, maxLines: 2, maxSize: 48, minSize: 28, weight: 'bold', lineHeight: 1.4 });
+  const centred = variant === 'center';
+  const fitted = fitText(ctx, fs, scene.title, { maxWidth: centred ? L.W - L.M * 2 - 120 : L.W - L.M * 2 - r * 2 - 40, maxLines: 2, maxSize: 48, minSize: 28, weight: 'bold', lineHeight: 1.4 });
   const textTop = top + r - Math.max(fitted.height, r * 2) / 2 + Math.max(0, (r * 2 - fitted.height) / 2);
-  ctx.textAlign = 'right';
-  typeLines(fitted, () => badgeX - r - 30, textTop);
-  // Accent underline grows from the right, then ripples.
   const lineY = Math.max(top + r * 2, textTop + fitted.height) + 14;
-  waveLine(ctx, badgeX - r - 30, lineY, Math.min(fitted.width, 220), theme.accent, frame, appear(frame, 14, 30));
+  if (centred) {
+    // Centred title between two accent brackets that grow outwards.
+    const g = easeOutCubic(progress(frame, 4, 26));
+    const half = Math.min(fitted.width, L.W - L.M * 2 - 120) / 2 + 24;
+    const midY = textTop + fitted.height / 2;
+    ctx.strokeStyle = theme.accent;
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    for (const s of [1, -1]) {
+      ctx.beginPath();
+      ctx.moveTo(L.W / 2 + s * half, midY);
+      ctx.lineTo(L.W / 2 + s * (half + 46 * g), midY);
+      ctx.stroke();
+    }
+    withAlpha(ctx, t, () => iconBadge(ctx, theme, scene.icon, L.W / 2, lineY + 2, 14 * easeOutBack(t), theme.accent, drawn));
+    ctx.textAlign = 'center';
+    typeLines(fitted, (w) => L.W / 2 + w / 2, textTop);
+    return lineY + 44;
+  }
+  if (variant === 'band') band(textTop - 12, Math.max(fitted.height, r * 2) + 12);
+  orbitRing(ctx, badgeX, top + r, r, theme.accent, frame, t);
+  withAlpha(ctx, t, () => iconBadge(ctx, theme, scene.icon, badgeX, top + r, r * easeOutBack(t), variant === 'band' ? theme.background : theme.accent, drawn));
+  ctx.textAlign = 'right';
+  if (variant === 'kinetic') kineticTitle(a, fitted, badgeX - r - 30, 'right', textTop, theme.foreground);
+  else typeLines(fitted, () => badgeX - r - 30, textTop, variant === 'band' ? onBand : theme.foreground);
+  // Accent underline grows from the right, then ripples.
+  if (variant === 'classic') waveLine(ctx, badgeX - r - 30, lineY, Math.min(fitted.width, 220), theme.accent, frame, appear(frame, 14, 30));
   return lineY + 44;
 }
 
@@ -141,8 +244,17 @@ export function drawHeader(a: SceneDrawArgs): number {
  * progress 0→1), centred on its box (cx, cy, w, h). Once revealed, or with no motion, it draws
  * unchanged — the drawer's own animation still runs inside.
  */
-export function itemEnter(a: SceneDrawArgs, t: number, cx: number, cy: number, w: number, h: number, draw: () => void): void {
+export function itemEnter(a: SceneDrawArgs, t: number, cx: number, cy: number, w: number, h: number, inner: () => void): void {
   const m = a.motion;
+  // Lively motion: revealed elements float gently, each on its own rhythm.
+  const draw = a.lively
+    ? () => {
+        a.ctx.save();
+        a.ctx.translate(0, floatY(a.frame, cx, cy));
+        inner();
+        a.ctx.restore();
+      }
+    : inner;
   if (!m || m === 'none' || t >= 1) return draw();
   if (t <= 0) return;
   const { ctx } = a;
