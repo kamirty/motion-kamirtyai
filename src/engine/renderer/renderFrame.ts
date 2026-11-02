@@ -7,6 +7,7 @@ import { fontSpec, type Ctx2D } from './context';
 import { drawSceneImage } from './imageLayer';
 import { beginLook } from './look';
 import { lightSweep } from './ambient';
+import { cameraMove, drawOrbs } from './lively';
 import { setIconClock } from './icons';
 import { drawScene, layoutFor, type Layout } from './scenes';
 
@@ -347,8 +348,13 @@ export function renderFrame(project: Project, frameIndex: number, ctx: Ctx2D, ou
       const images = scene.images ?? [];
       // A profile card shows its first picture as the portrait, not as a free picture.
       const free = (k: number) => !(scene.kind === 'profile' && k === 0);
+      // Lively motion: soft light orbs behind, and the whole scene drifts like a slow camera.
+      if (style.lively) {
+        drawOrbs(ctx, L, theme, index, local);
+        cameraMove(ctx, L, index, local, scene.durationFrames);
+      }
       images.forEach((img, k) => free(k) && img.layer === 'back' && drawSceneImage(ctx, img, k, theme, L, local, scene.durationFrames));
-      drawScene({ ctx, scene, theme, frame: local, layout: L, font: fs, digits: style.digits, motion });
+      drawScene({ ctx, scene, theme, frame: local, layout: L, font: fs, digits: style.digits, motion, lively: style.lively, index });
       images.forEach((img, k) => free(k) && img.layer !== 'back' && drawSceneImage(ctx, img, k, theme, L, local, scene.durationFrames));
     }
     ctx.restore();

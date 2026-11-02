@@ -171,6 +171,10 @@ export function Sidebar(p: Props) {
           <input type="checkbox" checked={style.variety} onChange={(e) => p.onStyle({ variety: e.target.checked })} />
           نوّع حركة دخول المشاهد تلقائيًا (قفزة، مسح، دائرة، تأرجح…)
         </label>
+        <label className="check">
+          <input type="checkbox" checked={style.lively} onChange={(e) => p.onStyle({ lively: e.target.checked })} />
+          حركة حيّة: عناوين متنوعة بين المشاهد، وكاميرا تتحرك ببطء، وعناصر تطفو بخفة
+        </label>
 
         <label className="label">سرعة الحركة</label>
         <div className="seg">
