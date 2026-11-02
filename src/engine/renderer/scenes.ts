@@ -1,3 +1,4 @@
+import { drawBeforeAfterSlider, drawChapterSlab, drawHeroCircle, drawHeroStacked, drawLineArea, drawMindmapBubbles, drawOutroCard, drawQuizShow, drawRankingBars, drawTableCards, drawTrueFalseButtons } from './scenes/variants3';
 import { drawColumnsHorizontal, drawColumnsLollipop, drawCycleOrbit, drawDefinitionDictionary, drawDonutHalf, drawDonutStacked, drawProsConsTug, drawPyramidFunnel, drawStatGiant, drawStatPanel, drawTimelineCalendar, drawTipSticky, drawWarningSign } from './scenes/variants2';
 import { variantOf } from '../variants';
 import { comparisonSplitApplies, drawChecklistTiles, drawComparisonSplit, drawKpisBubbles, drawKpisSpotlight, drawQuoteCentered, drawStepsBigNumbers, drawStepsChevrons, drawSummaryCarousel, drawSummaryList, drawTimelineCards } from './scenes/variants1';
@@ -765,6 +766,16 @@ const VARIANT_DRAWERS: Partial<Record<Scene['kind'], { draw: SceneDrawer; applie
   cycle: [{ draw: drawCycleOrbit }],
   pyramid: [{ draw: drawPyramidFunnel }],
   proscons: [{ draw: drawProsConsTug }],
+  hero: [{ draw: drawHeroStacked }, { draw: drawHeroCircle }],
+  outro: [{ draw: drawOutroCard }],
+  chapter: [{ draw: drawChapterSlab }],
+  quiz: [{ draw: drawQuizShow }],
+  truefalse: [{ draw: drawTrueFalseButtons }],
+  ranking: [{ draw: drawRankingBars }],
+  linechart: [{ draw: drawLineArea }],
+  beforeafter: [{ draw: drawBeforeAfterSlider }],
+  mindmap: [{ draw: drawMindmapBubbles }],
+  table: [{ draw: drawTableCards, applies: (s) => s.items.length >= 2 }],
 };
 export const variantDrawerCount = (kind: Scene['kind']): number => VARIANT_DRAWERS[kind]?.length ?? 0;
 

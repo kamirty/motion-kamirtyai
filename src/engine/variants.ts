@@ -22,6 +22,16 @@ export const KIND_VARIANTS: Partial<Record<SceneKind, number>> = {
   cycle: 1,
   pyramid: 1,
   proscons: 1,
+  hero: 2,
+  outro: 1,
+  chapter: 1,
+  quiz: 1,
+  truefalse: 1,
+  ranking: 1,
+  linechart: 1,
+  beforeafter: 1,
+  mindmap: 1,
+  table: 1,
 };
 
 /** Number of layouts of a kind, the main one included. */
