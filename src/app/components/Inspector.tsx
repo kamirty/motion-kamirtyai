@@ -6,7 +6,7 @@ import { effectiveItemIcons, hasItemIcons } from '../../engine/itemIcons';
 import { ImageControls } from './ImageControls';
 import { TimingControls } from './TimingControls';
 import { VoiceControls } from './VoiceControls';
-import { KIND_BLURBS, KIND_HINTS, KIND_LABELS } from './kinds';
+import { KIND_BLURBS, KIND_HINTS, designLabel } from './kinds';
 import { Icon } from './Icon';
 import { KIND_ICONS } from '../../design/icons';
 
@@ -72,7 +72,7 @@ export function Inspector({ project, index, onChange, onChangeKind, canRecord, v
       <button type="button" className="kind-current" onClick={onChangeKind} aria-haspopup="dialog">
         <span className="kind-current-icon"><Icon id={KIND_ICONS[scene.kind] ?? 'sparkles'} size={22} /></span>
         <span className="kind-current-text">
-          <b>{KIND_LABELS[scene.kind]}</b>
+          <b>{designLabel(scene.kind, scene.variant)}</b>
           <small>{KIND_BLURBS[scene.kind]}</small>
         </span>
         <span className="kind-current-cta">تغيير التصميم</span>

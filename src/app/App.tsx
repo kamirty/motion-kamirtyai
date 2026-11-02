@@ -343,10 +343,10 @@ export function App() {
 
   // «＋ مشهد» opens the scene-kind gallery; the new scene starts with neutral content in that kind's format.
   const [gallery, setGallery] = useState<'change' | 'add' | null>(null);
-  const addScene = (kind: SceneKind) => {
+  const addScene = (kind: SceneKind, variant = 0) => {
     const at = Math.min(selected + 1, project.scenes.length);
     const starter = KIND_STARTERS[kind];
-    insertScene(at, { id: nextSceneId(project.scenes), kind, startFrame: 0, durationFrames: 300, title: starter.title, items: [...starter.items], icon: KIND_ICONS[kind] ?? 'sparkles' });
+    insertScene(at, { id: nextSceneId(project.scenes), kind, variant, startFrame: 0, durationFrames: 300, title: starter.title, items: [...starter.items], icon: KIND_ICONS[kind] ?? 'sparkles' });
   };
 
   // «سجّل التعليق»: the recorder modal works on one scene at a time.
@@ -746,11 +746,14 @@ export function App() {
           scene={gallery === 'change' ? project.scenes[selected] : undefined}
           renderKey={renderKey}
           onClose={() => setGallery(null)}
-          onPick={(kind) => {
-            if (gallery === 'add') addScene(kind);
-            else if (kind !== project.scenes[selected]?.kind) {
-              updateScene({ kind });
-              selectScene(selected);
+          onPick={(kind, variant) => {
+            if (gallery === 'add') addScene(kind, variant);
+            else {
+              const cur = project.scenes[selected];
+              if (cur && (kind !== cur.kind || variant !== (cur.variant ?? 0))) {
+                updateScene({ kind, variant });
+                selectScene(selected);
+              }
             }
             setGallery(null);
           }}

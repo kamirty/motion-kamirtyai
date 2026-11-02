@@ -90,6 +90,7 @@ export function parseProject(input: unknown): Project {
       // Absent (or unknown) means automatic; 'none' is an explicit choice and is kept.
       ...((ENTRANCES as readonly unknown[]).includes(s.entrance) ? { entrance: s.entrance as Scene['entrance'] } : {}),
       ...parseVoice(s.voice),
+      ...(Number.isInteger(s.variant) && (s.variant as number) >= 0 && (s.variant as number) <= 9 ? { variant: s.variant as number } : {}),
     };
   });
 

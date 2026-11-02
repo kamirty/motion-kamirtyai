@@ -68,6 +68,8 @@ export interface Scene {
   entrance?: EntranceId;
   /** Narration recorded for this scene in the browser; plays from the scene's first frame. */
   voice?: SceneVoice;
+  /** Layout of the kind («الشكل»): 0 = main layout, 1… = alternatives; absent = automatic. */
+  variant?: number;
 }
 
 export interface SceneVoice {
