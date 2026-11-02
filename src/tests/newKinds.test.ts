@@ -46,3 +46,32 @@ describe('new scene kinds', () => {
     expect(cues.some((c) => c.kind === 'ding' && c.frame === trueFalseCountdown(s) + QUIZ_COUNTDOWN)).toBe(true);
   });
 });
+
+describe('batch 5 kinds', () => {
+  it('reads clock times in Western and Arabic-Indic digits, with ص/م', async () => {
+    const { clockParts } = await import('../engine/renderer/scenes/extra4');
+    expect(clockParts('6:30 الاستيقاظ: كوب ماء')).toEqual({ minutes: 390, time: '6:30', text: 'الاستيقاظ: كوب ماء' });
+    expect(clockParts('٨:٣٠ بداية الاختبار').minutes).toBe(510);
+    expect(clockParts('5 م: رياضة 30 دقيقة')).toMatchObject({ minutes: 17 * 60, time: '5 م', text: 'رياضة 30 دقيقة' });
+    expect(clockParts('9:30 PM - النوم').minutes).toBe(21 * 60 + 30);
+    expect(clockParts('الإفطار مع العائلة').minutes).toBeNull();
+    expect(clockParts('2024 سنة التخرج').minutes).toBeNull();
+  });
+
+  it('signal lights go from red to green', async () => {
+    const { signalColors } = await import('../engine/renderer/scenes/extra4');
+    expect(signalColors(3)).toEqual(['#E53935', '#FDD835', '#43A047']);
+    for (const n of [1, 2, 4, 5, 6]) expect(signalColors(n)).toHaveLength(n);
+    expect(signalColors(6)[0]).toBe('#E53935');
+  });
+
+  it('the search query is fully typed before its first result; the podium reveals third place first', async () => {
+    const { typingFrames } = await import('../engine/timing');
+    const s = sampleScene('search', 0, 300);
+    const first = itemReveal(s, 0, s.items.length);
+    const at = typingFrames(s.title.split(/\s+/).length, first);
+    expect(at.every((f, i) => f < first && (i === 0 || f > at[i - 1]))).toBe(true);
+    const p = sampleScene('podium', 0, 300);
+    expect(itemReveal(p, 2, 3)).toBeLessThan(itemReveal(p, 0, 3));
+  });
+});

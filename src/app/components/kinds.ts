@@ -3,14 +3,15 @@ import type { SceneKind } from '../../domain/types';
 /** Scene kinds grouped for the scene-kind gallery (every kind appears exactly once). */
 export const KIND_GROUPS: { label: string; kinds: SceneKind[] }[] = [
   { label: 'افتتاح وختام', kinds: ['hero', 'chapter', 'outro'] },
-  { label: 'نصوص وأفكار', kinds: ['summary', 'steps', 'tapsteps', 'checklist', 'tip', 'warning', 'definition', 'quote', 'profile'] },
-  { label: 'كشف ومفاجأة', kinds: ['spotlight', 'magnifier', 'capsule', 'folded', 'mosaic'] },
+  { label: 'نصوص وأفكار', kinds: ['summary', 'steps', 'tapsteps', 'stairs', 'checklist', 'tip', 'warning', 'traffic', 'definition', 'quote', 'profile', 'wordcloud'] },
+  { label: 'كشف ومفاجأة', kinds: ['spotlight', 'magnifier', 'capsule', 'folded', 'mosaic', 'search'] },
   { label: 'أرقام وإحصاءات', kinds: ['stat', 'kpis', 'gauges', 'liquid', 'pictogram', 'donut'] },
-  { label: 'رسوم بيانية', kinds: ['columns', 'linechart', 'ranking', 'table'] },
+  { label: 'رسوم بيانية', kinds: ['columns', 'linechart', 'ranking', 'podium', 'table'] },
   { label: 'مقارنات', kinds: ['comparison', 'beforeafter', 'proscons', 'venn', 'balance'] },
-  { label: 'مخططات وعلاقات', kinds: ['timeline', 'cycle', 'pyramid', 'flowchart', 'mindmap', 'network', 'decision'] },
+  { label: 'مخططات وعلاقات', kinds: ['timeline', 'clock', 'cycle', 'pyramid', 'flowchart', 'mindmap', 'network', 'decision', 'pins'] },
   { label: 'سلاسل وآليات', kinds: ['domino', 'gears', 'conveyor', 'magnet'] },
-  { label: 'تفاعل واختبار', kinds: ['quiz', 'truefalse'] },
+  { label: 'تفاعل واختبار', kinds: ['quiz', 'truefalse', 'target'] },
+  { label: 'محادثات وشاشات', kinds: ['chat', 'notify'] },
 ];
 
 /** One-line description shown under each card of the gallery. */
@@ -60,6 +61,16 @@ export const KIND_BLURBS: Record<SceneKind, string> = {
   folded: 'لوحات تنفتح كالمطوية',
   capsule: 'كبسولة تنفتح عن معلومة',
   tapsteps: 'مؤشر ينقر الخطوات بالتتابع',
+  chat: 'فقاعات محادثة تظهر بالتناوب',
+  wordcloud: 'كلمات مفتاحية تتجمع في سحابة',
+  pins: 'دبابيس تسقط على خريطة منقّطة',
+  notify: 'إشعارات تنزل على شاشة هاتف',
+  stairs: 'كرة تقفز على درجات الصعود',
+  podium: 'منصة تتويج للمراكز الثلاثة',
+  clock: 'عقارب ساعة تشير إلى مواعيد اليوم',
+  traffic: 'إشارة ضوئية تضيء رسالة بعد رسالة',
+  search: 'سؤال يُكتب في شريط بحث ثم تظهر النتائج',
+  target: 'سهام تصيب الهدف مع كل غاية',
 };
 
 export const KIND_LABELS: Record<SceneKind, string> = {
@@ -108,6 +119,16 @@ export const KIND_LABELS: Record<SceneKind, string> = {
   folded: 'الأوراق المطوية',
   capsule: 'الكبسولة المعرفية',
   tapsteps: 'خطوات بالنقر',
+  chat: 'محادثة',
+  wordcloud: 'سحابة كلمات',
+  pins: 'دبابيس على خريطة',
+  notify: 'إشعارات الهاتف',
+  stairs: 'درجات الصعود',
+  podium: 'منصة التتويج',
+  clock: 'ساعة اليوم',
+  traffic: 'إشارة المرور',
+  search: 'شريط البحث',
+  target: 'إصابة الهدف',
 };
 
 export const KIND_HINTS: Record<SceneKind, string> = {
@@ -156,6 +177,16 @@ export const KIND_HINTS: Record<SceneKind, string> = {
   folded: 'كل عنصر لوحة في المطوية (حتى 6)؛ تنفتح اللوحات واحدة بعد أخرى. اكتب «العنوان: الشرح».',
   capsule: 'العنوان مثل «هل تعلم؟»، والعنصر الأول المعلومة المفاجئة، والثاني ملاحظة أو مصدر (اختياري). تهتز الكبسولة ثم تنفتح.',
   tapsteps: 'كل عنصر خطوة (حتى 6)؛ ينتقل مؤشر إليها وينقرها بالتتابع فتتوهج. اكتب «الخطوة: شرحها» لتنزلق بطاقة الشرح منها عند النقر.',
+  chat: 'كل عنصر رسالة (حتى 6) تظهر بالتناوب يمينًا ويسارًا بعد نقاط الكتابة. اكتب «الاسم: الرسالة» ليظهر اسم المتحدث فوق الفقاعة.',
+  wordcloud: 'كل عنصر كلمة أو عبارة قصيرة (حتى 6). العنصر الأول يظهر كبيرًا في الوسط والبقية حوله.',
+  pins: 'كل عنصر مكان أو محطة (حتى 6)؛ يسقط دبوس مرقّم ويتصل بما قبله بخط متقطع. اكتب «المكان: معلومة عنه».',
+  notify: 'كل عنصر إشعار (حتى 6) ينزل على شاشة الهاتف والأحدث في الأعلى. اكتب «العنوان: نص الإشعار».',
+  stairs: 'كل عنصر درجة (حتى 6) من الأدنى إلى الأعلى، وتقفز الكرة إليها بالترتيب. اكتب «الدرجة: شرحها» لإضافة سطر.',
+  podium: 'العنصر الأول صاحب المركز الأول ثم الثاني ثم الثالث؛ تظهر بالعكس للتشويق. ما بعد الثالث يظهر أسفل المنصة.',
+  clock: 'ابدأ كل عنصر بالوقت مثل «7:30 الاستيقاظ» أو «8 م: العشاء»؛ تدور العقارب إلى كل موعد بالترتيب.',
+  traffic: 'كل عنصر ضوء من الأحمر إلى الأخضر (يناسب 3: توقف، استعد، انطلق). اكتب «الكلمة: شرحها».',
+  search: 'العنوان هو سؤال البحث ويُكتب كلمة كلمة؛ كل عنصر نتيجة (حتى 6). اكتب «النتيجة: شرحها».',
+  target: 'كل عنصر هدف أو غاية (حتى 6)؛ يصيب سهم اللوحة مع ظهور كل هدف في القائمة.',
 };
 
 /** Names and one-line descriptions of each kind's alternative layouts (layout 1, 2, …). */

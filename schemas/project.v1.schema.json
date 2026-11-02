@@ -263,7 +263,17 @@
             "decision",
             "folded",
             "capsule",
-            "tapsteps"
+            "tapsteps",
+            "chat",
+            "wordcloud",
+            "pins",
+            "notify",
+            "stairs",
+            "podium",
+            "clock",
+            "traffic",
+            "search",
+            "target"
           ]
         },
         "startFrame": {

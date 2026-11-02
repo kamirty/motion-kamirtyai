@@ -1,6 +1,7 @@
 import { styleOf, type Project } from '../../domain/types';
 import { hash01 } from '../renderer/animation';
-import { CAPSULE, CHAPTER, DEFINITION, HEADER, HERO, KPIS, OUTRO, PICTOGRAM, QUIZ_COUNTDOWN, QUOTE, STAT, TIP, imageEnterAt, imageExitAt, itemReveal, quizCountdown, shownItems, TRUEFALSE, WARNING, trueFalseCountdown, BEFORE_AFTER, beforeAfterAt } from '../timing';
+import { CAPSULE, CHAPTER, DEFINITION, HEADER, HERO, KPIS, OUTRO, PICTOGRAM, QUIZ_COUNTDOWN, QUOTE, STAT, TIP, imageEnterAt, imageExitAt, itemReveal, quizCountdown, shownItems, TRUEFALSE, WARNING, trueFalseCountdown, BEFORE_AFTER, beforeAfterAt, typingFrames } from '../timing';
+import { wordTokens } from '../renderer/lively';
 import { trueFalseParts, quizParts } from '../sceneModel';
 
 /**
@@ -132,6 +133,37 @@ export function planCues(project: Project): Cue[] {
         for (let i = 0; i < n; i++) {
           add(itemReveal(scene, i, n), 'switch', i);
           add(itemReveal(scene, i, n) + 6, 'pop', i);
+        }
+        break;
+      }
+      case 'chat':
+      case 'wordcloud':
+      case 'notify':
+      case 'clock':
+      case 'search':
+      case 'pins':
+      case 'stairs':
+      case 'podium':
+      case 'traffic':
+      case 'target': {
+        const n = shownItems(scene).length;
+        if (scene.kind === 'search') {
+          // Key clicks while the query is typed, then the search button.
+          const at = typingFrames(wordTokens(scene.title).length, n ? itemReveal(scene, 0, n) : 40);
+          at.slice(0, 14).forEach((f, w) => add(f, 'tick', w));
+          if (at.length) add(at[at.length - 1] + 4, 'switch');
+        } else add(HEADER.title, 'tick');
+        for (let i = 0; i < n; i++) {
+          const r = itemReveal(scene, i, n);
+          switch (scene.kind) {
+            case 'pins': add(r, 'thud', i); add(r, 'pop', i); break;
+            case 'target': add(r, 'thud', i); add(r, 'pop', i); break;
+            case 'traffic': add(r, 'switch', i); add(r, 'pop', i); break;
+            case 'podium': add(r - 10, 'rise', i); add(r, i === 0 ? 'ding' : 'pop', i); if (i === 0) add(r, 'burst'); break;
+            case 'stairs': add(r - 14, 'rise', i); add(r, 'pop', i); break;
+            case 'clock': add(r - 18, 'cog', i); add(r, 'pop', i); break;
+            default: add(r, 'pop', i);
+          }
         }
         break;
       }

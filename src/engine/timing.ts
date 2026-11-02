@@ -82,6 +82,9 @@ export function itemReveal(scene: Scene & { pace?: Pace }, i: number, count: num
   return autoReveal(scene, i, count);
 }
 
+/** Frames given to typing the search query before its first result. */
+export const SEARCH_TYPING = 56;
+
 /** Whether a kind reveals its items one by one (and so can be timed per item). */
 export function hasItemTiming(kind: Scene['kind']): boolean {
   return autoReveal({ kind, durationFrames: 300 } as Scene, 1, 2) > 0;
@@ -93,6 +96,7 @@ export function autoReveal(scene: Scene & { pace?: Pace }, i: number, count: num
   switch (scene.kind) {
     case 'pyramid':
     case 'ranking':
+    case 'podium':
       // Pyramid: built from the base up. Ranking: revealed from last place to first (suspense).
       return 20 + (count - 1 - i) * span;
     case 'definition':
@@ -102,7 +106,11 @@ export function autoReveal(scene: Scene & { pace?: Pace }, i: number, count: num
     case 'mindmap': case 'venn': case 'table': case 'gauges': case 'flowchart': case 'profile':
     case 'spotlight': case 'magnifier': case 'magnet': case 'mosaic': case 'liquid': case 'domino': case 'network':
     case 'balance': case 'gears': case 'conveyor': case 'decision': case 'folded': case 'tapsteps':
+    case 'chat': case 'wordcloud': case 'pins': case 'notify': case 'stairs': case 'clock': case 'traffic': case 'target':
       return 20 + i * span;
+    case 'search':
+      // The query is typed first, then the results appear.
+      return SEARCH_TYPING + i * Math.max(18, Math.floor(span * 0.85));
     default:
       return 0;
   }
@@ -127,4 +135,11 @@ export function revealSlots(scene: Scene & { pace?: Pace }): { index: number; la
 export function withReveal(scene: Scene & { pace?: Pace }, i: number, frame: number): number[] {
   const n = shownItems(scene).length;
   return Array.from({ length: n }, (_, k) => (k === i ? Math.max(0, Math.round(frame)) : itemReveal(scene, k, n)));
+}
+
+/** Frames at which each word of the query is typed; the last one lands before the first result. */
+export function typingFrames(words: number, firstResult: number): number[] {
+  const end = Math.max(0, firstResult - 8);
+  const per = words ? Math.max(1, Math.min(6, Math.floor((end - 4) / words))) : 0;
+  return Array.from({ length: words }, (_, w) => Math.min(end, 4 + w * per));
 }
