@@ -197,6 +197,19 @@ export const KIND_VARIANT_LABELS: Partial<Record<SceneKind, { label: string; blu
   cycle: [{ label: 'دورة — مدار', blurb: 'مراحل تدور حول الفكرة' }],
   pyramid: [{ label: 'هرم — قمع', blurb: 'هرم مقلوب يضيق نحو النتيجة' }],
   proscons: [{ label: 'مزايا وعيوب — ميزان القوى', blurb: 'شريط يميل نحو الأكثر' }],
+  hero: [
+    { label: 'افتتاحية — كلمات كبيرة', blurb: 'عنوان بكلمات ضخمة تصعد' },
+    { label: 'افتتاحية — دائرة تتسع', blurb: 'دائرة تملأ الشاشة بالعنوان' },
+  ],
+  outro: [{ label: 'خاتمة — بطاقة شكر', blurb: 'بطاقة بقلب نابض وزر' }],
+  chapter: [{ label: 'فاصل — شريحة مائلة', blurb: 'شريط مائل يعبر الشاشة' }],
+  quiz: [{ label: 'سؤال — مسابقة', blurb: 'بلاطات إجابات ومؤقت' }],
+  truefalse: [{ label: 'صح أم خطأ — زرّان', blurb: 'زرّان كبيران يكشفان الإجابة' }],
+  ranking: [{ label: 'ترتيب — سباق الأشرطة', blurb: 'أشرطة تتسابق بميداليات' }],
+  linechart: [{ label: 'رسم خطي — مساحة', blurb: 'خط بمساحة ملوّنة تحته' }],
+  beforeafter: [{ label: 'قبل وبعد — منزلق', blurb: 'فاصل ينزلق ليكشف «بعد»' }],
+  mindmap: [{ label: 'خريطة ذهنية — فقاعات', blurb: 'فروع في فقاعات تطفو' }],
+  table: [{ label: 'جدول — بطاقات', blurb: 'بطاقة لكل صف' }],
 };
 
 /** Name of a scene's design: the kind, or the kind's alternative layout. */
