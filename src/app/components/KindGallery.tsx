@@ -2,7 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Project, Scene, SceneKind } from '../../domain/types';
 import { sampleScene } from '../../engine/kindSamples';
 import { renderFrameSafe as renderFrame } from '../../engine/renderer/safeRender';
-import { KIND_BLURBS, KIND_GROUPS, KIND_LABELS } from './kinds';
+import { KIND_BLURBS, KIND_GROUPS, KIND_LABELS, KIND_VARIANT_LABELS } from './kinds';
+import { layoutCount } from '../../engine/variants';
+
+/** Every design: each kind's main layout, then its alternative layouts. */
+const designsOf = (kinds: SceneKind[]) =>
+  kinds.flatMap((k) => Array.from({ length: layoutCount(k) }, (_, v) => ({ kind: k, variant: v })));
 
 /**
  * «معرض أنواع المشاهد»: every scene kind as a live thumbnail drawn by renderFrame with the
@@ -82,7 +87,7 @@ interface Props {
   /** The scene whose kind is being changed; absent when adding a new scene. */
   scene?: Scene;
   renderKey: number;
-  onPick: (kind: SceneKind) => void;
+  onPick: (kind: SceneKind, variant: number) => void;
   onClose: () => void;
 }
 
@@ -104,15 +109,16 @@ export function KindGallery({ project, scene, renderKey, onPick, onClose }: Prop
 
   // Preview scenes per kind, stable across renders so thumbnails are drawn once.
   const previews = useMemo(() => {
-    const out = new Map<SceneKind, Scene>();
+    const out = new Map<string, Scene>();
     for (const g of KIND_GROUPS)
-      for (const k of g.kinds)
-        out.set(k, source === 'mine' && scene ? { ...scene, kind: k, id: `gallery-${k}` } : { ...sampleScene(k, 0, 300), id: `gallery-${k}` });
+      for (const { kind: k, variant: v } of designsOf(g.kinds))
+        out.set(`${k}-${v}`, source === 'mine' && scene ? { ...scene, kind: k, variant: v, id: `gallery-${k}-${v}` } : { ...sampleScene(k, 0, 300), variant: v, id: `gallery-${k}-${v}` });
     return out;
   }, [source, scene]);
 
   const groups = group === 'all' ? KIND_GROUPS : KIND_GROUPS.filter((g) => g.label === group);
-  const total = KIND_GROUPS.reduce((n, g) => n + g.kinds.length, 0);
+  const total = KIND_GROUPS.reduce((n, g) => n + designsOf(g.kinds).length, 0);
+  const current = (k: SceneKind, v: number) => !!scene && scene.kind === k && (scene.variant ?? 0) === v;
 
   return (
     <div className="modal-back" role="dialog" aria-modal="true" aria-labelledby="gallery-title" onClick={(e) => e.target === e.currentTarget && onClose()}>
@@ -144,13 +150,16 @@ export function KindGallery({ project, scene, renderKey, onPick, onClose }: Prop
           <section key={g.label} className="gallery-group">
             <h3>{g.label}</h3>
             <div className="gallery-grid" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${w + 14}px, 1fr))` }}>
-              {g.kinds.map((k) => (
-                <button type="button" key={k} className={`gallery-card ${scene?.kind === k ? 'active' : ''}`} onClick={() => onPick(k)} aria-pressed={scene ? scene.kind === k : undefined}>
-                  <KindThumb project={project} scene={previews.get(k)!} w={w} h={h} renderKey={renderKey} />
-                  <b>{KIND_LABELS[k]}{scene?.kind === k ? ' ✓' : ''}</b>
-                  <span>{KIND_BLURBS[k]}</span>
-                </button>
-              ))}
+              {designsOf(g.kinds).map(({ kind: k, variant: v }) => {
+                const alt = v ? KIND_VARIANT_LABELS[k]?.[v - 1] : undefined;
+                return (
+                  <button type="button" key={`${k}-${v}`} className={`gallery-card ${current(k, v) ? 'active' : ''}`} onClick={() => onPick(k, v)} aria-pressed={scene ? current(k, v) : undefined}>
+                    <KindThumb project={project} scene={previews.get(`${k}-${v}`)!} w={w} h={h} renderKey={renderKey} />
+                    <b>{alt?.label ?? KIND_LABELS[k]}{current(k, v) ? ' ✓' : ''}</b>
+                    <span>{alt?.blurb ?? KIND_BLURBS[k]}</span>
+                  </button>
+                );
+              })}
             </div>
           </section>
         ))}

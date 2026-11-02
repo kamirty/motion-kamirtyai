@@ -157,3 +157,27 @@ export const KIND_HINTS: Record<SceneKind, string> = {
   capsule: 'العنوان مثل «هل تعلم؟»، والعنصر الأول المعلومة المفاجئة، والثاني ملاحظة أو مصدر (اختياري). تهتز الكبسولة ثم تنفتح.',
   tapsteps: 'كل عنصر خطوة (حتى 6)؛ ينتقل مؤشر إليها وينقرها بالتتابع فتتوهج. اكتب «الخطوة: شرحها» لتنزلق بطاقة الشرح منها عند النقر.',
 };
+
+/** Names and one-line descriptions of each kind's alternative layouts (layout 1, 2, …). */
+export const KIND_VARIANT_LABELS: Partial<Record<SceneKind, { label: string; blurb: string }[]>> = {
+  summary: [
+    { label: 'بطاقات — قائمة', blurb: 'صفوف تنزلق بأيقوناتها' },
+    { label: 'بطاقات — بطاقة تتبدّل', blurb: 'بطاقة كبيرة تتبدّل بالتتابع' },
+  ],
+  steps: [
+    { label: 'خطوات — أسهم', blurb: 'شريط أسهم يشير للطريق' },
+    { label: 'خطوات — أرقام كبيرة', blurb: 'أرقام ضخمة تمتلئ بالتتابع' },
+  ],
+  kpis: [
+    { label: 'أرقام — رقم يتبدّل', blurb: 'عدّاد كبير واحد في كل مرة' },
+    { label: 'أرقام — فقاعات', blurb: 'أرقام داخل فقاعات تطفو' },
+  ],
+  checklist: [{ label: 'قائمة تحقق — بلاطات', blurb: 'بلاطات تنقلب وتُعلَّم' }],
+  comparison: [{ label: 'مقارنة — شاشة مقسومة', blurb: 'لوحات كاملة بينها VS' }],
+  timeline: [{ label: 'خط زمني — بطاقات السنوات', blurb: 'بطاقة لكل حدث بسنته' }],
+  quote: [{ label: 'اقتباس — في المنتصف', blurb: 'اقتباس في إطار بين علامتين' }],
+};
+
+/** Name of a scene's design: the kind, or the kind's alternative layout. */
+export const designLabel = (kind: SceneKind, variant: number | undefined): string =>
+  variant ? KIND_VARIANT_LABELS[kind]?.[variant - 1]?.label ?? KIND_LABELS[kind] : KIND_LABELS[kind];

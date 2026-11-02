@@ -1,3 +1,5 @@
+import { variantOf } from '../variants';
+import { comparisonSplitApplies, drawChecklistTiles, drawComparisonSplit, drawKpisBubbles, drawKpisSpotlight, drawQuoteCentered, drawStepsBigNumbers, drawStepsChevrons, drawSummaryCarousel, drawSummaryList, drawTimelineCards } from './scenes/variants1';
 import { drawTapSteps } from './scenes/tapsteps';
 import { drawBalance, drawCapsule, drawConveyor, drawDecision, drawDomino, drawFolded, drawGears, drawLiquid, drawMagnet, drawMagnifier, drawMosaic, drawNetwork, drawSpotlight } from './scenes/extra3';
 import { alpha, mix, readableOn, textAccent } from '../../design/presets';
@@ -744,4 +746,21 @@ export const SCENE_DRAWERS: Record<Scene['kind'], SceneDrawer> = {
   tapsteps: drawTapSteps,
 };
 
-export const drawScene: SceneDrawer = (args) => (SCENE_DRAWERS[args.scene.kind] ?? drawHero)(args);
+/** Alternative layouts per kind, in the order of KIND_VARIANTS (layout 1, 2, …). */
+const VARIANT_DRAWERS: Partial<Record<Scene['kind'], { draw: SceneDrawer; applies?: (scene: Scene) => boolean }[]>> = {
+  summary: [{ draw: drawSummaryList }, { draw: drawSummaryCarousel }],
+  steps: [{ draw: drawStepsChevrons }, { draw: drawStepsBigNumbers }],
+  kpis: [{ draw: drawKpisSpotlight }, { draw: drawKpisBubbles }],
+  checklist: [{ draw: drawChecklistTiles }],
+  comparison: [{ draw: drawComparisonSplit, applies: comparisonSplitApplies }],
+  timeline: [{ draw: drawTimelineCards }],
+  quote: [{ draw: drawQuoteCentered }],
+};
+export const variantDrawerCount = (kind: Scene['kind']): number => VARIANT_DRAWERS[kind]?.length ?? 0;
+
+export const drawScene: SceneDrawer = (args) => {
+  const v = variantOf(args.scene, args.index ?? 0, args.lively);
+  const alt = v > 0 ? VARIANT_DRAWERS[args.scene.kind]?.[v - 1] : undefined;
+  if (alt && (!alt.applies || alt.applies(args.scene))) return alt.draw(args);
+  return (SCENE_DRAWERS[args.scene.kind] ?? drawHero)(args);
+};
