@@ -55,6 +55,16 @@ export const KIND_ICONS: Record<string, string> = {
   folded: 'scroll',
   capsule: 'pill',
   tapsteps: 'hand',
+  chat: 'message-circle',
+  wordcloud: 'cloud',
+  pins: 'map-pin',
+  notify: 'smartphone',
+  stairs: 'trending-up',
+  podium: 'trophy',
+  clock: 'clock',
+  traffic: 'car',
+  search: 'search',
+  target: 'target',
 };
 
 const shortKeyword = new Map<string, RegExp>();

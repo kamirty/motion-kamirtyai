@@ -9,6 +9,7 @@ export const SCENE_KINDS = [
   'mindmap', 'venn', 'table', 'gauges', 'flowchart', 'profile',
   'spotlight', 'magnifier', 'magnet', 'mosaic', 'liquid', 'domino', 'network', 'balance', 'gears', 'conveyor', 'decision', 'folded', 'capsule',
   'tapsteps',
+  'chat', 'wordcloud', 'pins', 'notify', 'stairs', 'podium', 'clock', 'traffic', 'search', 'target',
 ] as const;
 export type SceneKind = (typeof SCENE_KINDS)[number];
 

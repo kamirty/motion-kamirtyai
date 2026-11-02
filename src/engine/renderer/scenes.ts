@@ -4,6 +4,7 @@ import { drawColumnsHorizontal, drawColumnsLollipop, drawCycleOrbit, drawDefinit
 import { variantOf } from '../variants';
 import { comparisonSplitApplies, drawChecklistTiles, drawComparisonSplit, drawKpisBubbles, drawKpisSpotlight, drawQuoteCentered, drawStepsBigNumbers, drawStepsChevrons, drawSummaryCarousel, drawSummaryList, drawTimelineCards } from './scenes/variants1';
 import { drawTapSteps } from './scenes/tapsteps';
+import { drawChat, drawClock, drawNotify, drawPins, drawPodium, drawSearch, drawStairs, drawTarget, drawTraffic, drawWordCloud } from './scenes/extra4';
 import { drawBalance, drawCapsule, drawConveyor, drawDecision, drawDomino, drawFolded, drawGears, drawLiquid, drawMagnet, drawMagnifier, drawMosaic, drawNetwork, drawSpotlight } from './scenes/extra3';
 import { alpha, mix, readableOn, textAccent } from '../../design/presets';
 import type { Scene } from '../../domain/types';
@@ -747,6 +748,16 @@ export const SCENE_DRAWERS: Record<Scene['kind'], SceneDrawer> = {
   folded: drawFolded,
   capsule: drawCapsule,
   tapsteps: drawTapSteps,
+  chat: drawChat,
+  wordcloud: drawWordCloud,
+  pins: drawPins,
+  notify: drawNotify,
+  stairs: drawStairs,
+  podium: drawPodium,
+  clock: drawClock,
+  traffic: drawTraffic,
+  search: drawSearch,
+  target: drawTarget,
 };
 
 /** Alternative layouts per kind, in the order of KIND_VARIANTS (layout 1, 2, …). */
