@@ -1,5 +1,6 @@
 import { localizeDigits } from '../../design/digits';
 import { FONTS, cssFamily } from '../../design/fonts';
+import { FontPicker } from './FontPicker';
 import { PRESETS, contrast, fullTheme } from '../../design/presets';
 import { MUSIC_OPTIONS } from '../../engine/audio/music';
 import {
@@ -73,7 +74,7 @@ export function Sidebar(p: Props) {
           </span>
           <span className="muted">سطر أول قصير = العنوان</span>
         </div>
-        <details className="tips" open>
+        <details className="tips">
           <summary>كيف أكتب وصفًا يعطي أفضل فيديو؟</summary>
           <ul>
             <li>اكتب <b>عنوانًا</b> في السطر الأول، وسطرًا مثل «الجزء الأول: …» لصنع <b>فاصل قسم</b>.</li>
@@ -139,14 +140,8 @@ export function Sidebar(p: Props) {
         </div>
         {lowContrast && <p className="warn">⚠️ تباين النص مع الخلفية منخفض وقد يصعب قراءته.</p>}
 
-        <label className="label">الخط</label>
-        <div className="fonts">
-          {FONTS.map((f) => (
-            <button type="button" key={f.id} className={f.id === style.font ? 'active' : ''} style={{ fontFamily: cssFamily(f) }} onClick={() => p.onStyle({ font: f.id })}>
-              {f.label.split(' (')[0]}
-            </button>
-          ))}
-        </div>
+        <label className="label" id="font-label">الخط</label>
+        <FontPicker value={style.font} onChange={(font) => p.onStyle({ font })} />
 
         <label className="label">الأرقام</label>
         <div className="seg">
