@@ -1,3 +1,4 @@
+import { fullTheme } from '../../design/presets';
 import { localizeDigits } from '../../design/digits';
 import { LIMITS, styleOf, type Project, type Scene, type SceneImage } from '../../domain/types';
 import { maxSceneFrames } from '../../domain/timeline';
@@ -156,6 +157,7 @@ export function Inspector({ project, index, onChange, onChangeKind, canRecord, v
         onOrder={onImageOrder}
         fps={project.fps}
         sceneFrames={scene.durationFrames}
+        accent={fullTheme(project.theme).accent}
         localFrame={previewFrame >= scene.startFrame && previewFrame < scene.startFrame + scene.durationFrames ? previewFrame - scene.startFrame : null}
       />
 

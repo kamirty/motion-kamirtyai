@@ -6,17 +6,17 @@ import type { Scene, SceneKind } from '../domain/types';
  * position, so the same kind looks different from scene to scene and video to video.
  */
 export const KIND_VARIANTS: Partial<Record<SceneKind, number>> = {
-  summary: 2,
-  steps: 2,
-  kpis: 2,
-  checklist: 1,
+  summary: 3,
+  steps: 3,
+  kpis: 3,
+  checklist: 2,
   comparison: 1,
   timeline: 2,
-  quote: 1,
+  quote: 2,
   stat: 2,
   donut: 2,
   columns: 2,
-  definition: 1,
+  definition: 2,
   tip: 1,
   warning: 1,
   cycle: 1,
@@ -32,6 +32,11 @@ export const KIND_VARIANTS: Partial<Record<SceneKind, number>> = {
   beforeafter: 1,
   mindmap: 1,
   table: 1,
+  gauges: 1,
+  pictogram: 1,
+  flowchart: 1,
+  venn: 1,
+  profile: 1,
 };
 
 /** Number of layouts of a kind, the main one included. */

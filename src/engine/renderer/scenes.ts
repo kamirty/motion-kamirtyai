@@ -1,3 +1,4 @@
+import { drawChecklistNotebook, drawDefinitionFlash, drawFlowchartVertical, drawGaugesBars, drawKpisScoreboard, drawPictogramWaffle, drawProfileId, drawQuoteBubble, drawStepsRoad, drawSummaryFan, drawVennBridge } from './scenes/variants4';
 import { drawBeforeAfterSlider, drawChapterSlab, drawHeroCircle, drawHeroStacked, drawLineArea, drawMindmapBubbles, drawOutroCard, drawQuizShow, drawRankingBars, drawTableCards, drawTrueFalseButtons } from './scenes/variants3';
 import { drawColumnsHorizontal, drawColumnsLollipop, drawCycleOrbit, drawDefinitionDictionary, drawDonutHalf, drawDonutStacked, drawProsConsTug, drawPyramidFunnel, drawStatGiant, drawStatPanel, drawTimelineCalendar, drawTipSticky, drawWarningSign } from './scenes/variants2';
 import { variantOf } from '../variants';
@@ -750,17 +751,17 @@ export const SCENE_DRAWERS: Record<Scene['kind'], SceneDrawer> = {
 
 /** Alternative layouts per kind, in the order of KIND_VARIANTS (layout 1, 2, …). */
 const VARIANT_DRAWERS: Partial<Record<Scene['kind'], { draw: SceneDrawer; applies?: (scene: Scene) => boolean }[]>> = {
-  summary: [{ draw: drawSummaryList }, { draw: drawSummaryCarousel }],
-  steps: [{ draw: drawStepsChevrons }, { draw: drawStepsBigNumbers }],
-  kpis: [{ draw: drawKpisSpotlight }, { draw: drawKpisBubbles }],
-  checklist: [{ draw: drawChecklistTiles }],
+  summary: [{ draw: drawSummaryList }, { draw: drawSummaryCarousel }, { draw: drawSummaryFan }],
+  steps: [{ draw: drawStepsChevrons }, { draw: drawStepsBigNumbers }, { draw: drawStepsRoad }],
+  kpis: [{ draw: drawKpisSpotlight }, { draw: drawKpisBubbles }, { draw: drawKpisScoreboard }],
+  checklist: [{ draw: drawChecklistTiles }, { draw: drawChecklistNotebook }],
   comparison: [{ draw: drawComparisonSplit, applies: comparisonSplitApplies }],
   timeline: [{ draw: drawTimelineCards }, { draw: drawTimelineCalendar }],
-  quote: [{ draw: drawQuoteCentered }],
+  quote: [{ draw: drawQuoteCentered }, { draw: drawQuoteBubble }],
   stat: [{ draw: drawStatGiant }, { draw: drawStatPanel }],
   donut: [{ draw: drawDonutHalf }, { draw: drawDonutStacked }],
   columns: [{ draw: drawColumnsHorizontal }, { draw: drawColumnsLollipop }],
-  definition: [{ draw: drawDefinitionDictionary }],
+  definition: [{ draw: drawDefinitionDictionary }, { draw: drawDefinitionFlash }],
   tip: [{ draw: drawTipSticky }],
   warning: [{ draw: drawWarningSign }],
   cycle: [{ draw: drawCycleOrbit }],
@@ -776,6 +777,11 @@ const VARIANT_DRAWERS: Partial<Record<Scene['kind'], { draw: SceneDrawer; applie
   beforeafter: [{ draw: drawBeforeAfterSlider }],
   mindmap: [{ draw: drawMindmapBubbles }],
   table: [{ draw: drawTableCards, applies: (s) => s.items.length >= 2 }],
+  gauges: [{ draw: drawGaugesBars }],
+  pictogram: [{ draw: drawPictogramWaffle }],
+  flowchart: [{ draw: drawFlowchartVertical }],
+  venn: [{ draw: drawVennBridge }],
+  profile: [{ draw: drawProfileId }],
 };
 export const variantDrawerCount = (kind: Scene['kind']): number => VARIANT_DRAWERS[kind]?.length ?? 0;
 

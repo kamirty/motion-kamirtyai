@@ -147,3 +147,17 @@ describe('picture disappearance time', () => {
     expect(parseImage({ ...DEFAULT_IMAGE, assetId, exitAt: -1 })!.exitAt).toBeUndefined();
   });
 });
+
+describe('picture frame colour', () => {
+  it('keeps a valid colour through save/open, drops anything else, and draws the frame in it', () => {
+    const json = JSON.parse(projectToJson(withImage({ borderColor: '#E53935' })));
+    expect(validate(json), JSON.stringify(validate.errors)).toBe(true);
+    expect(parseProject(json).scenes[1].images![0].borderColor).toBe('#E53935');
+    expect(parseImage({ ...DEFAULT_IMAGE, assetId, borderColor: 'red; background:url(x)' })!.borderColor).toBeUndefined();
+    expect(validate({ ...json, scenes: json.scenes.map((s: { images?: object[] }, i: number) => (i === 1 ? { ...s, images: [{ ...s.images![0], borderColor: 'red' }] } : s)) })).toBe(false);
+    const p = withImage({ borderColor: '#E53935', border: true, entrance: 'none' });
+    const { ctx, ops } = createFakeCtx();
+    renderFrame(p, p.scenes[1].startFrame + 100, ctx);
+    expect(ops.some((o) => o.includes('#E53935'))).toBe(true);
+  });
+});

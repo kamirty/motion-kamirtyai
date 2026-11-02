@@ -38,6 +38,8 @@ export interface SceneImage {
   rotation: number;
   shape: ImageShape;
   border: boolean;
+  /** Frame colour (#RRGGBB); absent = the brand accent. */
+  borderColor?: string;
   shadow: boolean;
   /** 0.1–1 */
   opacity: number;

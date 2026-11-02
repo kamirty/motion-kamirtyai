@@ -17,7 +17,12 @@ interface Props {
   sceneFrames: number;
   /** Preview position inside this scene (frames from its start), or null when it is elsewhere. */
   localFrame: number | null;
+  /** Brand accent, the default frame colour. */
+  accent: string;
 }
+
+/** Quick frame colours besides the brand accent. */
+const FRAME_COLORS = ['#FFFFFF', '#111111', '#E53935', '#43A047', '#1E88E5', '#FDD835', '#8E24AA', '#FB8C00'];
 
 const pct = (v: number, digits: DigitSystem) => localizeDigits(`${Math.round(v * 100)}%`, digits);
 
@@ -29,7 +34,7 @@ const PLACEMENTS = (portrait: boolean): { label: string; patch: Partial<SceneIma
   { label: 'خلفية', patch: { x: 0.5, y: 0.5, scale: portrait ? 1.5 : 1.02, rotation: 0, shape: 'rect', border: false, shadow: false, opacity: 0.3, layer: 'back' } },
 ];
 
-export function ImageControls({ images, active, portrait, digits, onFile, onChange, onPick, onOrder, fps, sceneFrames, localFrame }: Props) {
+export function ImageControls({ images, active, portrait, digits, onFile, onChange, onPick, onOrder, fps, sceneFrames, localFrame, accent }: Props) {
   const image = images[active];
   const full = images.length >= LIMITS.images;
   const upload = (mode: 'add' | 'replace', label: string) => (
@@ -206,8 +211,20 @@ export function ImageControls({ images, active, portrait, digits, onFile, onChan
       </div>
       <label className="check">
         <input type="checkbox" checked={image.border} onChange={(e) => onChange({ border: e.target.checked })} />
-        إطار بلون الهوية
+        إطار حول الصورة
       </label>
+      {image.border && (
+        <div className="frame-colors" role="group" aria-label="لون الإطار">
+          <button type="button" className={`swatch ${!image.borderColor ? 'active' : ''}`} style={{ background: accent }} title="لون الهوية" aria-pressed={!image.borderColor} onClick={() => onChange({ borderColor: undefined })} />
+          {FRAME_COLORS.map((c) => (
+            <button type="button" key={c} className={`swatch ${image.borderColor === c ? 'active' : ''}`} style={{ background: c }} title={c} aria-pressed={image.borderColor === c} onClick={() => onChange({ borderColor: c })} />
+          ))}
+          <label className="swatch custom" title="لون آخر">
+            <input type="color" value={image.borderColor ?? accent} onChange={(e) => onChange({ borderColor: e.target.value.toUpperCase() })} aria-label="اختر لون الإطار" />
+            🎨
+          </label>
+        </div>
+      )}
       <label className="check">
         <input type="checkbox" checked={image.shadow} onChange={(e) => onChange({ shadow: e.target.checked })} />
         ظل
